@@ -192,6 +192,18 @@ public final class NoteStorageManager: ObservableObject {
     }
     
     public func save(note: Note) {
+        // If note already exists, verify something actually changed before updating timestamp and re-sorting
+        if let existing = notes.first(where: { $0.id == note.id }) {
+            if existing.title == note.title &&
+               existing.content == note.content &&
+               existing.categoryType == note.categoryType &&
+               existing.targetName == note.targetName &&
+               existing.tags == note.tags &&
+               existing.isPinned == note.isPinned {
+                return
+            }
+        }
+        
         var updatedNote = note
         updatedNote.updatedAt = Date()
         

@@ -7,8 +7,8 @@ public struct NoteDetailEditorView: View {
     
     var note: Note
     
-    @State private var editableTitle: String = ""
-    @State private var editableContent: String = ""
+    @State private var editableTitle: String
+    @State private var editableContent: String
     @State private var editorMode: EditorMode = .edit
     @State private var saveDebounceTimer: Timer?
     @State private var showingDeleteAlert = false
@@ -29,6 +29,8 @@ public struct NoteDetailEditorView: View {
     
     public init(note: Note) {
         self.note = note
+        self._editableTitle = State(initialValue: note.title)
+        self._editableContent = State(initialValue: note.content)
     }
     
     private var currentDestinationIcon: String {
@@ -55,8 +57,10 @@ public struct NoteDetailEditorView: View {
                 TextField("Note Title", text: $editableTitle)
                     .font(.system(size: 18, weight: .semibold))
                     .textFieldStyle(.plain)
-                    .onChange(of: editableTitle) { _, _ in
-                        scheduleSave()
+                    .onChange(of: editableTitle) { _, newTitle in
+                        if newTitle != note.title {
+                            scheduleSave()
+                        }
                     }
                 
                 Spacer()
@@ -161,8 +165,10 @@ public struct NoteDetailEditorView: View {
                         .lineSpacing(4)
                         .padding(16)
                         .scrollContentBackground(.hidden)
-                        .onChange(of: editableContent) { _, _ in
-                            scheduleSave()
+                        .onChange(of: editableContent) { _, newContent in
+                            if newContent != note.content {
+                                scheduleSave()
+                            }
                         }
                     
                 case .split:
@@ -172,8 +178,10 @@ public struct NoteDetailEditorView: View {
                             .lineSpacing(4)
                             .padding(16)
                             .scrollContentBackground(.hidden)
-                            .onChange(of: editableContent) { _, _ in
-                                scheduleSave()
+                            .onChange(of: editableContent) { _, newContent in
+                                if newContent != note.content {
+                                    scheduleSave()
+                                }
                             }
                         
                         Divider()
@@ -234,6 +242,10 @@ public struct NoteDetailEditorView: View {
         .onAppear {
             syncFromNote()
         }
+        .onDisappear {
+            saveDebounceTimer?.invalidate()
+            saveDebounceTimer = nil
+        }
         .onChange(of: note.id) { _, _ in
             syncFromNote()
         }
@@ -248,13 +260,20 @@ public struct NoteDetailEditorView: View {
     }
     
     private func syncFromNote() {
-        editableTitle = note.title
-        editableContent = note.content
+        saveDebounceTimer?.invalidate()
+        saveDebounceTimer = nil
+        if editableTitle != note.title {
+            editableTitle = note.title
+        }
+        if editableContent != note.content {
+            editableContent = note.content
+        }
     }
     
     private func scheduleSave() {
         saveDebounceTimer?.invalidate()
         saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
+            guard editableTitle != note.title || editableContent != note.content else { return }
             var updated = note
             updated.title = editableTitle
             updated.content = editableContent
