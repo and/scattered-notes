@@ -1,0 +1,49 @@
+name: ScatteredNotes
+options:
+  bundleIdPrefix: com.scatterednotes
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16.0"
+
+settings:
+  MACOSX_DEPLOYMENT_TARGET: "14.0"
+  SWIFT_VERSION: "6.0"
+  CODE_SIGN_IDENTITY: "-"
+  CODE_SIGNING_REQUIRED: "NO"
+  ENABLE_HARDENED_RUNTIME: "NO"
+  GENERATE_INFOPLIST_FILE: "YES"
+
+targets:
+  ScatteredNotes:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources
+      - path: Resources
+    info:
+      path: Sources/App/Info.plist
+      properties:
+        CFBundleDisplayName: "Scattered Notes"
+        CFBundleIdentifier: "com.scatterednotes.app"
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "1"
+        CFBundleIconFile: "AppIcon"
+        LSMinimumSystemVersion: "14.0"
+        NSHighResolutionCapable: true
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.scatterednotes.app
+      INFOPLIST_FILE: Sources/App/Info.plist
+      GENERATE_INFOPLIST_FILE: "NO"
+
+  ScatteredNotesTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Tests/ScatteredNotesTests
+    dependencies:
+      - target: ScatteredNotes
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.scatterednotes.app.tests
+      GENERATE_INFOPLIST_FILE: "YES"
