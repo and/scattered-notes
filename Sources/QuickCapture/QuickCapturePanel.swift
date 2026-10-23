@@ -6,7 +6,7 @@ public final class QuickCapturePanel: NSPanel {
     
     private init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 620, height: 320),
+            contentRect: NSRect(x: 0, y: 0, width: 660, height: 390),
             styleMask: [.titled, .nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
             defer: false

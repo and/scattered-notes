@@ -55,170 +55,119 @@ public struct QuickCaptureView: View {
     
     public var body: some View {
         VStack(spacing: 0) {
-            // Top Bar: Destination Pill Picker & Status
-            HStack {
-                Menu {
-                    Button(action: { selectedDestination = .inbox }) {
-                        Label("Inbox", systemImage: "tray.fill")
-                    }
-                    
-                    if !storageManager.projects.isEmpty {
-                        Divider()
-                        Section("Projects") {
-                            ForEach(storageManager.projects) { proj in
-                                Button(action: { selectedDestination = .project(name: proj.name) }) {
-                                    Label(proj.name, systemImage: "folder.fill")
-                                }
-                            }
-                        }
-                    }
-                    
-                    if !storageManager.areas.isEmpty {
-                        Divider()
-                        Section("Areas") {
-                            ForEach(storageManager.areas) { area in
-                                Button(action: { selectedDestination = .area(name: area.name) }) {
-                                    Label(area.name, systemImage: "square.stack.3d.up.fill")
-                                }
-                            }
-                        }
-                    }
-                    
-                    Divider()
-                    Button(action: {
-                        newCategoryType = .project
-                        showingNewProjectDialog = true
-                    }) {
-                        Label("New Project...", systemImage: "plus")
-                    }
-                    Button(action: {
-                        newCategoryType = .area
-                        showingNewProjectDialog = true
-                    }) {
-                        Label("New Area...", systemImage: "plus")
-                    }
-                } label: {
+            // Unified Top Bar: Destination chips, + Button, and Close
+            HStack(spacing: 8) {
+                ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
-                        Image(systemName: selectedDestination.iconName)
-                            .foregroundColor(.accentColor)
-                        Text(selectedDestination.displayName)
-                            .fontWeight(.medium)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.secondary)
+                        Button(action: { selectedDestination = .inbox }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "tray.fill")
+                                    .font(.system(size: 11))
+                                Text("Inbox")
+                                    .font(.system(size: 12, weight: selectedDestination == .inbox ? .semibold : .medium))
+                            }
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 5)
+                            .background(selectedDestination == .inbox ? Color.accentColor.opacity(0.18) : Color(NSColor.controlBackgroundColor).opacity(0.6))
+                            .foregroundColor(selectedDestination == .inbox ? .accentColor : .secondary)
+                            .cornerRadius(7)
+                            .overlay(RoundedRectangle(cornerRadius: 7).stroke(selectedDestination == .inbox ? Color.accentColor : Color.clear, lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        
+                        ForEach(storageManager.projects) { proj in
+                            Button(action: { selectedDestination = .project(name: proj.name) }) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: proj.iconName)
+                                        .font(.system(size: 11))
+                                    Text(proj.name)
+                                        .font(.system(size: 12, weight: selectedDestination == .project(name: proj.name) ? .semibold : .medium))
+                                }
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 5)
+                                .background(selectedDestination == .project(name: proj.name) ? Color.purple.opacity(0.2) : Color(NSColor.controlBackgroundColor).opacity(0.6))
+                                .foregroundColor(selectedDestination == .project(name: proj.name) ? .purple : .secondary)
+                                .cornerRadius(7)
+                                .overlay(RoundedRectangle(cornerRadius: 7).stroke(selectedDestination == .project(name: proj.name) ? Color.purple : Color.clear, lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        
+                        ForEach(storageManager.areas) { area in
+                            Button(action: { selectedDestination = .area(name: area.name) }) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: area.iconName)
+                                        .font(.system(size: 11))
+                                    Text(area.name)
+                                        .font(.system(size: 12, weight: selectedDestination == .area(name: area.name) ? .semibold : .medium))
+                                }
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 5)
+                                .background(selectedDestination == .area(name: area.name) ? Color.green.opacity(0.2) : Color(NSColor.controlBackgroundColor).opacity(0.6))
+                                .foregroundColor(selectedDestination == .area(name: area.name) ? .green : .secondary)
+                                .cornerRadius(7)
+                                .overlay(RoundedRectangle(cornerRadius: 7).stroke(selectedDestination == .area(name: area.name) ? Color.green : Color.clear, lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        
+                        // Inline auto-detected candidate project
+                        if case .project(let name) = selectedDestination,
+                           !storageManager.projects.contains(where: { $0.name.lowercased() == name.lowercased() }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 11))
+                                Text("New: \(name)")
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 5)
+                            .background(Color.purple.opacity(0.3))
+                            .foregroundColor(.purple)
+                            .cornerRadius(7)
+                        }
+                        
+                        // Add Project/Area Button
+                        Menu {
+                            Button(action: {
+                                newCategoryType = .project
+                                showingNewProjectDialog = true
+                            }) {
+                                Label("New Project...", systemImage: "folder.badge.plus")
+                            }
+                            Button(action: {
+                                newCategoryType = .area
+                                showingNewProjectDialog = true
+                            }) {
+                                Label("New Area...", systemImage: "square.stack.3d.up.badge.automatic")
+                            }
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 11, weight: .bold))
+                                .padding(5)
+                                .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
+                                .cornerRadius(6)
+                                .foregroundColor(.secondary)
+                        }
+                        .menuStyle(.borderlessButton)
+                        .help("Add new project or area")
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color(NSColor.controlBackgroundColor).opacity(0.8))
-                    .cornerRadius(8)
+                    .padding(.leading, 14)
+                    .padding(.trailing, 8)
+                    .padding(.vertical, 10)
                 }
-                .menuStyle(.borderlessButton)
-                
-                Spacer()
-                
-                Text("Quick Capture")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
                 
                 Button(action: { onDismiss() }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.secondary.opacity(0.7))
                 }
                 .buttonStyle(.plain)
+                .padding(.trailing, 14)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
             
             Divider()
-                .opacity(0.4)
-            
-            // Quick Project Suggestion / Tagging Chips
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    Text("Destination:")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .padding(.leading, 12)
-                    
-                    Button(action: { selectedDestination = .inbox }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "tray.fill")
-                                .font(.system(size: 10))
-                            Text("Inbox")
-                                .font(.system(size: 11))
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(selectedDestination == .inbox ? Color.accentColor.opacity(0.2) : Color(NSColor.controlBackgroundColor))
-                        .foregroundColor(selectedDestination == .inbox ? .accentColor : .primary)
-                        .cornerRadius(6)
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(selectedDestination == .inbox ? Color.accentColor : Color.clear, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                    
-                    ForEach(storageManager.projects) { proj in
-                        Button(action: { selectedDestination = .project(name: proj.name) }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: proj.iconName)
-                                    .font(.system(size: 10))
-                                Text(proj.name)
-                                    .font(.system(size: 11))
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(selectedDestination == .project(name: proj.name) ? Color.purple.opacity(0.2) : Color(NSColor.controlBackgroundColor))
-                            .foregroundColor(selectedDestination == .project(name: proj.name) ? .purple : .primary)
-                            .cornerRadius(6)
-                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(selectedDestination == .project(name: proj.name) ? Color.purple : Color.clear, lineWidth: 1))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    
-                    ForEach(storageManager.areas) { area in
-                        Button(action: { selectedDestination = .area(name: area.name) }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: area.iconName)
-                                    .font(.system(size: 10))
-                                Text(area.name)
-                                    .font(.system(size: 11))
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(selectedDestination == .area(name: area.name) ? Color.green.opacity(0.2) : Color(NSColor.controlBackgroundColor))
-                            .foregroundColor(selectedDestination == .area(name: area.name) ? .green : .primary)
-                            .cornerRadius(6)
-                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(selectedDestination == .area(name: area.name) ? Color.green : Color.clear, lineWidth: 1))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    
-                    // If inline detection found a new candidate project not yet created
-                    if case .project(let name) = selectedDestination,
-                       !storageManager.projects.contains(where: { $0.name.lowercased() == name.lowercased() }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 10))
-                            Text("New: \(name)")
-                                .font(.system(size: 11, weight: .bold))
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.purple.opacity(0.3))
-                        .foregroundColor(.purple)
-                        .cornerRadius(6)
-                    }
-                }
-                .padding(.vertical, 6)
-                .padding(.trailing, 12)
-            }
-            .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
-            
-            Divider()
-                .opacity(0.3)
+                .opacity(0.35)
             
             // Text Editor Area
             ZStack(alignment: .topLeading) {
@@ -241,7 +190,7 @@ public struct QuickCaptureView: View {
                         detectInlineProjectTag(in: newText)
                     }
             }
-            .frame(minHeight: 180, maxHeight: .infinity)
+            .frame(minHeight: 250, maxHeight: .infinity)
             
             Divider()
                 .opacity(0.4)
@@ -275,7 +224,7 @@ public struct QuickCaptureView: View {
             .padding(.vertical, 10)
             .background(Color(NSColor.windowBackgroundColor).opacity(0.4))
         }
-        .frame(minWidth: 580, minHeight: 300)
+        .frame(minWidth: 660, minHeight: 390)
         .onAppear {
             isEditorFocused = true
         }

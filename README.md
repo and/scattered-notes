@@ -6,6 +6,10 @@ A high-performance, native macOS quick note-taking app designed for rapid captur
 ![Swift 6](https://img.shields.io/badge/Swift-6.0-orange)
 ![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-green)
 
+<p align="center">
+  <img src="docs/quick-capture.png" alt="Scattered Notes Quick Capture HUD" width="680" />
+</p>
+
 ---
 
 ## Features
