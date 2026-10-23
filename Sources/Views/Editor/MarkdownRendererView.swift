@@ -43,25 +43,25 @@ public struct MarkdownRendererView: View {
         } else if trimmed.hasPrefix("> ") {
             HStack(spacing: 8) {
                 Rectangle()
-                    .fill(Color.accentColor.opacity(0.8))
+                    .fill(Color.wcagBlue)
                     .frame(width: 4)
                 Text(trimmed.dropFirst(2))
                     .italic()
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.wcagSecondaryText)
             }
             .padding(.vertical, 2)
         } else if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") {
             HStack(alignment: .top, spacing: 6) {
                 Text("•")
                     .font(.body)
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(.wcagBlue)
                 Text(trimmed.dropFirst(2))
                     .font(.body)
             }
         } else if trimmed.hasPrefix("```") {
             Text(trimmed)
                 .font(.system(.caption, design: .monospaced))
-                .foregroundColor(.secondary)
+                .foregroundColor(.wcagSecondaryText)
         } else if !trimmed.isEmpty {
             // Standard line with inline markdown formatting support
             Text(parseInlineMarkdown(trimmed))
@@ -90,15 +90,15 @@ public struct MarkdownRendererView: View {
                 toggleLineCheck(lineIndex: lineIndex)
             }) {
                 Image(systemName: isChecked ? "checkmark.square.fill" : "square")
-                    .foregroundColor(isChecked ? .accentColor : .secondary)
+                    .foregroundColor(isChecked ? .wcagBlue : .wcagSecondaryText)
                     .font(.system(size: 15))
             }
             .buttonStyle(.plain)
             
             Text(parseInlineMarkdown(taskText))
                 .font(.system(size: 14))
-                .strikethrough(isChecked, color: .secondary)
-                .foregroundColor(isChecked ? .secondary : .primary)
+                .strikethrough(isChecked, color: .wcagSecondaryText)
+                .foregroundColor(isChecked ? .wcagSecondaryText : .primary)
         }
         .padding(.vertical, 1)
     }

@@ -71,13 +71,13 @@ public struct NoteListView: View {
                 HStack {
                     HStack(spacing: 6) {
                         Image(systemName: "magnifyingglass")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.wcagSecondaryText)
                         TextField("Search notes or #tags...", text: $searchText)
                             .textFieldStyle(.plain)
                         if !searchText.isEmpty {
                             Button(action: { searchText = "" }) {
                                 Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(.wcagSecondaryText)
                             }
                             .buttonStyle(.plain)
                         }
@@ -100,7 +100,7 @@ public struct NoteListView: View {
                     } label: {
                         Image(systemName: "arrow.up.arrow.down")
                             .font(.system(size: 13))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.wcagSecondaryText)
                     }
                     .menuStyle(.borderlessButton)
                     .frame(width: 24)
@@ -109,7 +109,7 @@ public struct NoteListView: View {
                     Button(action: { createNewNoteInCurrentCategory() }) {
                         Image(systemName: "square.and.pencil")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(.wcagBlue)
                     }
                     .buttonStyle(.plain)
                     .help("New Note (⌘N)")
@@ -128,10 +128,10 @@ public struct NoteListView: View {
                     Spacer()
                     Image(systemName: "note.text")
                         .font(.system(size: 36))
-                        .foregroundColor(.secondary.opacity(0.5))
+                        .foregroundColor(.wcagSecondaryText.opacity(0.6))
                     Text(searchText.isEmpty ? "No notes yet" : "No notes found")
                         .font(.headline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.wcagSecondaryText)
                     if searchText.isEmpty {
                         Button("Create Note") {
                             createNewNoteInCurrentCategory()
@@ -244,7 +244,7 @@ public struct NoteCardRow: View {
                 if note.isPinned {
                     Image(systemName: "pin.fill")
                         .font(.system(size: 10))
-                        .foregroundColor(.orange)
+                        .foregroundColor(.wcagOrange)
                 }
                 
                 Text(note.displayTitle)
@@ -255,13 +255,13 @@ public struct NoteCardRow: View {
                 
                 Text(note.updatedAt.formatted(date: .numeric, time: .omitted))
                     .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.wcagSecondaryText)
             }
             
             if !note.previewExcerpt.isEmpty {
                 Text(note.previewExcerpt)
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.wcagSecondaryText)
                     .lineLimit(2)
             }
             
@@ -271,10 +271,10 @@ public struct NoteCardRow: View {
                         Image(systemName: destinationIcon)
                         Text(note.destinationDisplay)
                     }
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 10, weight: .semibold))
                     .padding(.horizontal, 5)
                     .padding(.vertical, 2)
-                    .background(badgeColor.opacity(0.12))
+                    .background(badgeColor.opacity(0.15))
                     .foregroundColor(badgeColor)
                     .cornerRadius(4)
                 }
@@ -285,7 +285,7 @@ public struct NoteCardRow: View {
                         Text("\(stats.completed)/\(stats.total)")
                     }
                     .font(.system(size: 10))
-                    .foregroundColor(stats.completed == stats.total ? .green : .secondary)
+                    .foregroundColor(stats.completed == stats.total ? .wcagGreen : .wcagSecondaryText)
                 }
                 
                 Spacer()
@@ -293,7 +293,7 @@ public struct NoteCardRow: View {
                 if let firstTag = note.tags.first {
                     Text("#\(firstTag)")
                         .font(.system(size: 10))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.wcagSecondaryText)
                 }
             }
             .padding(.top, 2)
@@ -313,9 +313,9 @@ public struct NoteCardRow: View {
     
     private var badgeColor: Color {
         switch note.categoryType {
-        case .inbox: return .orange
-        case .project: return .purple
-        case .area: return .green
+        case .inbox: return .wcagOrange
+        case .project: return .wcagPurple
+        case .area: return .wcagGreen
         }
     }
 }

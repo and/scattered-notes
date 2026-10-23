@@ -23,13 +23,13 @@ public struct MainSplitView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "square.and.pencil")
                         .font(.system(size: 44))
-                        .foregroundColor(.secondary.opacity(0.4))
+                        .foregroundColor(.wcagSecondaryText.opacity(0.6))
                     Text("Select a note to view or edit")
                         .font(.title3)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.wcagSecondaryText)
                     Text("Press ⌥N anywhere to capture a quick note")
                         .font(.subheadline)
-                        .foregroundColor(.secondary.opacity(0.7))
+                        .foregroundColor(.wcagSecondaryText)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }

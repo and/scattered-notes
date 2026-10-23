@@ -38,7 +38,7 @@ public struct SidebarView: View {
                         Text("All Notes")
                     } icon: {
                         Image(systemName: "tray.2.fill")
-                            .foregroundColor(.blue)
+                            .foregroundColor(.wcagBlue)
                     }
                     .badge(storageManager.notes.count)
                 }
@@ -48,7 +48,7 @@ public struct SidebarView: View {
                         Text("Inbox")
                     } icon: {
                         Image(systemName: "tray.fill")
-                            .foregroundColor(.orange)
+                            .foregroundColor(.wcagOrange)
                     }
                     .badge(storageManager.notes.filter { $0.categoryType == .inbox }.count)
                 }
@@ -61,7 +61,7 @@ public struct SidebarView: View {
                             Text(project.name)
                         } icon: {
                             Image(systemName: project.iconName)
-                                .foregroundColor(.purple)
+                                .foregroundColor(.wcagPurple)
                         }
                         .badge(storageManager.notes.filter { $0.categoryType == .project && $0.targetName == project.name }.count)
                     }
@@ -86,7 +86,7 @@ public struct SidebarView: View {
                     Button(action: { showingNewProjectDialog = true }) {
                         Image(systemName: "plus")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.wcagSecondaryText)
                     }
                     .buttonStyle(.plain)
                     .help("Add New Project")
@@ -100,7 +100,7 @@ public struct SidebarView: View {
                             Text(area.name)
                         } icon: {
                             Image(systemName: area.iconName)
-                                .foregroundColor(.green)
+                                .foregroundColor(.wcagGreen)
                         }
                         .badge(storageManager.notes.filter { $0.categoryType == .area && $0.targetName == area.name }.count)
                     }
@@ -125,7 +125,7 @@ public struct SidebarView: View {
                     Button(action: { showingNewAreaDialog = true }) {
                         Image(systemName: "plus")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.wcagSecondaryText)
                     }
                     .buttonStyle(.plain)
                     .help("Add New Area")
@@ -144,7 +144,7 @@ public struct SidebarView: View {
                             .font(.caption)
                     }
                     .buttonStyle(.plain)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.wcagSecondaryText)
                     
                     Spacer()
                     
@@ -156,14 +156,15 @@ public struct SidebarView: View {
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .padding(.horizontal, 4)
                                 .padding(.vertical, 1)
-                                .background(Color.secondary.opacity(0.2))
+                                .background(Color.wcagBadgeBackground)
                                 .cornerRadius(3)
+                                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.wcagBorder, lineWidth: 1))
                             Text("Quick Note")
                                 .font(.caption)
                         }
                     }
                     .buttonStyle(.plain)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.wcagSecondaryText)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)

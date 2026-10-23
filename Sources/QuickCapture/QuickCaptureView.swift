@@ -53,6 +53,14 @@ public struct QuickCaptureView: View {
         self.onDismiss = onDismiss
     }
     
+    private var destinationColor: Color {
+        switch selectedDestination.categoryType {
+        case .inbox: return .wcagOrange
+        case .project: return .wcagPurple
+        case .area: return .wcagGreen
+        }
+    }
+    
     public var body: some View {
         VStack(spacing: 0) {
             // Compact, Elegant Header: Single Destination Pill & Close
@@ -101,17 +109,19 @@ public struct QuickCaptureView: View {
                     HStack(spacing: 6) {
                         Image(systemName: selectedDestination.iconName)
                             .font(.system(size: 12))
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(destinationColor)
                         Text(selectedDestination.displayName)
                             .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(destinationColor)
                         Image(systemName: "chevron.up.chevron.down")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.wcagSecondaryText)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(Color(NSColor.controlBackgroundColor).opacity(0.8))
+                    .background(Color.wcagBadgeBackground)
                     .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(destinationColor.opacity(0.3), lineWidth: 1))
                 }
                 .menuStyle(.borderlessButton)
                 
@@ -120,7 +130,7 @@ public struct QuickCaptureView: View {
                 Button(action: { onDismiss() }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(.secondary.opacity(0.7))
+                        .foregroundColor(.wcagSecondaryText)
                 }
                 .buttonStyle(.plain)
             }
@@ -137,7 +147,7 @@ public struct QuickCaptureView: View {
                     Text("Type a quick note, thought, or checklist...\nTip: Type +Project, @Project, or [[Project]] to assign to a project inline.")
                         .font(.system(size: 15))
                         .lineSpacing(4)
-                        .foregroundColor(.secondary.opacity(0.6))
+                        .foregroundColor(.wcagPlaceholderText)
                         .padding(.leading, 21)
                         .padding(.top, 14)
                         .padding(.trailing, 16)
@@ -177,8 +187,8 @@ public struct QuickCaptureView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(noteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray.opacity(0.3) : Color.accentColor)
-                    .foregroundColor(.white)
+                    .background(noteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.wcagBorder.opacity(0.3) : Color.wcagBlue)
+                    .foregroundColor(noteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.wcagSecondaryText : Color.white)
                     .cornerRadius(7)
                 }
                 .buttonStyle(.plain)
@@ -326,14 +336,15 @@ public struct ShortcutBadge: View {
         HStack(spacing: 4) {
             Text(key)
                 .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundColor(.primary)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
                 .background(Color(NSColor.controlBackgroundColor).opacity(0.9))
                 .cornerRadius(4)
-                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.2), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.wcagBorder, lineWidth: 1))
             Text(label)
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.wcagSecondaryText)
         }
     }
 }
@@ -369,7 +380,7 @@ public struct NewProjectAreaSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Choose Icon")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.wcagSecondaryText)
                 
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 6), spacing: 8) {
                     ForEach(availableIcons, id: \.self) { icon in
@@ -377,12 +388,12 @@ public struct NewProjectAreaSheet: View {
                             Image(systemName: icon)
                                 .font(.system(size: 16))
                                 .frame(width: 36, height: 36)
-                                .background(selectedIcon == icon ? Color.accentColor.opacity(0.25) : Color(NSColor.controlBackgroundColor))
-                                .foregroundColor(selectedIcon == icon ? .accentColor : .secondary)
+                                .background(selectedIcon == icon ? Color.wcagBlue.opacity(0.2) : Color(NSColor.controlBackgroundColor))
+                                .foregroundColor(selectedIcon == icon ? .wcagBlue : .wcagSecondaryText)
                                 .cornerRadius(8)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .stroke(selectedIcon == icon ? Color.accentColor : Color.clear, lineWidth: 1.5)
+                                        .stroke(selectedIcon == icon ? Color.wcagBlue : Color.clear, lineWidth: 1.5)
                                 )
                         }
                         .buttonStyle(.plain)

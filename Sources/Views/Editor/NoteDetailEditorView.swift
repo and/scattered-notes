@@ -50,6 +50,14 @@ public struct NoteDetailEditorView: View {
         }
     }
     
+    private var destinationColor: Color {
+        switch note.categoryType {
+        case .inbox: return .wcagOrange
+        case .project: return .wcagPurple
+        case .area: return .wcagGreen
+        }
+    }
+    
     public var body: some View {
         VStack(spacing: 0) {
             // Header: Title, Category Picker, Actions
@@ -95,17 +103,19 @@ public struct NoteDetailEditorView: View {
                 } label: {
                     HStack(spacing: 5) {
                         Image(systemName: currentDestinationIcon)
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(destinationColor)
                         Text(note.destinationDisplay)
                             .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(destinationColor)
                         Image(systemName: "chevron.up.chevron.down")
                             .font(.system(size: 8, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.wcagSecondaryText)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(Color.accentColor.opacity(0.12))
+                    .background(Color.wcagBadgeBackground)
                     .cornerRadius(6)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(destinationColor.opacity(0.3), lineWidth: 1))
                 }
                 .menuStyle(.borderlessButton)
                 
@@ -123,7 +133,7 @@ public struct NoteDetailEditorView: View {
                     storageManager.togglePin(note: note)
                 }) {
                     Image(systemName: note.isPinned ? "pin.fill" : "pin")
-                        .foregroundColor(note.isPinned ? .orange : .secondary)
+                        .foregroundColor(note.isPinned ? .wcagOrange : .wcagSecondaryText)
                 }
                 .buttonStyle(.plain)
                 .help(note.isPinned ? "Unpin Note" : "Pin Note")
@@ -134,7 +144,7 @@ public struct NoteDetailEditorView: View {
                         NSWorkspace.shared.activateFileViewerSelecting([path])
                     }) {
                         Image(systemName: "folder")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.wcagSecondaryText)
                     }
                     .buttonStyle(.plain)
                     .help("Reveal file in Finder")
@@ -145,7 +155,7 @@ public struct NoteDetailEditorView: View {
                     showingDeleteAlert = true
                 }) {
                     Image(systemName: "trash")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.wcagSecondaryText)
                 }
                 .buttonStyle(.plain)
                 .help("Delete Note")
@@ -208,12 +218,12 @@ public struct NoteDetailEditorView: View {
                         Text("\(stats.completed)/\(stats.total) tasks")
                     }
                     .font(.caption)
-                    .foregroundColor(stats.completed == stats.total ? .green : .secondary)
+                    .foregroundColor(stats.completed == stats.total ? .wcagGreen : .wcagSecondaryText)
                 }
                 
                 Text("Last modified \(note.updatedAt.formatted(date: .abbreviated, time: .shortened))")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.wcagSecondaryText)
                 
                 Spacer()
                 
@@ -224,16 +234,17 @@ public struct NoteDetailEditorView: View {
                                 .font(.caption2)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.accentColor.opacity(0.12))
-                                .foregroundColor(.accentColor)
+                                .background(Color.wcagBadgeBackground)
+                                .foregroundColor(.wcagBlue)
                                 .cornerRadius(4)
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.wcagBlue.opacity(0.3), lineWidth: 0.5))
                         }
                     }
                 }
                 
                 Text("\(editableContent.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count) words")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.wcagSecondaryText)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
