@@ -112,4 +112,57 @@ final class NoteStorageTests: XCTestCase {
         XCTAssertNotNil(appProject)
         XCTAssertEqual(appProject?.iconName, "rocket.fill")
     }
+    
+    func testRemoveProjectTagFromContent() {
+        // Tag at end of sentence
+        XCTAssertEqual(
+            Note.removeProjectTag(from: "Buy groceries @groceries", targetName: "groceries"),
+            "Buy groceries"
+        )
+        // Tag with punctuation at end
+        XCTAssertEqual(
+            Note.removeProjectTag(from: "Buy groceries @groceries.", targetName: "groceries"),
+            "Buy groceries."
+        )
+        // Tag at start
+        XCTAssertEqual(
+            Note.removeProjectTag(from: "@groceries Buy groceries", targetName: "groceries"),
+            "Buy groceries"
+        )
+        // Tag in middle
+        XCTAssertEqual(
+            Note.removeProjectTag(from: "Buy @groceries for dinner", targetName: "groceries"),
+            "Buy for dinner"
+        )
+        // Tag with colon
+        XCTAssertEqual(
+            Note.removeProjectTag(from: "@groceries: buy milk, eggs", targetName: "groceries"),
+            "buy milk, eggs"
+        )
+        // Checklist task with tag
+        XCTAssertEqual(
+            Note.removeProjectTag(from: "- [ ] Call dentist @health", targetName: "health"),
+            "- [ ] Call dentist"
+        )
+        // Email address preserved (not stripped)
+        XCTAssertEqual(
+            Note.removeProjectTag(from: "Contact user@groceries.com for info", targetName: "groceries"),
+            "Contact user@groceries.com for info"
+        )
+        // Project name with spaces
+        XCTAssertEqual(
+            Note.removeProjectTag(from: "Review PR @MobileApp", targetName: "Mobile App"),
+            "Review PR"
+        )
+        // Plus prefix tag
+        XCTAssertEqual(
+            Note.removeProjectTag(from: "Fix crash +MobileApp #bug", targetName: "MobileApp"),
+            "Fix crash #bug"
+        )
+        // Wiki link
+        XCTAssertEqual(
+            Note.removeProjectTag(from: "Daily jog [[Health]]", targetName: "Health"),
+            "Daily jog"
+        )
+    }
 }

@@ -138,6 +138,45 @@ final class EndToEndFeatureTests: XCTestCase {
         XCTAssertEqual(note.destinationDisplay, "Health")
     }
     
+    // MARK: - 4b. Inline @Project Tagging and Content Stripping
+    @MainActor
+    func testE2E_AtProjectTaggingAndContentStripping() {
+        let projectName = "ClientPortal"
+        storageManager.createProject(name: projectName, icon: "globe")
+        
+        let rawInput = "Review API authentication flow @ClientPortal #security"
+        
+        // When captured via Quick Capture, the inline project tag routes to ClientPortal
+        // and @ClientPortal is removed from the content
+        let cleanedContent = Note.removeProjectTag(from: rawInput, targetName: projectName)
+        XCTAssertEqual(cleanedContent, "Review API authentication flow #security")
+        XCTAssertFalse(cleanedContent.contains("@ClientPortal"))
+        
+        let note = storageManager.createNote(
+            title: "",
+            content: cleanedContent,
+            category: .project,
+            targetName: projectName,
+            tags: ["security"]
+        )
+        
+        // Verify destination and path
+        let projectDir = storageManager.projectsURL.appendingPathComponent(projectName)
+        XCTAssertEqual(note.filePath?.deletingLastPathComponent().path, projectDir.path)
+        XCTAssertEqual(note.targetName, projectName)
+        
+        // Verify disk content contains clean text without @ClientPortal
+        guard let fileURL = note.filePath,
+              let contentOnDisk = try? String(contentsOf: fileURL, encoding: .utf8) else {
+            XCTFail("Missing note file")
+            return
+        }
+        
+        XCTAssertTrue(contentOnDisk.contains("target: \"ClientPortal\""))
+        XCTAssertTrue(contentOnDisk.contains("Review API authentication flow #security"))
+        XCTAssertFalse(contentOnDisk.contains("@ClientPortal"))
+    }
+    
     // MARK: - 5. Interactive Checklist Interactivity & Progress Tracking
     @MainActor
     func testE2E_InteractiveChecklistProgress() {

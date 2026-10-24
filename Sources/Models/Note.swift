@@ -228,3 +228,57 @@ extension Note {
         return note
     }
 }
+
+// MARK: - Inline Project Tag Cleansing
+extension Note {
+    /// Removes inline project tags (e.g. `@project`, `+project`, `p:project`, `[[project]]`)
+    /// from the note content so the body text remains clean and concise.
+    public static func removeProjectTag(from text: String, targetName: String?) -> String {
+        guard let target = targetName?.trimmingCharacters(in: .whitespacesAndNewlines), !target.isEmpty else {
+            return text
+        }
+        
+        let escapedRaw = NSRegularExpression.escapedPattern(for: target)
+        let noSpace = target.replacingOccurrences(of: " ", with: "")
+        let escapedNoSpace = NSRegularExpression.escapedPattern(for: noSpace)
+        let noPunct = target
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: "_", with: "")
+        let escapedNoPunct = NSRegularExpression.escapedPattern(for: noPunct)
+        
+        var targetPatterns = [escapedRaw, escapedNoSpace, escapedNoPunct]
+        targetPatterns = Array(Set(targetPatterns))
+        let targetRegexPart = targetPatterns.joined(separator: "|")
+        
+        var lines = text.components(separatedBy: .newlines)
+        
+        guard let p1 = try? NSRegularExpression(pattern: "^(?:@|\\+|p:)(?:" + targetRegexPart + ")(?::\\s*|\\s+)", options: .caseInsensitive),
+              let p2 = try? NSRegularExpression(pattern: "\\s+(?:@|\\+|p:)(?:" + targetRegexPart + ")([.,;:])(?=\\s|$)", options: .caseInsensitive),
+              let p3 = try? NSRegularExpression(pattern: "\\s+(?:@|\\+|p:)(?:" + targetRegexPart + ")(?=[.,;:]?(\\s|$))", options: .caseInsensitive),
+              let p4 = try? NSRegularExpression(pattern: "^(?:@|\\+|p:)(?:" + targetRegexPart + ")[.,;:]?$", options: .caseInsensitive),
+              let pWiki = try? NSRegularExpression(pattern: "\\[\\[(?:" + targetRegexPart + ")\\]\\]", options: .caseInsensitive) else {
+            return text
+        }
+        
+        for i in 0..<lines.count {
+            var line = lines[i]
+            line = pWiki.stringByReplacingMatches(in: line, range: NSRange(line.startIndex..., in: line), withTemplate: "")
+            line = p4.stringByReplacingMatches(in: line, range: NSRange(line.startIndex..., in: line), withTemplate: "")
+            line = p1.stringByReplacingMatches(in: line, range: NSRange(line.startIndex..., in: line), withTemplate: "")
+            line = p2.stringByReplacingMatches(in: line, range: NSRange(line.startIndex..., in: line), withTemplate: "$1")
+            line = p3.stringByReplacingMatches(in: line, range: NSRange(line.startIndex..., in: line), withTemplate: "")
+            line = line.replacingOccurrences(of: "  +", with: " ", options: .regularExpression)
+            lines[i] = line.trimmingCharacters(in: .whitespaces)
+        }
+        
+        while lines.first?.isEmpty == true && lines.count > 1 {
+            lines.removeFirst()
+        }
+        while lines.last?.isEmpty == true && lines.count > 1 {
+            lines.removeLast()
+        }
+        
+        return lines.joined(separator: "\n")
+    }
+}

@@ -144,7 +144,7 @@ public struct QuickCaptureView: View {
             // Text Editor Area (Precisely Aligned Cursor & Placeholder)
             ZStack(alignment: .topLeading) {
                 if noteContent.isEmpty {
-                    Text("Type a quick note, thought, or checklist...\nTip: Type +Project, @Project, or [[Project]] to assign to a project inline.")
+                    Text("Type a quick note, thought, or checklist...\nTip: Type @Project, +Project, or [[Project]] to assign to a project inline.")
                         .font(.system(size: 15))
                         .lineSpacing(4)
                         .foregroundColor(.wcagPlaceholderText)
@@ -174,7 +174,7 @@ public struct QuickCaptureView: View {
             HStack {
                 HStack(spacing: 12) {
                     ShortcutBadge(key: "Esc", label: "Close")
-                    ShortcutBadge(key: "+Project", label: "Tag")
+                    ShortcutBadge(key: "@Project", label: "Tag")
                     ShortcutBadge(key: "⌘ Enter", label: "Save")
                 }
                 
@@ -238,9 +238,13 @@ public struct QuickCaptureView: View {
             .map { String($0.dropFirst()).trimmingCharacters(in: CharacterSet.alphanumerics.inverted) }
             .filter { !$0.isEmpty && $0.lowercased() != selectedDestination.targetName?.lowercased() }
         
+        // Remove the inline project tag from the note content (e.g. @project, +project, [[project]])
+        let cleanedContent = Note.removeProjectTag(from: trimmed, targetName: selectedDestination.targetName)
+        let finalContent = cleanedContent.isEmpty ? (selectedDestination.targetName ?? trimmed) : cleanedContent
+        
         storageManager.createNote(
             title: "",
-            content: trimmed,
+            content: finalContent,
             category: selectedDestination.categoryType,
             targetName: selectedDestination.targetName,
             tags: extractedTags
