@@ -1,15 +1,16 @@
-# Scattered Notes (macOS)
+# Scattered Notes
 
-A native macOS app that organises your scattered notes in two steps:
+A native app for Mac and Windows that organises your scattered notes in two steps:
 
-1. **Capture**: jot a thought in seconds from anywhere with a global shortcut (`⌥ + N`), no matter what you're doing.
+1. **Capture**: jot a thought in seconds from anywhere with a global shortcut (`⌥ + N` on a Mac, `Ctrl + Alt + N` on Windows), no matter what you're doing.
 2. **Unify**: the **Dashboard** builds itself from what you wrote. Every to-do and every line that mentions a day ("call the bank tomorrow", "team dinner on friday") is collected from all your notes into one view. There is nothing to set up or maintain.
 
-Notes are stored as plain Markdown files on disk, organised under **Projects** and **Areas**.
+Notes are stored as plain Markdown files on disk, organised under **Projects** and **Areas**. Both apps use the same files, so one synced folder works on a Mac and a PC.
 
 ![macOS 14+](https://img.shields.io/badge/macOS-14.0%2B-blue)
 ![Swift 6](https://img.shields.io/badge/Swift-6.0-orange)
 ![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-green)
+![Windows 11](https://img.shields.io/badge/Windows-11-blue)
 
 <p align="center">
   <img src="docs/quick-capture.png" alt="Scattered Notes Quick Capture HUD" width="680" />
@@ -23,9 +24,13 @@ Notes are stored as plain Markdown files on disk, organised under **Projects** a
 
 ## How to install
 
+Go to the [latest release](https://github.com/and/scattered-notes/releases/latest) and download the file for your computer.
+
+### Mac
+
 **Requirements:** macOS 14 (Sonoma) or later. Works on Apple silicon and Intel Macs.
 
-1. Go to the [latest release](https://github.com/and/scattered-notes/releases/latest) and download `ScatteredNotes-<version>.zip`.
+1. Download `ScatteredNotes-<version>-mac.zip`.
 2. Double-click the zip to unzip it.
 3. Drag **ScatteredNotes.app** into your **Applications** folder.
 4. Open it. The app is signed and notarized by Apple, so it opens without a warning.
@@ -39,6 +44,23 @@ Notes are stored as plain Markdown files on disk, organised under **Projects** a
 **Updating:** download the new zip and replace the app in Applications. Your notes are plain files in the notes folder and are not touched.
 
 **Uninstalling:** quit the app and drag it to the Trash. Your notes stay in the notes folder. To also remove the app's settings, run `defaults delete com.scatterednotes.app` in Terminal.
+
+### Windows (preview)
+
+**Requirements:** Windows 11. The download runs on Intel, AMD and Arm PCs; nothing else needs to be installed.
+
+1. Download `ScatteredNotes-<version>-windows.exe`.
+2. Move it somewhere permanent, for example a `Scattered Notes` folder in your user folder.
+3. Double-click it. The app is not signed yet, so Windows SmartScreen may say it "protected your PC". Click **More info → Run anyway**.
+
+**First launch**
+- The Dashboard opens first. Press `Ctrl + Alt + N` in any app to capture a note, and `Ctrl + Alt + F` to search all notes. Both can be changed in **Settings**.
+- Notes are saved in `Documents\ScatteredNotes`. To use the same notes as on a Mac, choose **Settings → Notes folder → Choose Folder…** and pick your iCloud Drive or OneDrive folder.
+- Closing the window keeps the app running in the notification area (the system tray), so the shortcuts keep working. Use **Quit Scattered Notes** in its menu to stop it. **Settings → Startup** starts it when you sign in.
+
+**Updating:** quit the app, then replace the exe with the new one.
+
+**Uninstalling:** quit the app and delete the exe. Your notes stay in the notes folder. Settings are in `%APPDATA%\ScatteredNotes`.
 
 **Building from source:** see [DEVELOPMENT.md](DEVELOPMENT.md).
 
