@@ -6,16 +6,38 @@ import SwiftUI
 public final class NoteStorageManager: ObservableObject {
     public static let shared = NoteStorageManager()
     
-    @Published public private(set) var notes: [Note] = []
+    @Published public private(set) var notes: [Note] = [] {
+        didSet { allAgendaItems = nil }
+    }
     @Published public private(set) var projects: [ProjectArea] = []
     @Published public private(set) var areas: [ProjectArea] = []
     
     private let settings: AppSettings
-    private var fileWatcherSource: DispatchSourceFileSystemObject?
+    private var folderWatcher: FolderWatcher?
     private var isPerformingInternalFileOperation: Bool = false
     private var cancellables = Set<AnyCancellable>()
     private let enableFileWatcher: Bool
     private var agendaLog = AgendaLog()
+
+    /// Parsed notes by file path, reused by `loadAll()` while a file's modification date and size are
+    /// unchanged, so a reload only reads the files that changed
+    private struct CachedFile {
+        let modified: Date
+        let size: Int
+        let note: Note
+    }
+    private var fileCache: [String: CachedFile] = [:]
+
+    /// Agenda items per note, valid while the note's text and creation date are unchanged. Dropped
+    /// for a note whenever its agenda log entries change, because the log decides what relative words
+    /// resolve to
+    private struct CachedAgenda {
+        let content: String
+        let createdAt: Date
+        let items: [AgendaItem]
+    }
+    private var agendaCache: [UUID: CachedAgenda] = [:]
+    private var allAgendaItems: [AgendaItem]?
     
     public init(settings: AppSettings = .shared, enableFileWatcher: Bool = true) {
         self.settings = settings
@@ -43,8 +65,8 @@ public final class NoteStorageManager: ObservableObject {
     }
     
     public func stopWatching() {
-        fileWatcherSource?.cancel()
-        fileWatcherSource = nil
+        folderWatcher?.stop()
+        folderWatcher = nil
     }
     
     // MARK: - Directory Structure
@@ -136,6 +158,10 @@ public final class NoteStorageManager: ObservableObject {
             loadedNotes.append(contentsOf: loadNotesInDirectory(aDir, defaultCategory: .area, targetName: area.name))
         }
         
+        // Forget files that are gone, so the cache never outgrows the folder
+        let loadedPaths = Set(loadedNotes.compactMap { $0.filePath?.path })
+        fileCache = fileCache.filter { loadedPaths.contains($0.key) }
+
         // A crash while moving a note can leave its file in two folders. Show the newest copy and
         // leave the other file on disk untouched
         var newestByID: [UUID: Note] = [:]
@@ -175,8 +201,7 @@ public final class NoteStorageManager: ObservableObject {
         
         var result: [Note] = []
         for file in files where file.pathExtension.lowercased() == "md" {
-            if let content = try? String(contentsOf: file, encoding: .utf8) {
-                var note = Note.parse(from: content, fileURL: file)
+            if var note = cachedOrParsedNote(at: file) {
                 // If frontmatter didn't specify category/target, infer from directory location
                 if note.categoryType == .inbox && defaultCategory != .inbox {
                     note.categoryType = defaultCategory
@@ -186,6 +211,23 @@ public final class NoteStorageManager: ObservableObject {
             }
         }
         return result
+    }
+
+    /// The parsed note at `file`, read from disk only when the file changed since it was last parsed.
+    private func cachedOrParsedNote(at file: URL) -> Note? {
+        let values = try? file.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+        let modified = values?.contentModificationDate ?? .distantPast
+        let size = values?.fileSize ?? -1
+        if let cached = fileCache[file.path], cached.modified == modified, cached.size == size {
+            return cached.note
+        }
+        guard let content = try? String(contentsOf: file, encoding: .utf8) else {
+            fileCache[file.path] = nil
+            return nil
+        }
+        let note = Note.parse(from: content, fileURL: file)
+        fileCache[file.path] = CachedFile(modified: modified, size: size, note: note)
+        return note
     }
     
     // MARK: - CRUD Operations
@@ -298,6 +340,7 @@ public final class NoteStorageManager: ObservableObject {
             try? FileManager.default.removeItem(at: fileURL)
         }
         notes.removeAll { $0.id == note.id }
+        invalidateAgenda(for: note.id)
         if agendaLog.notes.removeValue(forKey: note.id.uuidString) != nil { writeAgendaLog() }
     }
     
@@ -316,12 +359,20 @@ public final class NoteStorageManager: ObservableObject {
     
     /// Checklist items and dated lines from every note, for the dashboard.
     public var agendaItems: [AgendaItem] {
-        notes.flatMap { agendaItems(for: $0) }
+        if let allAgendaItems { return allAgendaItems }
+        let items = notes.flatMap { agendaItems(for: $0) }
+        allAgendaItems = items
+        return items
     }
     
     /// Checklist items and dated lines of one note, dated from when each line was first written.
     public func agendaItems(for note: Note) -> [AgendaItem] {
-        AgendaExtractor.items(from: note, anchors: agendaLog.anchors(for: note.id))
+        if let cached = agendaCache[note.id], cached.createdAt == note.createdAt, cached.content == note.content {
+            return cached.items
+        }
+        let items = AgendaExtractor.items(from: note, anchors: agendaLog.anchors(for: note.id))
+        agendaCache[note.id] = CachedAgenda(content: note.content, createdAt: note.createdAt, items: items)
+        return items
     }
     
     // MARK: - Agenda Log
@@ -329,9 +380,11 @@ public final class NoteStorageManager: ObservableObject {
         guard let data = try? Data(contentsOf: agendaLogURL),
               let log = try? AgendaLog.decoder.decode(AgendaLog.self, from: data) else {
             agendaLog = AgendaLog()
+            invalidateAgenda()
             return
         }
         agendaLog = log
+        invalidateAgenda()
     }
     
     private func writeAgendaLog() {
@@ -347,7 +400,15 @@ public final class NoteStorageManager: ObservableObject {
     @discardableResult
     private func recordAgenda(for note: Note, seenAt: Date) -> Bool {
         let lines = AgendaExtractor.items(from: note).map { (key: AgendaExtractor.logKey(for: $0.text), line: $0.text) }
-        return agendaLog.update(noteID: note.id, lines: lines, seenAt: seenAt)
+        let changed = agendaLog.update(noteID: note.id, lines: lines, seenAt: seenAt)
+        if changed { invalidateAgenda(for: note.id) }
+        return changed
+    }
+
+    /// Drops cached agenda items for one note, or for all notes when `noteID` is nil.
+    private func invalidateAgenda(for noteID: UUID? = nil) {
+        if let noteID { agendaCache[noteID] = nil } else { agendaCache.removeAll() }
+        allAgendaItems = nil
     }
     
     public func togglePin(note: Note) {
@@ -568,30 +629,13 @@ public final class NoteStorageManager: ObservableObject {
     }
     
     // MARK: - File System Monitoring
+    /// Watches the whole notes folder, subfolders included, so notes edited by other apps or synced
+    /// from another device appear without a relaunch. Only changed files are re-read.
     private func startWatching() {
-        fileWatcherSource?.cancel()
-        
-        let descriptor = open(rootURL.path, O_EVTONLY)
-        guard descriptor >= 0 else { return }
-        
-        // Handlers inherit @MainActor isolation from this class, so they must run on the main
-        // queue; Swift 6 traps at runtime if they fire on a background queue
-        let source = DispatchSource.makeFileSystemObjectSource(
-            fileDescriptor: descriptor,
-            eventMask: [.write, .extend, .attrib, .link],
-            queue: DispatchQueue.main
-        )
-
-        source.setEventHandler { [weak self] in
-            guard let self = self, !self.isPerformingInternalFileOperation else { return }
+        stopWatching()
+        folderWatcher = FolderWatcher(url: rootURL) { [weak self] in
+            guard let self, !self.isPerformingInternalFileOperation else { return }
             self.loadAll()
         }
-        
-        source.setCancelHandler {
-            close(descriptor)
-        }
-        
-        source.resume()
-        self.fileWatcherSource = source
     }
 }

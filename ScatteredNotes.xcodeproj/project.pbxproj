@@ -22,6 +22,7 @@
 		5C4963482F909A41C7279613 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34B14D0E8F2DBAA7519142E2 /* MenuBarView.swift */; };
 		5E786F78A383B4B83F13E3A6 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 108AC7B769F802061E8C0FB5 /* AppSettings.swift */; };
 		5FC97106E3EE2A3BB7E88891 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C94F3E16F17D9C9944BFC7CF /* AppDelegate.swift */; };
+		60CDA14F456F2DC959DB163F /* WatcherAndCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 375C3ACDA9396302966FED59 /* WatcherAndCacheTests.swift */; };
 		6153011862A180D0853AC961 /* NoteDetailEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D02043D9ABD795220D6229E /* NoteDetailEditorView.swift */; };
 		6544101EF22B0E138C6500BD /* ProjectArea.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6745678786444D6CF562205E /* ProjectArea.swift */; };
 		6E54A0F5AF7CCA5D9DDFB180 /* EditorFocus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 170DD4DE854F67793DE1C60B /* EditorFocus.swift */; };
@@ -29,6 +30,7 @@
 		8CBAE6B3E33154DE6C1EA8D8 /* ScatteredNotesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9CD20AE23EA70422AE47AC4 /* ScatteredNotesApp.swift */; };
 		98C28C0071E306E596B2EFB0 /* NoteStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11EC9B7FA9D2423F85EB0963 /* NoteStorageManager.swift */; };
 		AD0C8B29D4836998C342AAAC /* NoteStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B34D2E0C09DC2BD854A8F38 /* NoteStorageTests.swift */; };
+		AFE6F5422907DD8B4123A3E6 /* FolderWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 629987ADBA93F4FD3F142AEC /* FolderWatcher.swift */; };
 		B2105603DD7D01A94E140FD8 /* EditorFocusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ADFB2A20F77609EB7EB380E /* EditorFocusTests.swift */; };
 		C3BFBC1ED9C3846C9F7D7459 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75D71A8D07D299EBE48B67EE /* AppRouter.swift */; };
 		C613B784E512DF2765D0A9A1 /* SearchPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B41E08904F4EF79E4CAE744 /* SearchPaletteView.swift */; };
@@ -69,9 +71,11 @@
 		254C136DED09B4C7C19ED46E /* NoteSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteSearchTests.swift; sourceTree = "<group>"; };
 		34B14D0E8F2DBAA7519142E2 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		358ABA585A6F6C2E56A0D9FF /* QuickCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCaptureView.swift; sourceTree = "<group>"; };
+		375C3ACDA9396302966FED59 /* WatcherAndCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatcherAndCacheTests.swift; sourceTree = "<group>"; };
 		491DCCFBF499B26B1D779C28 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		4B41E08904F4EF79E4CAE744 /* SearchPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchPaletteView.swift; sourceTree = "<group>"; };
 		5D02043D9ABD795220D6229E /* NoteDetailEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailEditorView.swift; sourceTree = "<group>"; };
+		629987ADBA93F4FD3F142AEC /* FolderWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderWatcher.swift; sourceTree = "<group>"; };
 		670E0854AF270D6B598050FD /* EndToEndFeatureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EndToEndFeatureTests.swift; sourceTree = "<group>"; };
 		6745678786444D6CF562205E /* ProjectArea.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectArea.swift; sourceTree = "<group>"; };
 		67E656098D174D6C5F550B76 /* GlobalHotKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotKeyManager.swift; sourceTree = "<group>"; };
@@ -146,6 +150,7 @@
 			children = (
 				0514FEA1FF45CF8457E457A7 /* AgendaLog.swift */,
 				108AC7B769F802061E8C0FB5 /* AppSettings.swift */,
+				629987ADBA93F4FD3F142AEC /* FolderWatcher.swift */,
 				11EC9B7FA9D2423F85EB0963 /* NoteStorageManager.swift */,
 			);
 			path = Storage;
@@ -189,6 +194,7 @@
 				06C433EEA1D6AD573F06C1EF /* HotKeyShortcutTests.swift */,
 				254C136DED09B4C7C19ED46E /* NoteSearchTests.swift */,
 				1B34D2E0C09DC2BD854A8F38 /* NoteStorageTests.swift */,
+				375C3ACDA9396302966FED59 /* WatcherAndCacheTests.swift */,
 			);
 			name = ScatteredNotesTests;
 			path = Tests/ScatteredNotesTests;
@@ -386,6 +392,7 @@
 				CBE177BC02CC684AAC4A5BC9 /* DashboardView.swift in Sources */,
 				6E54A0F5AF7CCA5D9DDFB180 /* EditorFocus.swift in Sources */,
 				2E9AA846D54A62AA43D50C0C /* EscapeToClose.swift in Sources */,
+				AFE6F5422907DD8B4123A3E6 /* FolderWatcher.swift in Sources */,
 				5B19E7BCA82F306FC5514FF8 /* GlobalHotKeyManager.swift in Sources */,
 				1872E7E92C3CF73C6B017248 /* HotKeyShortcut.swift in Sources */,
 				F83DBA831F68E107C3442BBD /* MainSplitView.swift in Sources */,
@@ -418,6 +425,7 @@
 				D74320944DAC68EB643B94CB /* HotKeyShortcutTests.swift in Sources */,
 				049CA7FA39CD532AAEBBA8D9 /* NoteSearchTests.swift in Sources */,
 				AD0C8B29D4836998C342AAAC /* NoteStorageTests.swift in Sources */,
+				60CDA14F456F2DC959DB163F /* WatcherAndCacheTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -15,56 +15,62 @@ public struct DashboardView: View {
     private var calendar: Calendar { .current }
     private var today: Date { calendar.startOfDay(for: Date()) }
 
-    private var notesByID: [UUID: Note] {
-        Dictionary(uniqueKeysWithValues: storageManager.notes.map { ($0.id, $0) })
-    }
+    /// Everything the dashboard shows, derived from one read of the agenda items, so a redraw scans
+    /// the notes at most once
+    private struct Snapshot {
+        let notesByID: [UUID: Note]
+        let overdue: [AgendaItem]
+        let dueToday: [AgendaItem]
+        let upcomingByDay: [(day: Date, items: [AgendaItem])]
+        let undatedTodosByNote: [(note: Note, items: [AgendaItem])]
+        let openTodoCount: Int
 
-    private var overdue: [AgendaItem] {
-        storageManager.agendaItems
-            .filter { $0.isTodo && !$0.isDone && ($0.date.map { $0 < today } ?? false) }
-            .sorted { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
-    }
+        var upcomingCount: Int { upcomingByDay.reduce(0) { $0 + $1.items.count } }
+        var isEmpty: Bool { overdue.isEmpty && dueToday.isEmpty && upcomingByDay.isEmpty && undatedTodosByNote.isEmpty }
 
-    private var dueToday: [AgendaItem] {
-        storageManager.agendaItems
-            .filter { $0.date.map { calendar.isDate($0, inSameDayAs: today) } ?? false }
-            .sorted { !$0.isDone && $1.isDone }
-    }
-
-    private var upcomingByDay: [(day: Date, items: [AgendaItem])] {
-        guard let end = calendar.date(byAdding: .day, value: upcomingDays + 1, to: today),
-              let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) else { return [] }
-        let items = storageManager.agendaItems.filter { item in
-            guard let date = item.date else { return false }
-            return date >= tomorrow && date < end && !item.isDone
+        init(notes: [Note], items: [AgendaItem], today: Date, upcomingDays: Int, calendar: Calendar) {
+            let lookup = Dictionary(uniqueKeysWithValues: notes.map { ($0.id, $0) })
+            notesByID = lookup
+            overdue = items
+                .filter { $0.isTodo && !$0.isDone && ($0.date.map { $0 < today } ?? false) }
+                .sorted { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
+            dueToday = items
+                .filter { $0.date.map { calendar.isDate($0, inSameDayAs: today) } ?? false }
+                .sorted { !$0.isDone && $1.isDone }
+            if let end = calendar.date(byAdding: .day, value: upcomingDays + 1, to: today),
+               let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) {
+                let upcoming = items.filter { item in
+                    guard let date = item.date else { return false }
+                    return date >= tomorrow && date < end && !item.isDone
+                }
+                upcomingByDay = Dictionary(grouping: upcoming) { $0.date! }
+                    .sorted { $0.key < $1.key }
+                    .map { (day: $0.key, items: $0.value) }
+            } else {
+                upcomingByDay = []
+            }
+            let undated = items.filter { $0.isTodo && !$0.isDone && $0.date == nil }
+            undatedTodosByNote = Dictionary(grouping: undated) { $0.noteID }
+                .compactMap { id, items in lookup[id].map { (note: $0, items: items.sorted { $0.lineIndex < $1.lineIndex }) } }
+                .sorted { $0.note.updatedAt > $1.note.updatedAt }
+            openTodoCount = items.filter { $0.isTodo && !$0.isDone }.count
         }
-        return Dictionary(grouping: items) { $0.date! }
-            .sorted { $0.key < $1.key }
-            .map { (day: $0.key, items: $0.value) }
-    }
-
-    private var undatedTodosByNote: [(note: Note, items: [AgendaItem])] {
-        let items = storageManager.agendaItems.filter { $0.isTodo && !$0.isDone && $0.date == nil }
-        let lookup = notesByID
-        return Dictionary(grouping: items) { $0.noteID }
-            .compactMap { id, items in lookup[id].map { (note: $0, items: items.sorted { $0.lineIndex < $1.lineIndex }) } }
-            .sorted { $0.note.updatedAt > $1.note.updatedAt }
-    }
-
-    private var openTodoCount: Int {
-        storageManager.agendaItems.filter { $0.isTodo && !$0.isDone }.count
     }
 
     // MARK: - Body
     public var body: some View {
-        let lookup = notesByID
-        let upcoming = upcomingByDay
-        let todos = undatedTodosByNote
-        let isEmpty = overdue.isEmpty && dueToday.isEmpty && upcoming.isEmpty && todos.isEmpty
+        let snapshot = Snapshot(notes: storageManager.notes, items: storageManager.agendaItems,
+                                today: today, upcomingDays: upcomingDays, calendar: calendar)
+        let lookup = snapshot.notesByID
+        let overdue = snapshot.overdue
+        let dueToday = snapshot.dueToday
+        let upcoming = snapshot.upcomingByDay
+        let todos = snapshot.undatedTodosByNote
+        let isEmpty = snapshot.isEmpty
 
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                header(upcomingCount: upcoming.reduce(0) { $0 + $1.items.count })
+                header(snapshot)
 
                 if isEmpty {
                     emptyState
@@ -139,7 +145,7 @@ public struct DashboardView: View {
     }
 
     // MARK: - Pieces
-    private func header(upcomingCount: Int) -> some View {
+    private func header(_ snapshot: Snapshot) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(Date().formatted(.dateTime.weekday(.wide)))
@@ -149,10 +155,10 @@ public struct DashboardView: View {
                     .font(.system(size: 34, weight: .bold))
             }
             HStack(spacing: 8) {
-                StatChip(value: overdue.count, label: "overdue", tint: .wcagOrange)
-                StatChip(value: dueToday.filter { !$0.isDone }.count, label: "today", tint: .wcagBlue)
-                StatChip(value: upcomingCount, label: "upcoming", tint: .wcagPurple)
-                StatChip(value: openTodoCount, label: "open to-dos", tint: .wcagGreen)
+                StatChip(value: snapshot.overdue.count, label: "overdue", tint: .wcagOrange)
+                StatChip(value: snapshot.dueToday.filter { !$0.isDone }.count, label: "today", tint: .wcagBlue)
+                StatChip(value: snapshot.upcomingCount, label: "upcoming", tint: .wcagPurple)
+                StatChip(value: snapshot.openTodoCount, label: "open to-dos", tint: .wcagGreen)
             }
         }
     }
