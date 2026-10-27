@@ -40,7 +40,7 @@ public struct SidebarView: View {
                         Text("Dashboard")
                     } icon: {
                         Image(systemName: "square.grid.2x2.fill")
-                            .foregroundColor(.wcagPurple)
+                            .prominenceAwareColor(.wcagPurple)
                     }
                 }
                 
@@ -49,7 +49,7 @@ public struct SidebarView: View {
                         Text("All Notes")
                     } icon: {
                         Image(systemName: "tray.2.fill")
-                            .foregroundColor(.wcagBlue)
+                            .prominenceAwareColor(.wcagBlue)
                     }
                     .badge(storageManager.notes.count)
                 }
@@ -59,7 +59,7 @@ public struct SidebarView: View {
                         Text("Inbox")
                     } icon: {
                         Image(systemName: "tray.fill")
-                            .foregroundColor(.wcagOrange)
+                            .prominenceAwareColor(.wcagOrange)
                     }
                     .badge(storageManager.notes.filter { $0.categoryType == .inbox }.count)
                 }
@@ -72,7 +72,7 @@ public struct SidebarView: View {
                             Text(project.name)
                         } icon: {
                             Image(systemName: project.iconName)
-                                .foregroundColor(.wcagPurple)
+                                .prominenceAwareColor(.wcagPurple)
                         }
                         .badge(storageManager.notes.filter { $0.categoryType == .project && $0.targetName == project.name }.count)
                     }
@@ -111,7 +111,7 @@ public struct SidebarView: View {
                             Text(area.name)
                         } icon: {
                             Image(systemName: area.iconName)
-                                .foregroundColor(.wcagGreen)
+                                .prominenceAwareColor(.wcagGreen)
                         }
                         .badge(storageManager.notes.filter { $0.categoryType == .area && $0.targetName == area.name }.count)
                     }
@@ -175,7 +175,7 @@ public struct SidebarView: View {
                         QuickCapturePanel.shared.showPanel()
                     }) {
                         HStack(spacing: 3) {
-                            Text("⌥N")
+                            Text(settings.quickCaptureShortcut.displayString)
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .padding(.horizontal, 4)
                                 .padding(.vertical, 1)

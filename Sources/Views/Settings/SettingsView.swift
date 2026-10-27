@@ -39,6 +39,7 @@ public enum StorageFolderPicker {
 public struct SettingsView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
     @ObservedObject var settings = AppSettings.shared
+    @ObservedObject var hotKeys = GlobalHotKeyManager.shared
 
     public init() {}
 
@@ -69,9 +70,55 @@ public struct SettingsView: View {
                     .font(.caption)
                     .foregroundColor(.wcagSecondaryText)
             }
+
+            Section("Global Shortcuts") {
+                shortcutRow(
+                    "Quick Capture",
+                    action: .quickCapture,
+                    shortcut: $settings.quickCaptureShortcut,
+                    other: settings.searchShortcut,
+                    fallback: .quickCaptureDefault
+                )
+                shortcutRow(
+                    "Search All Notes",
+                    action: .search,
+                    shortcut: $settings.searchShortcut,
+                    other: settings.quickCaptureShortcut,
+                    fallback: .searchDefault
+                )
+
+                Text("These work from any app. Shortcuts that use only ⌥ stop that key from typing special characters, such as ƒ or ˜, in other apps.")
+                    .font(.caption)
+                    .foregroundColor(.wcagSecondaryText)
+            }
         }
         .formStyle(.grouped)
         .frame(width: 520)
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func shortcutRow(
+        _ title: String,
+        action: HotKeyAction,
+        shortcut: Binding<HotKeyShortcut>,
+        other: HotKeyShortcut,
+        fallback: HotKeyShortcut
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(title)
+                Spacer()
+                ShortcutRecorderView(shortcut: shortcut) { recorded in
+                    recorded == other ? "Already used by the other shortcut." : nil
+                }
+                Button("Reset") { shortcut.wrappedValue = fallback }
+                    .disabled(shortcut.wrappedValue == fallback)
+            }
+            if hotKeys.failures[action] != nil {
+                Text("\(shortcut.wrappedValue.displayString) is taken by the system or another app. Pick a different one.")
+                    .font(.caption)
+                    .foregroundColor(.wcagOrange)
+            }
+        }
     }
 }

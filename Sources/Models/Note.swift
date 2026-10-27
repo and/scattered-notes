@@ -121,8 +121,25 @@ extension Note {
             lines[lineIndex] = line.replacingOccurrences(of: "* [x]", with: "* [ ]")
         } else if line.contains("* [X]") {
             lines[lineIndex] = line.replacingOccurrences(of: "* [X]", with: "* [ ]")
+        } else if let done = completingPlainLine(line) {
+            lines[lineIndex] = done
         }
         return lines.joined(separator: "\n")
+    }
+}
+
+extension Note {
+    /// Turns a plain line such as "call the bank tomorrow" into the checked item "- [x] call the bank tomorrow",
+    /// keeping its indentation and replacing an existing bullet. Returns nil for blank lines and headings.
+    private static func completingPlainLine(_ line: String) -> String? {
+        let indent = String(line.prefix { $0 == " " || $0 == "\t" })
+        var body = String(line.dropFirst(indent.count))
+        guard !body.trimmingCharacters(in: .whitespaces).isEmpty, !body.hasPrefix("#") else { return nil }
+        for bullet in ["- ", "* ", "+ "] where body.hasPrefix(bullet) {
+            body = String(body.dropFirst(bullet.count))
+            break
+        }
+        return "\(indent)- [x] \(body)"
     }
 }
 

@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct MenuBarView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
+    @ObservedObject var settings = AppSettings.shared
     @Environment(\.openWindow) private var openWindow
     
     public init() {}
@@ -11,9 +12,12 @@ public struct MenuBarView: View {
             Button(action: {
                 QuickCapturePanel.shared.showPanel()
             }) {
-                Label("Quick Capture...", systemImage: "bolt.fill")
+                Label("Quick Capture...  \(settings.quickCaptureShortcut.displayString)", systemImage: "bolt.fill")
             }
-            .keyboardShortcut("n", modifiers: [.option])
+            
+            Button(action: { AppRouter.showSearch() }) {
+                Label("Search All Notes...  \(settings.searchShortcut.displayString)", systemImage: "magnifyingglass")
+            }
             
             Button(action: {
                 NSApp.activate(ignoringOtherApps: true)

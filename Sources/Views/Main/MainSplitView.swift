@@ -2,9 +2,11 @@ import SwiftUI
 
 public struct MainSplitView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
+    @ObservedObject var settings = AppSettings.shared
     
     @State private var sidebarSelection: SidebarSelection = .dashboard
     @State private var selectedNote: Note? = nil
+    @State private var showingSearch = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     
     public init() {}
@@ -14,13 +16,31 @@ public struct MainSplitView: View {
         .navigationTitle(windowTitle)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
+                Button(action: { showingSearch = true }) {
+                    Label("Search All Notes (⌘K, \(settings.searchShortcut.displayString) anywhere)", systemImage: "magnifyingglass")
+                }
+                .keyboardShortcut("k", modifiers: .command)
+                .help("Search all notes (⌘K, or \(settings.searchShortcut.displayString) from any app)")
+            }
+            ToolbarItem(placement: .primaryAction) {
                 Button(action: {
                     QuickCapturePanel.shared.showPanel()
                 }) {
-                    Label("Quick Capture (⌥N)", systemImage: "bolt.fill")
+                    Label("Quick Capture (\(settings.quickCaptureShortcut.displayString))", systemImage: "bolt.fill")
                 }
-                .help("Open Quick Capture (⌥N)")
+                .help("Open Quick Capture (\(settings.quickCaptureShortcut.displayString))")
             }
+        }
+        .sheet(isPresented: $showingSearch) {
+            SearchPaletteView(
+                onOpen: { note, terms in
+                    showingSearch = false
+                    selectedNote = note
+                    sidebarSelection = .all
+                    EditorFocus.request(noteID: note.id, terms: terms)
+                },
+                onClose: { showingSearch = false }
+            )
         }
         .onChange(of: selectedNote?.id) { _, newID in
             // The dashboard hides the editor, so picking or creating a note must leave it
@@ -28,7 +48,23 @@ public struct MainSplitView: View {
                 sidebarSelection = .all
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .escapeInMainWindow)) { notification in
+            if sidebarSelection != .dashboard {
+                sidebarSelection = .dashboard
+            } else {
+                // Hide rather than close so the window comes back as it was
+                (notification.object as? NSWindow)?.orderOut(nil)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showGlobalSearch)) { _ in
+            AppRouter.pendingSearch = false
+            showingSearch = true
+        }
         .onAppear {
+            if AppRouter.pendingSearch {
+                AppRouter.pendingSearch = false
+                showingSearch = true
+            }
             if selectedNote == nil, sidebarSelection != .dashboard, let first = storageManager.notes.first {
                 selectedNote = first
             }
@@ -79,7 +115,7 @@ public struct MainSplitView: View {
                 Text("Select a note to view or edit")
                     .font(.title3)
                     .foregroundColor(.wcagSecondaryText)
-                Text("Press ⌥N anywhere to capture a quick note")
+                Text("Press \(settings.quickCaptureShortcut.displayString) anywhere to capture a quick note")
                     .font(.subheadline)
                     .foregroundColor(.wcagSecondaryText)
             }

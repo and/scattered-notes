@@ -73,6 +73,7 @@ public struct NoteListView: View {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.wcagSecondaryText)
                         TextField("Search notes or #tags...", text: $searchText)
+                            .onSubmit { openFirstMatch() }
                             .textFieldStyle(.plain)
                         if !searchText.isEmpty {
                             Button(action: { searchText = "" }) {
@@ -153,6 +154,11 @@ public struct NoteListView: View {
                     }
                 }
                 .listStyle(.inset)
+                .onKeyPress(.return) {
+                    guard let note = selectedNote else { return .ignored }
+                    EditorFocus.request(noteID: note.id, terms: NoteSearch.terms(in: searchText))
+                    return .handled
+                }
             }
         }
         .frame(minWidth: 260)
@@ -212,6 +218,14 @@ public struct NoteListView: View {
         }
     }
     
+    /// Return in the search box opens the selected note if it matches, otherwise the first match
+    private func openFirstMatch() {
+        let matches = filteredNotes
+        guard let note = matches.first(where: { $0.id == selectedNote?.id }) ?? matches.first else { return }
+        selectedNote = note
+        EditorFocus.request(noteID: note.id, terms: NoteSearch.terms(in: searchText))
+    }
+    
     private func createNewNoteInCurrentCategory() {
         let (category, target): (CategoryType, String?) = {
             switch selectedCategory {
@@ -237,6 +251,11 @@ public struct NoteListView: View {
 public struct NoteCardRow: View {
     let note: Note
     let showDestination: Bool
+    @Environment(\.backgroundProminence) private var prominence
+    
+    /// True while the row is drawn over the accent colored selection, where the theme's colors lose contrast
+    private var onAccent: Bool { prominence == .increased }
+    private var secondaryColor: Color { onAccent ? .white.opacity(0.92) : .wcagSecondaryText }
     
     public var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -244,7 +263,7 @@ public struct NoteCardRow: View {
                 if note.isPinned {
                     Image(systemName: "pin.fill")
                         .font(.system(size: 10))
-                        .foregroundColor(.wcagOrange)
+                        .foregroundColor(onAccent ? .white : .wcagOrange)
                 }
                 
                 Text(note.displayTitle)
@@ -255,13 +274,13 @@ public struct NoteCardRow: View {
                 
                 Text(note.updatedAt.formatted(date: .numeric, time: .omitted))
                     .font(.system(size: 11))
-                    .foregroundColor(.wcagSecondaryText)
+                    .foregroundColor(secondaryColor)
             }
             
             if !note.previewExcerpt.isEmpty {
                 Text(note.previewExcerpt)
                     .font(.system(size: 12))
-                    .foregroundColor(.wcagSecondaryText)
+                    .foregroundColor(secondaryColor)
                     .lineLimit(2)
             }
             
@@ -274,8 +293,8 @@ public struct NoteCardRow: View {
                     .font(.system(size: 10, weight: .semibold))
                     .padding(.horizontal, 5)
                     .padding(.vertical, 2)
-                    .background(badgeColor.opacity(0.15))
-                    .foregroundColor(badgeColor)
+                    .background(onAccent ? Color.white.opacity(0.22) : badgeColor.opacity(0.15))
+                    .foregroundColor(onAccent ? .white : badgeColor)
                     .cornerRadius(4)
                 }
                 
@@ -285,7 +304,7 @@ public struct NoteCardRow: View {
                         Text("\(stats.completed)/\(stats.total)")
                     }
                     .font(.system(size: 10))
-                    .foregroundColor(stats.completed == stats.total ? .wcagGreen : .wcagSecondaryText)
+                    .foregroundColor(onAccent ? .white : (stats.completed == stats.total ? .wcagGreen : .wcagSecondaryText))
                 }
                 
                 Spacer()
@@ -293,7 +312,7 @@ public struct NoteCardRow: View {
                 if let firstTag = note.tags.first {
                     Text("#\(firstTag)")
                         .font(.system(size: 10))
-                        .foregroundColor(.wcagSecondaryText)
+                        .foregroundColor(secondaryColor)
                 }
             }
             .padding(.top, 2)

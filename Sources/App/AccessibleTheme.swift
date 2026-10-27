@@ -59,3 +59,20 @@ extension Color {
         dark: NSColor(white: 0.22, alpha: 1.0)
     )
 }
+
+/// Draws `color` normally, but white where the row sits on the accent colored selection highlight,
+/// where the theme's own colors (orange, purple, grey) would lose contrast.
+struct ProminenceAwareColor: ViewModifier {
+    let color: Color
+    @Environment(\.backgroundProminence) private var prominence
+
+    func body(content: Content) -> some View {
+        content.foregroundColor(prominence == .increased ? .white : color)
+    }
+}
+
+extension View {
+    func prominenceAwareColor(_ color: Color) -> some View {
+        modifier(ProminenceAwareColor(color: color))
+    }
+}

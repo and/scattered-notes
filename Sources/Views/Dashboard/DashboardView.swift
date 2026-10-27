@@ -261,21 +261,14 @@ private struct AgendaRow: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            if item.isTodo {
-                Button(action: onToggle) {
-                    Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 16))
-                        .foregroundColor(item.isDone ? .wcagGreen : .wcagSecondaryText)
-                        .contentTransition(.symbolEffect(.replace))
-                }
-                .buttonStyle(.plain)
-                .help(item.isDone ? "Mark as not done" : "Mark as done")
-            } else {
-                Image(systemName: "circle.fill")
-                    .font(.system(size: 5))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 16)
+            Button(action: onToggle) {
+                Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 16))
+                    .foregroundColor(item.isDone ? .wcagGreen : .wcagSecondaryText)
+                    .contentTransition(.symbolEffect(.replace))
             }
+            .buttonStyle(.plain)
+            .help(item.isDone ? "Mark as not done" : "Mark as done")
 
             Text(item.text)
                 .strikethrough(item.isDone, color: .wcagSecondaryText)

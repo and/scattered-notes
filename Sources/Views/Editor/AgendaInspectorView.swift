@@ -49,17 +49,12 @@ private struct InspectorRow: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            if item.isTodo {
-                Button(action: onToggle) {
-                    Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
-                        .foregroundColor(item.isDone ? .wcagGreen : .wcagSecondaryText)
-                }
-                .buttonStyle(.plain)
-                .help(item.isDone ? "Mark as not done" : "Mark as done")
-            } else {
-                Image(systemName: "calendar")
-                    .foregroundColor(.wcagPurple)
+            Button(action: onToggle) {
+                Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(item.isDone ? .wcagGreen : .wcagSecondaryText)
             }
+            .buttonStyle(.plain)
+            .help(item.isDone ? "Mark as not done" : "Mark as done")
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.text)

@@ -282,6 +282,10 @@ public struct NoteDetailEditorView: View {
         }
         .onAppear {
             syncFromNote()
+            focusEditorIfRequested()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .focusNoteEditor)) { _ in
+            focusEditorIfRequested()
         }
         .onDisappear {
             // Flush pending edits instead of dropping them, e.g. when switching to the dashboard
@@ -312,6 +316,15 @@ public struct NoteDetailEditorView: View {
         if editableContent != note.content {
             editableContent = note.content
         }
+    }
+    
+    /// Puts the cursor in the text when Enter was pressed on this note or it was opened from a search
+    private func focusEditorIfRequested() {
+        guard let request = EditorFocus.pending, request.noteID == note.id else { return }
+        EditorFocus.pending = nil
+        if editorMode == .preview { editorMode = .edit }
+        let text = editableContent
+        EditorFocus.focusTextView(showing: text, atOffset: EditorFocus.cursorOffset(in: text, terms: request.terms))
     }
     
     private func flushPendingSave() {

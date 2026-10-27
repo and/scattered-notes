@@ -136,4 +136,36 @@ final class AgendaTests: XCTestCase {
         XCTAssertEqual(items[0].date, firstDay)
         XCTAssertTrue(FileManager.default.fileExists(atPath: manager.agendaLogURL.path))
     }
+
+    func testTogglingPlainLineMakesItACheckedItemAndBack() {
+        let content = "Intro\n  call bank tomorrow\n* buy milk\n# Heading\n\nlast"
+        let first = Note.togglingChecklistLine(1, in: content)
+        XCTAssertEqual(first, "Intro\n  - [x] call bank tomorrow\n* buy milk\n# Heading\n\nlast")
+        XCTAssertEqual(Note.togglingChecklistLine(1, in: first), "Intro\n  - [ ] call bank tomorrow\n* buy milk\n# Heading\n\nlast")
+        XCTAssertEqual(Note.togglingChecklistLine(2, in: content), "Intro\n  call bank tomorrow\n- [x] buy milk\n# Heading\n\nlast")
+        XCTAssertEqual(Note.togglingChecklistLine(3, in: content), content, "headings are not completable")
+        XCTAssertEqual(Note.togglingChecklistLine(4, in: content), content, "blank lines are not completable")
+    }
+
+    @MainActor
+    func testCompletingPlainDatedLineFromDashboardKeepsItsDate() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        let suite = "com.scatterednotes.app.tests.complete"
+        let defaults = UserDefaults(suiteName: suite)!
+        addTeardownBlock { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
+
+        let manager = NoteStorageManager(settings: AppSettings(notesDirectoryURL: root, defaults: defaults), enableFileWatcher: false)
+        let note = manager.createNote(title: "Plans", content: "buy tomatoes today\nhiking next week")
+        let before = manager.agendaItems(for: note)
+        XCTAssertEqual(before.map(\.isDone), [false, false])
+
+        manager.toggleChecklistItem(noteID: note.id, lineIndex: 0)
+
+        let saved = try String(contentsOf: XCTUnwrap(manager.notes.first?.filePath), encoding: .utf8)
+        XCTAssertTrue(saved.hasSuffix("- [x] buy tomatoes today\nhiking next week"))
+        let after = manager.agendaItems(for: try XCTUnwrap(manager.notes.first))
+        XCTAssertEqual(after.map(\.isDone), [true, false])
+        XCTAssertEqual(after.map(\.date), before.map(\.date), "completing must not move the date")
+    }
 }
