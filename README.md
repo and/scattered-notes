@@ -1,6 +1,11 @@
 # Scattered Notes (macOS)
 
-A high-performance, native macOS quick note-taking app designed for rapid capture and structured organization under **Projects** and **Areas**. Stored as transparent Markdown files on disk.
+A native macOS app that organises your scattered notes in two steps:
+
+1. **Capture**: jot a thought in seconds from anywhere with a global shortcut (`⌥ + N`), no matter what you're doing.
+2. **Unify**: the **Dashboard** builds itself from what you wrote. Every to-do and every line that mentions a day ("call the bank tomorrow", "team dinner on friday") is collected from all your notes into one view. There is nothing to set up or maintain.
+
+Notes are stored as plain Markdown files on disk, organised under **Projects** and **Areas**.
 
 ![macOS 14+](https://img.shields.io/badge/macOS-14.0%2B-blue)
 ![Swift 6](https://img.shields.io/badge/Swift-6.0-orange)
