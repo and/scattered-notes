@@ -15,6 +15,7 @@ public final class NoteStorageManager: ObservableObject {
     private var isPerformingInternalFileOperation: Bool = false
     private var cancellables = Set<AnyCancellable>()
     private let enableFileWatcher: Bool
+    private var agendaLog = AgendaLog()
     
     public init(settings: AppSettings = .shared, enableFileWatcher: Bool = true) {
         self.settings = settings
@@ -61,6 +62,11 @@ public final class NoteStorageManager: ObservableObject {
     
     public var areasURL: URL {
         rootURL.appendingPathComponent("Areas", isDirectory: true)
+    }
+    
+    /// Records when each actionable or dated line first appeared; see `AgendaLog`.
+    public var agendaLogURL: URL {
+        rootURL.appendingPathComponent(AgendaLog.fileName)
     }
     
     public func setupDirectories() {
@@ -129,6 +135,20 @@ public final class NoteStorageManager: ObservableObject {
             let aDir = areasURL.appendingPathComponent(area.name, isDirectory: true)
             loadedNotes.append(contentsOf: loadNotesInDirectory(aDir, defaultCategory: .area, targetName: area.name))
         }
+        
+        // Pick up lines written outside the app, anchoring them to when the file last changed
+        loadAgendaLog()
+        var logChanged = false
+        for note in loadedNotes {
+            let fallback = agendaLog.notes[note.id.uuidString] == nil ? note.createdAt : note.updatedAt
+            logChanged = recordAgenda(for: note, seenAt: fallback) || logChanged
+        }
+        let liveIDs = Set(loadedNotes.map { $0.id.uuidString })
+        for id in agendaLog.notes.keys where !liveIDs.contains(id) {
+            agendaLog.notes[id] = nil
+            logChanged = true
+        }
+        if logChanged { writeAgendaLog() }
         
         // Sort notes: pinned first, then newest updated
         self.notes = loadedNotes.sorted {
@@ -247,6 +267,7 @@ public final class NoteStorageManager: ObservableObject {
                 notes.insert(updatedNote, at: 0)
             }
             sortNotes()
+            if recordAgenda(for: updatedNote, seenAt: Date()) { writeAgendaLog() }
         } catch {
             print("Failed to save note \(updatedNote.id): \(error)")
         }
@@ -264,6 +285,7 @@ public final class NoteStorageManager: ObservableObject {
             try? FileManager.default.removeItem(at: fileURL)
         }
         notes.removeAll { $0.id == note.id }
+        if agendaLog.notes.removeValue(forKey: note.id.uuidString) != nil { writeAgendaLog() }
     }
     
     public func move(note: Note, to category: CategoryType, targetName: String?) {
@@ -281,7 +303,38 @@ public final class NoteStorageManager: ObservableObject {
     
     /// Checklist items and dated lines from every note, for the dashboard.
     public var agendaItems: [AgendaItem] {
-        notes.flatMap { AgendaExtractor.items(from: $0) }
+        notes.flatMap { agendaItems(for: $0) }
+    }
+    
+    /// Checklist items and dated lines of one note, dated from when each line was first written.
+    public func agendaItems(for note: Note) -> [AgendaItem] {
+        AgendaExtractor.items(from: note, anchors: agendaLog.anchors(for: note.id))
+    }
+    
+    // MARK: - Agenda Log
+    private func loadAgendaLog() {
+        guard let data = try? Data(contentsOf: agendaLogURL),
+              let log = try? AgendaLog.decoder.decode(AgendaLog.self, from: data) else {
+            agendaLog = AgendaLog()
+            return
+        }
+        agendaLog = log
+    }
+    
+    private func writeAgendaLog() {
+        isPerformingInternalFileOperation = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.isPerformingInternalFileOperation = false
+        }
+        guard let data = try? AgendaLog.encoder.encode(agendaLog) else { return }
+        try? data.write(to: agendaLogURL, options: .atomic)
+    }
+    
+    /// Adds log entries for new lines and drops entries for lines that are gone. Returns whether anything changed.
+    @discardableResult
+    private func recordAgenda(for note: Note, seenAt: Date) -> Bool {
+        let lines = AgendaExtractor.items(from: note).map { (key: AgendaExtractor.logKey(for: $0.text), line: $0.text) }
+        return agendaLog.update(noteID: note.id, lines: lines, seenAt: seenAt)
     }
     
     public func togglePin(note: Note) {

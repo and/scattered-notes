@@ -12,6 +12,7 @@ public struct NoteDetailEditorView: View {
     @State private var editorMode: EditorMode = .edit
     @State private var saveDebounceTimer: Timer?
     @State private var showingDeleteAlert = false
+    @AppStorage("showAgendaInspector") private var showAgendaInspector = true
     
     public enum EditorMode: String, CaseIterable {
         case edit = "Edit"
@@ -58,7 +59,26 @@ public struct NoteDetailEditorView: View {
         }
     }
     
+    /// Agenda lines of the saved note; empty when the note has none
+    private var agendaItems: [AgendaItem] {
+        storageManager.agendaItems(for: storageManager.notes.first { $0.id == note.id } ?? note)
+    }
+
     public var body: some View {
+        HStack(spacing: 0) {
+            editorColumn
+            if showAgendaInspector, !agendaItems.isEmpty {
+                Divider()
+                AgendaInspectorView(items: agendaItems) { item in
+                    // Edit the live text so the toggle is not overwritten by the next autosave
+                    editableContent = Note.togglingChecklistLine(item.lineIndex, in: editableContent)
+                    scheduleSave()
+                }
+            }
+        }
+    }
+
+    private var editorColumn: some View {
         VStack(spacing: 0) {
             // Header: Title, Category Picker, Actions
             HStack(spacing: 12) {
@@ -127,6 +147,16 @@ public struct NoteDetailEditorView: View {
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 100)
+                
+                // Agenda column toggle, only for notes that have agenda lines
+                if !agendaItems.isEmpty {
+                    Button(action: { showAgendaInspector.toggle() }) {
+                        Image(systemName: "sidebar.right")
+                            .foregroundColor(showAgendaInspector ? .wcagBlue : .wcagSecondaryText)
+                    }
+                    .buttonStyle(.plain)
+                    .help(showAgendaInspector ? "Hide Agenda" : "Show Agenda")
+                }
                 
                 // Pin Button
                 Button(action: {

@@ -63,7 +63,7 @@ public struct DashboardView: View {
         let isEmpty = overdue.isEmpty && dueToday.isEmpty && upcoming.isEmpty && todos.isEmpty
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 24) {
                 header(upcomingCount: upcoming.reduce(0) { $0 + $1.items.count })
 
                 if isEmpty {
@@ -82,7 +82,8 @@ public struct DashboardView: View {
                             Text("Nothing planned for today.")
                                 .font(.callout)
                                 .foregroundColor(.wcagSecondaryText)
-                                .padding(.vertical, 4)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
                         } else {
                             ForEach(dueToday) { item in
                                 row(item, note: lookup[item.noteID], showDate: false)
@@ -96,7 +97,9 @@ public struct DashboardView: View {
                                 Text(dayLabel(group.day))
                                     .font(.caption.weight(.semibold))
                                     .foregroundColor(.wcagSecondaryText)
-                                    .padding(.top, 6)
+                                    .padding(.horizontal, 10)
+                                    .padding(.top, 10)
+                                    .padding(.bottom, 2)
                                 ForEach(group.items) { item in
                                     row(item, note: lookup[item.noteID], showDate: false)
                                 }
@@ -114,7 +117,9 @@ public struct DashboardView: View {
                                         .lineLimit(1)
                                 }
                                 .buttonStyle(.plain)
-                                .padding(.top, 6)
+                                .padding(.horizontal, 10)
+                                .padding(.top, 10)
+                                .padding(.bottom, 2)
                                 .help("Open note")
                                 ForEach(group.items) { item in
                                     row(item, note: nil, showDate: false)
@@ -124,11 +129,13 @@ public struct DashboardView: View {
                     }
                 }
             }
-            .padding(24)
+            .padding(.horizontal, 32)
+            .padding(.vertical, 28)
             .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(NSColor.textBackgroundColor))
+        .background(Color(nsColor: .windowBackgroundColor))
+        .scrollContentBackground(.hidden)
     }
 
     // MARK: - Pieces
@@ -136,10 +143,10 @@ public struct DashboardView: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(Date().formatted(.dateTime.weekday(.wide)))
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(.wcagSecondaryText)
+                    .font(.title3.weight(.medium))
+                    .foregroundStyle(.secondary)
                 Text(Date().formatted(.dateTime.day().month(.wide).year()))
-                    .font(.largeTitle.weight(.bold))
+                    .font(.system(size: 34, weight: .bold))
             }
             HStack(spacing: 8) {
                 StatChip(value: overdue.count, label: "overdue", tint: .wcagOrange)
@@ -174,49 +181,13 @@ public struct DashboardView: View {
     }
 
     private func row(_ item: AgendaItem, note: Note?, showDate: Bool) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            if item.isTodo {
-                Button(action: {
-                    storageManager.toggleChecklistItem(noteID: item.noteID, lineIndex: item.lineIndex)
-                }) {
-                    Image(systemName: item.isDone ? "checkmark.square.fill" : "square")
-                        .foregroundColor(item.isDone ? .wcagGreen : .wcagSecondaryText)
-                }
-                .buttonStyle(.plain)
-                .help(item.isDone ? "Mark as not done" : "Mark as done")
-            } else {
-                Image(systemName: "circle.fill")
-                    .font(.system(size: 5))
-                    .foregroundColor(.wcagSecondaryText)
-                    .frame(width: 14)
-            }
-
-            Text(item.text)
-                .strikethrough(item.isDone, color: .wcagSecondaryText)
-                .foregroundColor(item.isDone ? .wcagSecondaryText : .primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
-
-            if showDate, let date = item.date {
-                Text(dayLabel(date))
-                    .font(.caption)
-                    .foregroundColor(.wcagOrange)
-            }
-
-            if let note {
-                Button(action: { onOpenNote(note) }) {
-                    Text(note.displayTitle)
-                        .font(.caption)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .frame(maxWidth: 160, alignment: .trailing)
-                        .foregroundColor(.wcagBlue)
-                }
-                .buttonStyle(.plain)
-                .help("Open \"\(note.displayTitle)\"")
-            }
-        }
-        .padding(.vertical, 3)
+        AgendaRow(
+            item: item,
+            note: note,
+            dateLabel: showDate ? item.date.map(dayLabel) : nil,
+            onToggle: { storageManager.toggleChecklistItem(noteID: item.noteID, lineIndex: item.lineIndex) },
+            onOpenNote: onOpenNote
+        )
     }
 
     private func dayLabel(_ date: Date) -> String {
@@ -237,22 +208,25 @@ private struct DashboardSection<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             Label {
                 Text(title)
-                    .font(.headline)
+                    .font(.title3.weight(.semibold))
             } icon: {
                 Image(systemName: systemImage)
-                    .foregroundColor(tint)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(tint)
             }
-            .padding(.bottom, 4)
-            content
+            .padding(.horizontal, 4)
+
+            VStack(alignment: .leading, spacing: 0) {
+                content
+            }
+            .padding(6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color(nsColor: .separatorColor).opacity(0.6), lineWidth: 0.5))
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(NSColor.windowBackgroundColor))
-        .cornerRadius(10)
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.wcagBorder.opacity(0.4), lineWidth: 1))
     }
 }
 
@@ -262,17 +236,80 @@ private struct StatChip: View {
     let tint: Color
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             Text("\(value)")
-                .font(.callout.weight(.bold).monospacedDigit())
+                .font(.callout.weight(.semibold).monospacedDigit())
                 .foregroundColor(value > 0 ? tint : .wcagSecondaryText)
             Text(label)
-                .font(.caption)
-                .foregroundColor(.wcagSecondaryText)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(.quaternary.opacity(0.6), in: Capsule())
+    }
+}
+
+private struct AgendaRow: View {
+    let item: AgendaItem
+    let note: Note?
+    let dateLabel: String?
+    let onToggle: () -> Void
+    let onOpenNote: (Note) -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            if item.isTodo {
+                Button(action: onToggle) {
+                    Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 16))
+                        .foregroundColor(item.isDone ? .wcagGreen : .wcagSecondaryText)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.plain)
+                .help(item.isDone ? "Mark as not done" : "Mark as done")
+            } else {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 5))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 16)
+            }
+
+            Text(item.text)
+                .strikethrough(item.isDone, color: .wcagSecondaryText)
+                .foregroundStyle(item.isDone ? .secondary : .primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+
+            if let dateLabel {
+                Text(dateLabel)
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(.wcagOrange)
+            }
+
+            if let note {
+                Button(action: { onOpenNote(note) }) {
+                    Text(note.displayTitle)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: 160, alignment: .trailing)
+                        .foregroundColor(.wcagBlue)
+                }
+                .buttonStyle(.plain)
+                .help("Open \"\(note.displayTitle)\"")
+            }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(Color.wcagBadgeBackground)
-        .cornerRadius(6)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isHovering ? Color(nsColor: .quaternaryLabelColor).opacity(0.5) : .clear)
+        )
+        .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: isHovering)
+        .animation(.default, value: item.isDone)
     }
 }

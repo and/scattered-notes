@@ -10,6 +10,8 @@ public struct AgendaItem: Identifiable, Hashable, Sendable {
     public let isDone: Bool
     /// Start of the day the line refers to, if it mentions one
     public let date: Date?
+    /// Start of the day relative words in the line are measured from: when the line first appeared
+    public let writtenOn: Date
 }
 
 /// Scans note content for checklist lines and lines that mention a day.
@@ -18,22 +20,28 @@ public struct AgendaItem: Identifiable, Hashable, Sendable {
 /// - `2026-10-28` (optionally prefixed with `@`)
 /// - `today`, `tonight`, `tomorrow`
 /// - weekday names, e.g. `friday`, `next friday`
-/// - `next week` (seven days after the note was written)
+/// - `next week` (seven days after the line was written)
+/// - `day after tomorrow`, `in 3 days`, `in 2 weeks`
+/// - `the day after`, one day after the closest dated line above it
 /// - month and day, e.g. `oct 28`, `28 october`, `Oct 28th`
 ///
-/// Relative words resolve against the note's creation date, so "tomorrow" in a note
-/// written on Monday means Tuesday even when read later in the week.
+/// Relative words resolve against the day the line was first written. `anchors` maps a line's
+/// log key (see `logKey(for:)`) to that moment; lines without an anchor fall back to the note's
+/// creation date. So "tomorrow" written on Monday means Tuesday even when read or edited later.
 public enum AgendaExtractor {
-    public static func items(from note: Note, calendar: Calendar = .current) -> [AgendaItem] {
-        let reference = calendar.startOfDay(for: note.createdAt)
+    public static func items(from note: Note, anchors: [String: Date] = [:], calendar: Calendar = .current) -> [AgendaItem] {
+        let created = calendar.startOfDay(for: note.createdAt)
         var result: [AgendaItem] = []
+        var previousDate: Date?
 
         for (index, rawLine) in note.content.components(separatedBy: .newlines).enumerated() {
             let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { continue }
 
             let checklist = checklistState(of: trimmed)
-            let date = parseDate(in: trimmed, reference: reference, calendar: calendar)
+            let reference = anchors[logKey(for: trimmed)].map { calendar.startOfDay(for: $0) } ?? created
+            let date = parseDate(in: trimmed, reference: reference, previous: previousDate, calendar: calendar)
+            if let date { previousDate = date }
             guard checklist != nil || date != nil else { continue }
 
             let text = displayText(for: trimmed)
@@ -45,10 +53,16 @@ public enum AgendaExtractor {
                 text: text,
                 isTodo: checklist != nil,
                 isDone: checklist ?? false,
-                date: date
+                date: date,
+                writtenOn: reference
             ))
         }
         return result
+    }
+
+    /// Identifies a line across edits that do not touch its words, e.g. ticking its checkbox or moving it.
+    public static func logKey(for line: String) -> String {
+        displayText(for: line.trimmingCharacters(in: .whitespaces)).lowercased()
     }
 
     /// nil when the line is not a checklist item, otherwise whether it is checked.
@@ -94,10 +108,16 @@ public enum AgendaExtractor {
     private static let weekdayRegex = try! NSRegularExpression(
         pattern: "\\b(next\\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\\b", options: .caseInsensitive)
 
+    private static let dayAfterTomorrowRegex = try! NSRegularExpression(
+        pattern: "\\bday\\s+after\\s+tomorrow\\b", options: .caseInsensitive)
+    private static let dayAfterRegex = try! NSRegularExpression(
+        pattern: "\\bday\\s+after\\b", options: .caseInsensitive)
+    private static let inIntervalRegex = try! NSRegularExpression(
+        pattern: "\\bin\\s+(\\d{1,3})\\s+(day|week)s?\\b", options: .caseInsensitive)
     private static let nextWeekRegex = try! NSRegularExpression(
         pattern: "\\bnext\\s+week\\b", options: .caseInsensitive)
 
-    static func parseDate(in line: String, reference: Date, calendar: Calendar) -> Date? {
+    static func parseDate(in line: String, reference: Date, previous: Date? = nil, calendar: Calendar) -> Date? {
         let ns = line as NSString
         let range = NSRange(location: 0, length: ns.length)
         func group(_ match: NSTextCheckingResult, _ index: Int) -> String {
@@ -119,6 +139,19 @@ public enum AgendaExtractor {
             if let date = resolveMonthDay(month: group(m, 2), day: Int(group(m, 1)), reference: reference, calendar: calendar) {
                 return date
             }
+        }
+
+        if dayAfterTomorrowRegex.firstMatch(in: line, range: range) != nil {
+            return calendar.date(byAdding: .day, value: 2, to: reference)
+        }
+
+        // "the day after" continues from the dated line above, e.g. "buy milk today" then "bake the day after"
+        if dayAfterRegex.firstMatch(in: line, range: range) != nil {
+            return calendar.date(byAdding: .day, value: 1, to: previous ?? reference)
+        }
+
+        if let m = inIntervalRegex.firstMatch(in: line, range: range), let count = Int(group(m, 1)) {
+            return calendar.date(byAdding: .day, value: group(m, 2) == "week" ? count * 7 : count, to: reference)
         }
 
         if let m = relativeRegex.firstMatch(in: line, range: range) {
