@@ -24,6 +24,9 @@ public sealed class AppSettings : INotifyPropertyChanged
         [JsonPropertyName("quickCaptureShortcut")] public HotKeyShortcut? QuickCaptureShortcut { get; set; }
         [JsonPropertyName("searchShortcut")] public HotKeyShortcut? SearchShortcut { get; set; }
         [JsonPropertyName("startAtLogin")] public bool StartAtLogin { get; set; }
+        [JsonPropertyName("checkForUpdates")] public bool? CheckForUpdates { get; set; }
+        [JsonPropertyName("skippedVersion")] public string? SkippedVersion { get; set; }
+        [JsonPropertyName("lastUpdateCheck")] public DateTimeOffset? LastUpdateCheck { get; set; }
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
@@ -34,6 +37,9 @@ public sealed class AppSettings : INotifyPropertyChanged
     private HotKeyShortcut _quickCaptureShortcut;
     private HotKeyShortcut _searchShortcut;
     private bool _startAtLogin;
+    private bool _checkForUpdates;
+    private string? _skippedVersion;
+    private DateTimeOffset? _lastUpdateCheck;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -60,6 +66,9 @@ public sealed class AppSettings : INotifyPropertyChanged
         _quickCaptureShortcut = stored?.QuickCaptureShortcut ?? HotKeyShortcut.QuickCaptureDefault;
         _searchShortcut = stored?.SearchShortcut ?? HotKeyShortcut.SearchDefault;
         _startAtLogin = stored?.StartAtLogin ?? false;
+        _checkForUpdates = stored?.CheckForUpdates ?? true;
+        _skippedVersion = stored?.SkippedVersion;
+        _lastUpdateCheck = stored?.LastUpdateCheck;
     }
 
     public string NotesDirectory
@@ -94,6 +103,26 @@ public sealed class AppSettings : INotifyPropertyChanged
         set => Set(ref _startAtLogin, value);
     }
 
+    /// <summary>Look for a new version at launch and once a day. The user is always asked before installing.</summary>
+    public bool CheckForUpdates
+    {
+        get => _checkForUpdates;
+        set => Set(ref _checkForUpdates, value);
+    }
+
+    /// <summary>A release tag the user chose to skip; later versions are still offered.</summary>
+    public string? SkippedVersion
+    {
+        get => _skippedVersion;
+        set => Set(ref _skippedVersion, value);
+    }
+
+    public DateTimeOffset? LastUpdateCheck
+    {
+        get => _lastUpdateCheck;
+        set => Set(ref _lastUpdateCheck, value);
+    }
+
     public void ResetToDefault()
     {
         NotesDirectory = DefaultNotesDirectory;
@@ -118,6 +147,9 @@ public sealed class AppSettings : INotifyPropertyChanged
             QuickCaptureShortcut = _quickCaptureShortcut,
             SearchShortcut = _searchShortcut,
             StartAtLogin = _startAtLogin,
+            CheckForUpdates = _checkForUpdates,
+            SkippedVersion = _skippedVersion,
+            LastUpdateCheck = _lastUpdateCheck,
         };
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         AtomicFile.WriteAllBytes(_path, JsonSerializer.SerializeToUtf8Bytes(stored, JsonOptions));

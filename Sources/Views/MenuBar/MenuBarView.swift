@@ -54,6 +54,12 @@ public struct MenuBarView: View {
             }) {
                 Label("Open Storage Folder", systemImage: "folder")
             }
+
+            Button(action: {
+                Task { await UpdateChecker.shared.check(userInitiated: true) }
+            }) {
+                Label("Check for Updates…", systemImage: "arrow.down.circle")
+            }
             
             Button(action: {
                 NSApp.activate(ignoringOtherApps: true)

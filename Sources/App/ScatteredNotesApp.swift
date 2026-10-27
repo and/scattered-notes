@@ -15,6 +15,11 @@ struct ScatteredNotesApp: App {
         .windowToolbarStyle(.unified)
         .commands {
             SidebarCommands()
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    Task { await UpdateChecker.shared.check(userInitiated: true) }
+                }
+            }
             CommandGroup(after: .newItem) {
                 ShortcutMenuButton("Quick Capture...", shortcut: settings.quickCaptureShortcut) {
                     QuickCapturePanel.shared.showPanel()

@@ -17,6 +17,8 @@ public partial class App : Application
     private GlobalHotKeys? _hotKeys;
     private NativeMenuItem? _captureItem;
     private NativeMenuItem? _searchItem;
+    private Updater? _updater;
+    private DispatcherTimer? _updateTimer;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -38,6 +40,17 @@ public partial class App : Application
             SettingsWindow.ReapplyHotKeys = RegisterHotKeysAsync;
             _ = RegisterHotKeysAsync();
             SingleInstance.ShowRequested += () => Dispatcher.UIThread.Post(ShowMain);
+
+            _updater = new Updater(settings);
+            SettingsWindow.CheckForUpdates = () => CheckForUpdatesAsync(userInitiated: true);
+            // A few seconds after launch, then hourly; each check only runs when a day has passed
+            _updateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            _updateTimer.Tick += (_, _) =>
+            {
+                _updateTimer.Interval = TimeSpan.FromHours(1);
+                if (_updater.IsCheckDue) _ = CheckForUpdatesAsync(userInitiated: false);
+            };
+            _updateTimer.Start();
 
             // Keep the Run entry pointing at this copy of the app, which may have moved
             if (settings.StartAtLogin) StartAtLogin.Apply(true);
@@ -88,6 +101,22 @@ public partial class App : Application
         if (_searchItem is not null) _searchItem.Header = $"Search All Notes\t{settings.SearchShortcut.DisplayString}";
     }
 
+    /// <summary>Automatic checks stay quiet unless there is something new; a check the user asked for always answers.</summary>
+    private async Task CheckForUpdatesAsync(bool userInitiated)
+    {
+        if (_updater is null || _state is null) return;
+        try
+        {
+            var release = await _updater.CheckAsync(userInitiated);
+            if (release is not null || userInitiated) UpdateWindow.Show(_state, _updater, release, null, Quit);
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        {
+            if (userInitiated)
+                UpdateWindow.Show(_state, _updater, null, "GitHub couldn't be reached. Check your internet connection and try again.", Quit);
+        }
+    }
+
     private void SetUpTrayIcon()
     {
         _captureItem = new NativeMenuItem("Quick Capture");
@@ -101,6 +130,8 @@ public partial class App : Application
         {
             if (_state is not null) SettingsWindow.Show(_state, _main);
         };
+        var updates = new NativeMenuItem("Check for Updates…");
+        updates.Click += (_, _) => _ = CheckForUpdatesAsync(userInitiated: true);
         var quit = new NativeMenuItem("Quit Scattered Notes");
         quit.Click += (_, _) => Quit();
 
@@ -110,6 +141,7 @@ public partial class App : Application
         menu.Items.Add(_searchItem);
         menu.Items.Add(new NativeMenuItemSeparator());
         menu.Items.Add(settings);
+        menu.Items.Add(updates);
         menu.Items.Add(new NativeMenuItemSeparator());
         menu.Items.Add(quit);
 

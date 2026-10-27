@@ -527,11 +527,18 @@ public sealed class NoteStore : IDisposable
         };
     }
 
+    /// <summary>
+    /// A file name no other note uses. Clashing titles get the first 6 characters of the ID, as on the Mac;
+    /// if even that is taken, the whole ID, so a new note can never overwrite another note's file.
+    /// </summary>
     private static string UniqueFilePath(Note note, string directory)
     {
-        var candidate = Path.Combine(directory, FileNames.NoteFileName(note));
-        if (!File.Exists(candidate) || SamePath(candidate, note.FilePath)) return candidate;
-        return Path.Combine(directory, FileNames.NoteFileName(note, withIdSuffix: true));
+        foreach (var suffix in new[] { 0, 6, 36 })
+        {
+            var candidate = Path.Combine(directory, FileNames.NoteFileName(note, suffix));
+            if (!File.Exists(candidate) || SamePath(candidate, note.FilePath)) return candidate;
+        }
+        throw new IOException($"A file named after note {note.IdString} already exists in {directory}.");
     }
 
     private void SortNotes() =>

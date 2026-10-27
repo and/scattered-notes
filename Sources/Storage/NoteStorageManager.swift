@@ -607,9 +607,14 @@ public final class NoteStorageManager: ObservableObject {
             return candidate
         }
         
-        // Otherwise append UUID short slice
-        let shortId = note.id.uuidString.prefix(6)
-        return "\(datePrefix)_\(baseName)_\(shortId).md"
+        // Otherwise append a short slice of the ID, or the whole ID if even that is taken, so a new
+        // note never overwrites another note's file
+        let short = "\(datePrefix)_\(baseName)_\(note.id.uuidString.prefix(6)).md"
+        let shortTarget = directory.appendingPathComponent(short)
+        if !FileManager.default.fileExists(atPath: shortTarget.path) || shortTarget.path == note.filePath?.path {
+            return short
+        }
+        return "\(datePrefix)_\(baseName)_\(note.id.uuidString).md"
     }
     
     private func sanitizeFileName(_ string: String) -> String {

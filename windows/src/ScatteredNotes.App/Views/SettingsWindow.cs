@@ -18,6 +18,9 @@ internal sealed class SettingsWindow : Window
     /// <summary>Shortcuts Windows or another app refused, set by the app after registering.</summary>
     public static Dictionary<HotKeyAction, bool> RegistrationResults { get; } = [];
 
+    /// <summary>Set by the app: checks for a new version and shows the result.</summary>
+    public static Func<Task>? CheckForUpdates { get; set; }
+
     /// <summary>Set by the app: registers the shortcuts again after a change.</summary>
     public static Func<Task>? ReapplyHotKeys { get; set; }
 
@@ -79,8 +82,23 @@ internal sealed class SettingsWindow : Window
         };
         var startupCard = Card("Startup", Symbol.Power, Labeled("Start Scattered Notes when you sign in", startup));
 
+        var autoUpdate = new ToggleSwitch { IsChecked = _state.Settings.CheckForUpdates, OnContent = "On", OffContent = "Off" };
+        autoUpdate.IsCheckedChanged += (_, _) => _state.Settings.CheckForUpdates = autoUpdate.IsChecked == true;
+        var checkNow = new Button { Content = "Check Now" };
+        checkNow.Click += async (_, _) =>
+        {
+            checkNow.IsEnabled = false;
+            if (CheckForUpdates is not null) await CheckForUpdates();
+            checkNow.IsEnabled = true;
+        };
+        var lastCheck = _state.Settings.LastUpdateCheck is { } last ? $"Last checked {last.ToLocalTime():g}. " : "";
+        var updatesCard = Card("Updates", Symbol.ArrowSync,
+            Labeled("Check for updates automatically", autoUpdate),
+            Labeled($"Version {Updater.CurrentVersion}", checkNow),
+            Note($"{lastCheck}When a new version is out, Scattered Notes shows what changed and asks before installing it."));
+
         var stack = new StackPanel { Spacing = 14, Margin = new Thickness(20) };
-        stack.Children.AddRange([folderCard, editorCard, shortcutsCard, startupCard]);
+        stack.Children.AddRange([folderCard, editorCard, shortcutsCard, startupCard, updatesCard]);
         Content = new ScrollViewer { Content = stack };
 
         KeyDown += (_, e) =>

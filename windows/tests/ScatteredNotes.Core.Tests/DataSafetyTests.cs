@@ -303,6 +303,23 @@ public class DataSafetyTests
     }
 
     [Fact]
+    public void ClashingIdPrefixNeverOverwritesAnotherNote()
+    {
+        using var temp = new TempStore();
+        var first = temp.Store.CreateNote("Same", "first");
+        // A second note whose short-ID file name is already taken by an unrelated file
+        var id = Guid.NewGuid();
+        var taken = Path.Combine(temp.Store.InboxPath, FileNames.NoteFileName(new Note { Id = id, Title = "Same" }, 6));
+        File.WriteAllText(taken, "someone else's file");
+
+        temp.Store.Save(new Note { Id = id, Title = "Same", Content = "second" });
+
+        Assert.Equal("someone else's file", File.ReadAllText(taken));
+        Assert.Equal(["first", "second"], temp.Open().Notes.Select(n => n.Content).Where(c => c != "someone else's file").Order());
+        Assert.Equal("first", File.ReadAllText(first.FilePath!)[^5..]);
+    }
+
+    [Fact]
     public void LockedFileIsRetriedNotLost()
     {
         using var temp = new TempStore();

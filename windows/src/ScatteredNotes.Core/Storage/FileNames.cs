@@ -27,12 +27,13 @@ public static class FileNames
     }
 
     /// <summary><c>yyyy-MM-dd_&lt;title&gt;.md</c>, the date being when the note was created.</summary>
-    public static string NoteFileName(Note note, bool withIdSuffix = false)
+    /// <param name="idSuffixLength">0 for none; otherwise how many characters of the ID to append.</param>
+    public static string NoteFileName(Note note, int idSuffixLength = 0)
     {
         var baseName = SanitizeTitle(note.DisplayTitle);
         if (baseName.Length == 0) baseName = "note";
         var date = note.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        return withIdSuffix ? $"{date}_{baseName}_{note.IdString[..6]}.md" : $"{date}_{baseName}.md";
+        return idSuffixLength > 0 ? $"{date}_{baseName}_{note.IdString[..idSuffixLength]}.md" : $"{date}_{baseName}.md";
     }
 
     /// <summary>

@@ -41,7 +41,7 @@ Go to the [latest release](https://github.com/and/scattered-notes/releases/lates
 - The two global shortcuts, `⌥ + N` (Quick Capture) and `⌥ + F` (search), can be changed in **Settings → Global Shortcuts**. If a shortcut doesn't respond, another app may already use it; pick a different one.
 - The app also lives in the menu bar, so Quick Capture and your recent notes are one click away.
 
-**Updating:** download the new zip and replace the app in Applications. Your notes are plain files in the notes folder and are not touched.
+**Updating:** from version 1.1.1 the app checks GitHub once a day and, when a new version is out, shows what changed and asks before installing. Click **Install and Relaunch** to update in place, or choose **Scattered Notes → Check for Updates…** at any time. Turn automatic checks off in **Settings → Updates**. Your notes are plain files in the notes folder and are not touched.
 
 **Uninstalling:** quit the app and drag it to the Trash. Your notes stay in the notes folder. To also remove the app's settings, run `defaults delete com.scatterednotes.app` in Terminal.
 
@@ -58,7 +58,7 @@ Go to the [latest release](https://github.com/and/scattered-notes/releases/lates
 - Notes are saved in `Documents\ScatteredNotes`. To use the same notes as on a Mac, choose **Settings → Notes folder → Choose Folder…** and pick your iCloud Drive or OneDrive folder.
 - Closing the window keeps the app running in the notification area (the system tray), so the shortcuts keep working. Use **Quit Scattered Notes** in its menu to stop it. **Settings → Startup** starts it when you sign in.
 
-**Updating:** quit the app, then replace the exe with the new one.
+**Updating:** from version 1.1.1 the app checks GitHub once a day and, when a new version is out, shows what changed and asks before installing. **Install and Restart** replaces the exe in place. You can also choose **Check for Updates…** in the tray menu, and turn automatic checks off in **Settings → Updates**.
 
 **Uninstalling:** quit the app and delete the exe. Your notes stay in the notes folder. Settings are in `%APPDATA%\ScatteredNotes`.
 

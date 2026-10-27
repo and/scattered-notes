@@ -40,6 +40,7 @@ public struct SettingsView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
     @ObservedObject var settings = AppSettings.shared
     @ObservedObject var hotKeys = GlobalHotKeyManager.shared
+    @ObservedObject var updates = UpdateChecker.shared
 
     public init() {}
 
@@ -88,6 +89,22 @@ public struct SettingsView: View {
                 )
 
                 Text("These work from any app. Shortcuts that use only ⌥ stop that key from typing special characters, such as ƒ or ˜, in other apps.")
+                    .font(.caption)
+                    .foregroundColor(.wcagSecondaryText)
+            }
+
+            Section("Updates") {
+                Toggle("Check for updates automatically", isOn: $updates.automaticallyChecks)
+                HStack {
+                    Text("Version \(AppVersion.current.description)")
+                    Spacer()
+                    Button("Check Now") {
+                        Task { await updates.check(userInitiated: true) }
+                    }
+                    .disabled(updates.state == .checking)
+                }
+                Text((updates.lastCheck.map { "Last checked \($0.formatted(date: .abbreviated, time: .shortened)). " } ?? "")
+                     + "When a new version is out, Scattered Notes shows what changed and asks before installing it.")
                     .font(.caption)
                     .foregroundColor(.wcagSecondaryText)
             }

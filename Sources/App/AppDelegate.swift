@@ -7,6 +7,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     public func applicationDidFinishLaunching(_ notification: Notification) {
         EscapeToClose.install()
+        UpdateChecker.shared.start()
         let hotKeys = GlobalHotKeyManager.shared
         let settings = AppSettings.shared
 
