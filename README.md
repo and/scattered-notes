@@ -20,7 +20,7 @@ A high-performance, native macOS quick note-taking app designed for rapid captur
 
 Get the latest signed and notarized build from the [Releases page](https://github.com/and/scattered-notes/releases/latest):
 
-1. Download `ScatteredNotes-1.0.0.zip` and unzip it.
+1. Download the `ScatteredNotes-<version>.zip` file and unzip it.
 2. Drag **ScatteredNotes.app** into your Applications folder and open it.
 
 Requires macOS 14 (Sonoma) or later. Runs on Apple silicon and Intel Macs.

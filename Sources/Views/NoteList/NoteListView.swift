@@ -158,11 +158,8 @@ public struct NoteListView: View {
                                     selectedNote = note
                                     listFocused = true
                                 }
-                                .listRowBackground(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(isSelected ? Color.wcagSelection : Color.clear)
-                                        .padding(.horizontal, 6)
-                                )
+                                .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
+                                .listRowSeparator(.hidden)
                                 .contextMenu {
                                     noteContextMenu(for: note)
                                 }
@@ -348,7 +345,12 @@ public struct NoteCardRow: View {
             }
             .padding(.top, 2)
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isSelected ? Color.wcagSelection : Color.clear)
+        )
     }
     
     private var destinationIcon: String {
