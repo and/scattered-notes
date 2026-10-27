@@ -22,6 +22,10 @@ struct ScatteredNotesApp: App {
             }
         }
         
+        Settings {
+            SettingsView()
+        }
+        
         MenuBarExtra("Scattered Notes", systemImage: "note.text.badge.plus") {
             MenuBarView()
         }

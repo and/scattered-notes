@@ -254,8 +254,12 @@ public struct NoteDetailEditorView: View {
             syncFromNote()
         }
         .onDisappear {
-            saveDebounceTimer?.invalidate()
-            saveDebounceTimer = nil
+            // Flush pending edits instead of dropping them, e.g. when switching to the dashboard
+            if saveDebounceTimer != nil {
+                saveDebounceTimer?.invalidate()
+                saveDebounceTimer = nil
+                saveNow()
+            }
         }
         .onChange(of: note.id) { _, _ in
             syncFromNote()
@@ -284,23 +288,28 @@ public struct NoteDetailEditorView: View {
     private func scheduleSave() {
         saveDebounceTimer?.invalidate()
         saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
-            guard editableTitle != note.title || editableContent != note.content else { return }
-            var updated = note
-            updated.title = editableTitle
-            updated.content = editableContent
-            
-            // Re-extract tags
-            let words = editableContent.components(separatedBy: .whitespacesAndNewlines)
-            let tags = words
-                .filter { $0.hasPrefix("#") && $0.count > 1 }
-                .map { String($0.dropFirst()).trimmingCharacters(in: CharacterSet.alphanumerics.inverted) }
-                .filter { !$0.isEmpty }
-            if !tags.isEmpty {
-                updated.tags = Array(Set(tags)).sorted()
-            }
-            
-            storageManager.save(note: updated)
+            saveDebounceTimer = nil
+            saveNow()
         }
+    }
+    
+    private func saveNow() {
+        guard editableTitle != note.title || editableContent != note.content else { return }
+        var updated = note
+        updated.title = editableTitle
+        updated.content = editableContent
+        
+        // Re-extract tags
+        let words = editableContent.components(separatedBy: .whitespacesAndNewlines)
+        let tags = words
+            .filter { $0.hasPrefix("#") && $0.count > 1 }
+            .map { String($0.dropFirst()).trimmingCharacters(in: CharacterSet.alphanumerics.inverted) }
+            .filter { !$0.isEmpty }
+        if !tags.isEmpty {
+            updated.tags = Array(Set(tags)).sorted()
+        }
+        
+        storageManager.save(note: updated)
     }
     
     private func moveTo(category: CategoryType, target: String?) {

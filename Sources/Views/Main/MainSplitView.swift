@@ -3,20 +3,26 @@ import SwiftUI
 public struct MainSplitView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
     
-    @State private var sidebarSelection: SidebarSelection = .all
+    @State private var sidebarSelection: SidebarSelection = .dashboard
     @State private var selectedNote: Note? = nil
+    @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
     
     public init() {}
     
     public var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(selection: $sidebarSelection)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
         } content: {
             NoteListView(selectedCategory: sidebarSelection, selectedNote: $selectedNote)
                 .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 400)
         } detail: {
-            if let note = selectedNote {
+            if sidebarSelection == .dashboard {
+                DashboardView { note in
+                    selectedNote = note
+                    sidebarSelection = .all
+                }
+            } else if let note = selectedNote {
                 NoteDetailEditorView(note: note)
                     .id(note.id)
             } else {
@@ -45,6 +51,10 @@ public struct MainSplitView: View {
                 .help("Open Quick Capture (⌥N)")
             }
         }
+        .onChange(of: sidebarSelection) { _, newSelection in
+            // The dashboard uses the full width; note lists bring back the middle column
+            columnVisibility = newSelection == .dashboard ? .doubleColumn : .all
+        }
         .onAppear {
             if selectedNote == nil, let first = storageManager.notes.first {
                 selectedNote = first
@@ -53,6 +63,9 @@ public struct MainSplitView: View {
     }
     
     private var windowTitle: String {
+        if sidebarSelection == .dashboard {
+            return sidebarSelection.title
+        }
         if let note = selectedNote {
             return "\(note.displayTitle) — \(sidebarSelection.title)"
         }

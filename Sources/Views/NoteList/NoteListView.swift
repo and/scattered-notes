@@ -25,7 +25,7 @@ public struct NoteListView: View {
         
         // 1. Filter by category/project
         switch selectedCategory {
-        case .all:
+        case .all, .dashboard:
             break
         case .inbox:
             result = result.filter { $0.categoryType == .inbox }
@@ -215,7 +215,7 @@ public struct NoteListView: View {
     private func createNewNoteInCurrentCategory() {
         let (category, target): (CategoryType, String?) = {
             switch selectedCategory {
-            case .all, .inbox:
+            case .all, .inbox, .dashboard:
                 return (.inbox, nil)
             case .project(let name):
                 return (.project, name)

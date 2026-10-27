@@ -5,25 +5,31 @@ final class EndToEndFeatureTests: XCTestCase {
     var tempDirectory: URL!
     var settings: AppSettings!
     var storageManager: NoteStorageManager!
+    var testDefaults: UserDefaults!
+    let testDefaultsSuite = "com.scatterednotes.app.tests.e2e"
     
     @MainActor
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         tempDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try? FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
-        settings = AppSettings(notesDirectoryURL: tempDirectory)
+        testDefaults = UserDefaults(suiteName: testDefaultsSuite)
+        testDefaults.removePersistentDomain(forName: testDefaultsSuite)
+        settings = AppSettings(notesDirectoryURL: tempDirectory, defaults: testDefaults)
         storageManager = NoteStorageManager(settings: settings, enableFileWatcher: false)
     }
     
     @MainActor
-    override func tearDown() {
+    override func tearDown() async throws {
         if let dir = tempDirectory {
             try? FileManager.default.removeItem(at: dir)
         }
         storageManager = nil
         settings = nil
+        testDefaults.removePersistentDomain(forName: testDefaultsSuite)
+        testDefaults = nil
         tempDirectory = nil
-        super.tearDown()
+        try await super.tearDown()
     }
     
     // MARK: - 1. Quick Capture to Inbox End-to-End
@@ -320,5 +326,48 @@ final class EndToEndFeatureTests: XCTestCase {
         // Verify removed from state and deleted from disk
         XCTAssertEqual(storageManager.notes.count, 0)
         XCTAssertFalse(FileManager.default.fileExists(atPath: filePath.path))
+    }
+    
+    // MARK: - 11. Changing the Notes Folder Moves Existing Notes
+    @MainActor
+    func testRelocateStorageMovesNotesFromCurrentAndDefaultFolders() throws {
+        let fileManager = FileManager.default
+        storageManager.createProject(name: "Website", icon: "globe")
+        let inboxNote = storageManager.createNote(title: "Inbox idea", content: "Call back")
+        storageManager.createNote(title: "Landing page", content: "Hero copy", category: .project, targetName: "Website")
+        
+        // Simulated default folder holding an older note, plus the chosen folder, both outside the current root
+        let scratch = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: scratch) }
+        let defaultRoot = scratch.appendingPathComponent("Default", isDirectory: true)
+        let defaultInbox = defaultRoot.appendingPathComponent("Inbox", isDirectory: true)
+        try fileManager.createDirectory(at: defaultInbox, withIntermediateDirectories: true)
+        try Note(title: "Old note", content: "From before").serializeToMarkdown()
+            .write(to: defaultInbox.appendingPathComponent("2026-01-01_Old-note.md"), atomically: true, encoding: .utf8)
+        
+        let newRoot = scratch.appendingPathComponent("Chosen", isDirectory: true)
+        let moved = try storageManager.relocateStorage(to: newRoot, defaultRoot: defaultRoot)
+        
+        XCTAssertEqual(moved, 3)
+        XCTAssertEqual(settings.notesDirectoryURL.path, newRoot.standardizedFileURL.path)
+        XCTAssertEqual(testDefaults.string(forKey: "settings.notesDirectory"), newRoot.standardizedFileURL.path)
+        XCTAssertEqual(storageManager.notes.count, 3)
+        XCTAssertEqual(storageManager.projects.first?.name, "Website")
+        XCTAssertEqual(storageManager.projects.first?.customIcon, "globe")
+        let resolvedNewRoot = newRoot.resolvingSymlinksInPath().path
+        XCTAssertTrue(storageManager.notes.allSatisfy { $0.filePath?.resolvingSymlinksInPath().path.hasPrefix(resolvedNewRoot) == true })
+        XCTAssertFalse(fileManager.fileExists(atPath: inboxNote.filePath!.path))
+        XCTAssertFalse(fileManager.fileExists(atPath: defaultInbox.path))
+    }
+    
+    @MainActor
+    func testRelocateStorageRejectsFolderInsideCurrentFolder() {
+        storageManager.createNote(title: "Keep me", content: "Safe")
+        let nested = storageManager.inboxURL.appendingPathComponent("Nested", isDirectory: true)
+        let defaultRoot = tempDirectory.appendingPathComponent("Default", isDirectory: true)
+        
+        XCTAssertThrowsError(try storageManager.relocateStorage(to: nested, defaultRoot: defaultRoot))
+        XCTAssertEqual(settings.notesDirectoryURL, tempDirectory)
+        XCTAssertEqual(storageManager.notes.count, 1)
     }
 }

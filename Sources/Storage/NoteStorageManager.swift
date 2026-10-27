@@ -26,8 +26,10 @@ public final class NoteStorageManager: ObservableObject {
         }
         
         // Listen for directory changes in settings
+        // @Published emits on willSet, so hop to the next main-queue turn to read the new value
         settings.$notesDirectoryURL
             .dropFirst()
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self = self else { return }
                 self.setupDirectories()
@@ -271,6 +273,17 @@ public final class NoteStorageManager: ObservableObject {
         save(note: updatedNote)
     }
     
+    public func toggleChecklistItem(noteID: UUID, lineIndex: Int) {
+        guard var note = notes.first(where: { $0.id == noteID }) else { return }
+        note.content = Note.togglingChecklistLine(lineIndex, in: note.content)
+        save(note: note)
+    }
+    
+    /// Checklist items and dated lines from every note, for the dashboard.
+    public var agendaItems: [AgendaItem] {
+        notes.flatMap { AgendaExtractor.items(from: $0) }
+    }
+    
     public func togglePin(note: Note) {
         var updated = note
         updated.isPinned.toggle()
@@ -318,6 +331,120 @@ public final class NoteStorageManager: ObservableObject {
         loadAll()
     }
     
+    // MARK: - Storage Folder Relocation
+    public enum RelocationError: LocalizedError {
+        case nestedFolder
+
+        public var errorDescription: String? {
+            switch self {
+            case .nestedFolder:
+                return "The new folder can't be inside a folder that currently holds your notes."
+            }
+        }
+    }
+
+    /// Points the app at `newRoot` and moves every note (plus project/area folders and their
+    /// metadata) from the current folder and the default folder into it.
+    /// Returns the number of note files moved.
+    @discardableResult
+    public func relocateStorage(
+        to newRoot: URL,
+        defaultRoot: URL = AppSettings.defaultNotesDirectoryURL
+    ) throws -> Int {
+        let destination = newRoot.standardizedFileURL
+        var sources = [rootURL.standardizedFileURL]
+        if !sources.contains(defaultRoot.standardizedFileURL) {
+            sources.append(defaultRoot.standardizedFileURL)
+        }
+        sources.removeAll { $0.path == destination.path }
+
+        for source in sources where Self.isInside(destination, source) {
+            throw RelocationError.nestedFolder
+        }
+
+        stopWatching()
+        isPerformingInternalFileOperation = true
+        defer {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.isPerformingInternalFileOperation = false
+            }
+        }
+
+        var movedCount = 0
+        for source in sources {
+            for folder in ["Inbox", "Projects", "Areas"] {
+                movedCount += try moveContents(
+                    of: source.appendingPathComponent(folder, isDirectory: true),
+                    into: destination.appendingPathComponent(folder, isDirectory: true)
+                )
+            }
+        }
+
+        if settings.notesDirectoryURL.standardizedFileURL.path != destination.path {
+            settings.notesDirectoryURL = destination
+        }
+        // Reload now rather than waiting for the async settings sink
+        loadAll()
+        if enableFileWatcher {
+            startWatching()
+        }
+        return movedCount
+    }
+
+    private static func isInside(_ child: URL, _ parent: URL) -> Bool {
+        let parentPath = parent.path.hasSuffix("/") ? parent.path : parent.path + "/"
+        return child.path.hasPrefix(parentPath)
+    }
+
+    /// Recursively moves `.md` notes and `.metadata.json` files, keeping the folder layout.
+    /// Name clashes on notes get a numeric suffix; existing metadata in the destination wins.
+    private func moveContents(of sourceDir: URL, into destDir: URL) throws -> Int {
+        let fileManager = FileManager.default
+        guard let items = try? fileManager.contentsOfDirectory(at: sourceDir, includingPropertiesForKeys: [.isDirectoryKey]) else {
+            return 0
+        }
+        try fileManager.createDirectory(at: destDir, withIntermediateDirectories: true)
+
+        var movedCount = 0
+        for item in items {
+            var isDir: ObjCBool = false
+            guard fileManager.fileExists(atPath: item.path, isDirectory: &isDir) else { continue }
+            let name = item.lastPathComponent
+
+            if isDir.boolValue {
+                movedCount += try moveContents(of: item, into: destDir.appendingPathComponent(name, isDirectory: true))
+            } else if name == ".metadata.json" {
+                let target = destDir.appendingPathComponent(name)
+                if !fileManager.fileExists(atPath: target.path) {
+                    try fileManager.moveItem(at: item, to: target)
+                }
+            } else if item.pathExtension.lowercased() == "md" {
+                try fileManager.moveItem(at: item, to: uniqueDestination(for: name, in: destDir))
+                movedCount += 1
+            }
+        }
+
+        // Clean up the source folder if nothing but Finder clutter is left
+        let leftovers = (try? fileManager.contentsOfDirectory(atPath: sourceDir.path)) ?? []
+        if leftovers.allSatisfy({ $0 == ".DS_Store" }) {
+            try? fileManager.removeItem(at: sourceDir)
+        }
+        return movedCount
+    }
+
+    private func uniqueDestination(for fileName: String, in directory: URL) -> URL {
+        let candidate = directory.appendingPathComponent(fileName)
+        guard FileManager.default.fileExists(atPath: candidate.path) else { return candidate }
+        let base = (fileName as NSString).deletingPathExtension
+        let ext = (fileName as NSString).pathExtension
+        var index = 2
+        while true {
+            let next = directory.appendingPathComponent("\(base)_\(index).\(ext)")
+            if !FileManager.default.fileExists(atPath: next.path) { return next }
+            index += 1
+        }
+    }
+
     // MARK: - Helpers
     private func targetDirectory(for category: CategoryType, targetName: String?) -> URL {
         switch category {
@@ -381,18 +508,17 @@ public final class NoteStorageManager: ObservableObject {
         let descriptor = open(rootURL.path, O_EVTONLY)
         guard descriptor >= 0 else { return }
         
+        // Handlers inherit @MainActor isolation from this class, so they must run on the main
+        // queue; Swift 6 traps at runtime if they fire on a background queue
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: descriptor,
             eventMask: [.write, .extend, .attrib, .link],
-            queue: DispatchQueue.global(qos: .utility)
+            queue: DispatchQueue.main
         )
-        
+
         source.setEventHandler { [weak self] in
-            guard let self = self else { return }
-            DispatchQueue.main.async {
-                guard !self.isPerformingInternalFileOperation else { return }
-                self.loadAll()
-            }
+            guard let self = self, !self.isPerformingInternalFileOperation else { return }
+            self.loadAll()
         }
         
         source.setCancelHandler {

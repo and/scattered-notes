@@ -1,6 +1,7 @@
 import SwiftUI
 
 public enum SidebarSelection: Hashable {
+    case dashboard
     case all
     case inbox
     case project(name: String)
@@ -8,6 +9,7 @@ public enum SidebarSelection: Hashable {
     
     public var title: String {
         switch self {
+        case .dashboard: return "Dashboard"
         case .all: return "All Notes"
         case .inbox: return "Inbox"
         case .project(let name): return name
@@ -33,6 +35,15 @@ public struct SidebarView: View {
     public var body: some View {
         List(selection: $selection) {
             Section("Quick Access") {
+                NavigationLink(value: SidebarSelection.dashboard) {
+                    Label {
+                        Text("Dashboard")
+                    } icon: {
+                        Image(systemName: "square.grid.2x2.fill")
+                            .foregroundColor(.wcagPurple)
+                    }
+                }
+                
                 NavigationLink(value: SidebarSelection.all) {
                     Label {
                         Text("All Notes")
@@ -137,14 +148,26 @@ public struct SidebarView: View {
             VStack(spacing: 0) {
                 Divider()
                 HStack {
-                    Button(action: {
-                        NSWorkspace.shared.open(storageManager.rootURL)
-                    }) {
-                        Label("Storage Folder", systemImage: "folder")
+                    Menu {
+                        Text(storageManager.rootURL.path)
+                        Divider()
+                        Button("Reveal in Finder") {
+                            NSWorkspace.shared.open(storageManager.rootURL)
+                        }
+                        Button("Change Notes Folder…") {
+                            StorageFolderPicker.chooseAndRelocate(storageManager: storageManager)
+                        }
+                    } label: {
+                        Label("Notes Folder", systemImage: "folder")
                             .font(.caption)
+                            .lineLimit(1)
+                            .fixedSize()
                     }
-                    .buttonStyle(.plain)
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
                     .foregroundColor(.wcagSecondaryText)
+                    .help(storageManager.rootURL.path)
                     
                     Spacer()
                     

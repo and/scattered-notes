@@ -76,7 +76,7 @@ final class NoteStorageTests: XCTestCase {
     
     @MainActor
     func testProjectAndAreaDirectoryScaffolding() {
-        let settings = AppSettings(notesDirectoryURL: tempDirectory)
+        let settings = AppSettings(notesDirectoryURL: tempDirectory, defaults: UserDefaults(suiteName: "com.scatterednotes.app.tests.storage")!)
         let manager = NoteStorageManager(settings: settings, enableFileWatcher: false)
         
         XCTAssertTrue(FileManager.default.fileExists(atPath: manager.inboxURL.path))

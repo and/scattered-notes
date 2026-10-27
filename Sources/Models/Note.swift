@@ -101,6 +101,31 @@ public struct Note: Identifiable, Hashable, Sendable {
     }
 }
 
+// MARK: - Checklist Toggling
+extension Note {
+    /// Flips the checklist box on `lineIndex` of `content`; other lines are left untouched.
+    public static func togglingChecklistLine(_ lineIndex: Int, in content: String) -> String {
+        var lines = content.components(separatedBy: .newlines)
+        guard lineIndex < lines.count else { return content }
+        let line = lines[lineIndex]
+        
+        if line.contains("- [ ]") {
+            lines[lineIndex] = line.replacingOccurrences(of: "- [ ]", with: "- [x]")
+        } else if line.contains("- [x]") {
+            lines[lineIndex] = line.replacingOccurrences(of: "- [x]", with: "- [ ]")
+        } else if line.contains("- [X]") {
+            lines[lineIndex] = line.replacingOccurrences(of: "- [X]", with: "- [ ]")
+        } else if line.contains("* [ ]") {
+            lines[lineIndex] = line.replacingOccurrences(of: "* [ ]", with: "* [x]")
+        } else if line.contains("* [x]") {
+            lines[lineIndex] = line.replacingOccurrences(of: "* [x]", with: "* [ ]")
+        } else if line.contains("* [X]") {
+            lines[lineIndex] = line.replacingOccurrences(of: "* [X]", with: "* [ ]")
+        }
+        return lines.joined(separator: "\n")
+    }
+}
+
 // MARK: - Markdown & YAML Serialization
 extension Note {
     private nonisolated(unsafe) static let isoFormatter: ISO8601DateFormatter = {

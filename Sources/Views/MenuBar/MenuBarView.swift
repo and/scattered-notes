@@ -51,6 +51,18 @@ public struct MenuBarView: View {
                 Label("Open Storage Folder", systemImage: "folder")
             }
             
+            Button(action: {
+                NSApp.activate(ignoringOtherApps: true)
+                StorageFolderPicker.chooseAndRelocate(storageManager: storageManager)
+            }) {
+                Label("Change Notes Folder…", systemImage: "folder.badge.gearshape")
+            }
+            
+            SettingsLink {
+                Label("Settings…", systemImage: "gearshape")
+            }
+            .keyboardShortcut(",", modifiers: [.command])
+            
             Divider()
             
             Button("Quit Scattered Notes") {

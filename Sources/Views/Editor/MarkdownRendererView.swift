@@ -104,23 +104,7 @@ public struct MarkdownRendererView: View {
     }
     
     private func toggleLineCheck(lineIndex: Int) {
-        var lines = content.components(separatedBy: .newlines)
-        guard lineIndex < lines.count else { return }
-        let line = lines[lineIndex]
-        
-        if line.contains("- [ ]") {
-            lines[lineIndex] = line.replacingOccurrences(of: "- [ ]", with: "- [x]")
-        } else if line.contains("- [x]") {
-            lines[lineIndex] = line.replacingOccurrences(of: "- [x]", with: "- [ ]")
-        } else if line.contains("- [X]") {
-            lines[lineIndex] = line.replacingOccurrences(of: "- [X]", with: "- [ ]")
-        } else if line.contains("* [ ]") {
-            lines[lineIndex] = line.replacingOccurrences(of: "* [ ]", with: "* [x]")
-        } else if line.contains("* [x]") {
-            lines[lineIndex] = line.replacingOccurrences(of: "* [x]", with: "* [ ]")
-        }
-        
-        content = lines.joined(separator: "\n")
+        content = Note.togglingChecklistLine(lineIndex, in: content)
         onToggleChecklist?(lineIndex)
     }
     
