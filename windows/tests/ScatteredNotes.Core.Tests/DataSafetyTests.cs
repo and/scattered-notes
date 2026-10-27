@@ -90,7 +90,8 @@ public class DataSafetyTests
         --- not frontmatter
         Body line 3
         """;
-        var note = NoteFormat.Parse(mac);
+        // Git may check this file out with Windows line endings; the Mac writes "\n"
+        var note = NoteFormat.Parse(mac.ReplaceLineEndings("\n"));
         Assert.Equal(Guid.Parse("02EFF95A-FF15-4719-990A-0A091ABE49F6"), note.Id);
         Assert.Equal("02EFF95A-FF15-4719-990A-0A091ABE49F6", note.IdString);
         Assert.Equal("Old \"quoted\" title", note.Title);
