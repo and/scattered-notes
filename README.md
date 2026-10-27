@@ -21,14 +21,26 @@ Notes are stored as plain Markdown files on disk, organised under **Projects** a
 
 ---
 
-## Download
+## How to install
 
-Get the latest signed and notarized build from the [Releases page](https://github.com/and/scattered-notes/releases/latest):
+**Requirements:** macOS 14 (Sonoma) or later. Works on Apple silicon and Intel Macs.
 
-1. Download the `ScatteredNotes-<version>.zip` file and unzip it.
-2. Drag **ScatteredNotes.app** into your Applications folder and open it.
+1. Go to the [latest release](https://github.com/and/scattered-notes/releases/latest) and download `ScatteredNotes-<version>.zip`.
+2. Double-click the zip to unzip it.
+3. Drag **ScatteredNotes.app** into your **Applications** folder.
+4. Open it. The app is signed and notarized by Apple, so it opens without a warning.
 
-Requires macOS 14 (Sonoma) or later. Runs on Apple silicon and Intel Macs.
+**First launch**
+- The Dashboard opens first. Press `⌥ + N` in any app to capture your first note.
+- Notes are saved in `~/Documents/ScatteredNotes/`. To keep them somewhere else (for example an iCloud Drive folder), choose **Scattered Notes → Settings → Notes Folder → Change…**. Existing notes move with it.
+- The two global shortcuts, `⌥ + N` (Quick Capture) and `⌥ + F` (search), can be changed in **Settings → Global Shortcuts**. If a shortcut doesn't respond, another app may already use it; pick a different one.
+- The app also lives in the menu bar, so Quick Capture and your recent notes are one click away.
+
+**Updating:** download the new zip and replace the app in Applications. Your notes are plain files in the notes folder and are not touched.
+
+**Uninstalling:** quit the app and drag it to the Trash. Your notes stay in the notes folder. To also remove the app's settings, run `defaults delete com.scatterednotes.app` in Terminal.
+
+**Building from source:** see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ---
 
@@ -85,33 +97,6 @@ It reads every note and lists the lines that need action:
 **Relative words use the day you wrote the line**, not the day the note was created or last opened. The app records when each line first appeared in a hidden `.agenda-log.json` at the root of your notes folder, so editing a note later never moves earlier lines. The log is derived data; deleting it is safe, and older relative lines then fall back to the note's creation date.
 
 **Completing items**: click the circle next to an item on the dashboard or in the note's agenda column (right margin of the editor, toggled with the sidebar button). Completing a plain dated line turns it into a checked item (`- [x] ...`) in the note.
-
----
-
-## Quick Start
-
-### Build & Run
-```bash
-# Build the native app bundle
-make build
-
-# Launch the app
-make run
-```
-
-### Run Tests
-```bash
-# Run the complete test suite (Unit & E2E)
-make test
-
-# Run specifically the End-to-End Feature Test Suite
-make e2e-test
-```
-
-### Open in Xcode
-```bash
-open ScatteredNotes.xcodeproj
-```
 
 ---
 
