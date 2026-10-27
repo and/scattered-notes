@@ -16,3 +16,12 @@ xcuserdata/
 AppIcon.iconset/
 *.swp
 *~
+
+# .NET (Windows app)
+windows/**/bin/
+windows/**/obj/
+windows/artifacts/
+*.user
+.vs/
+# "*.app" above would otherwise match the Windows app's project folder
+!windows/src/ScatteredNotes.App/

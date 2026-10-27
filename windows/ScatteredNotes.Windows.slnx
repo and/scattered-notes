@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ScatteredNotes.App/ScatteredNotes.App.csproj" />
+    <Project Path="src/ScatteredNotes.Core/ScatteredNotes.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ScatteredNotes.Core.Tests/ScatteredNotes.Core.Tests.csproj" />
+  </Folder>
+</Solution>
