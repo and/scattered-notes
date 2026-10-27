@@ -285,11 +285,10 @@ public struct NoteDetailEditorView: View {
         }
         .onDisappear {
             // Flush pending edits instead of dropping them, e.g. when switching to the dashboard
-            if saveDebounceTimer != nil {
-                saveDebounceTimer?.invalidate()
-                saveDebounceTimer = nil
-                saveNow()
-            }
+            flushPendingSave()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+            flushPendingSave()
         }
         .onChange(of: note.id) { _, _ in
             syncFromNote()
@@ -313,6 +312,13 @@ public struct NoteDetailEditorView: View {
         if editableContent != note.content {
             editableContent = note.content
         }
+    }
+    
+    private func flushPendingSave() {
+        guard saveDebounceTimer != nil else { return }
+        saveDebounceTimer?.invalidate()
+        saveDebounceTimer = nil
+        saveNow()
     }
     
     private func scheduleSave() {

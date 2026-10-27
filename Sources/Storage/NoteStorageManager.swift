@@ -136,6 +136,14 @@ public final class NoteStorageManager: ObservableObject {
             loadedNotes.append(contentsOf: loadNotesInDirectory(aDir, defaultCategory: .area, targetName: area.name))
         }
         
+        // A crash while moving a note can leave its file in two folders. Show the newest copy and
+        // leave the other file on disk untouched
+        var newestByID: [UUID: Note] = [:]
+        for note in loadedNotes where (newestByID[note.id]?.updatedAt ?? .distantPast) <= note.updatedAt {
+            newestByID[note.id] = note
+        }
+        loadedNotes = loadedNotes.filter { newestByID[$0.id]?.filePath == $0.filePath }
+        
         // Pick up lines written outside the app, anchoring them to when the file last changed
         loadAgendaLog()
         var logChanged = false
@@ -237,12 +245,14 @@ public final class NoteStorageManager: ObservableObject {
         
         // Determine file URL
         let fileURL: URL
+        var staleURL: URL?
         if let existing = updatedNote.filePath, existing.deletingLastPathComponent().path == destinationDir.path {
             fileURL = existing
         } else {
-            // If moved to different directory or no file path yet
+            // Moved to a different directory or no file path yet. The old file goes only after the
+            // new one is safely on disk, so a crash in between leaves a duplicate, never a lost note
             if let oldURL = updatedNote.filePath, fileManager.fileExists(atPath: oldURL.path) {
-                try? fileManager.removeItem(at: oldURL)
+                staleURL = oldURL
             }
             let fileName = generateUniqueFileName(for: updatedNote, in: destinationDir)
             fileURL = destinationDir.appendingPathComponent(fileName)
@@ -259,6 +269,9 @@ public final class NoteStorageManager: ObservableObject {
         let markdown = updatedNote.serializeToMarkdown()
         do {
             try markdown.write(to: fileURL, atomically: true, encoding: .utf8)
+            if let staleURL, staleURL.path != fileURL.path {
+                try? fileManager.removeItem(at: staleURL)
+            }
             
             // Update in-memory state
             if let idx = notes.firstIndex(where: { $0.id == updatedNote.id }) {

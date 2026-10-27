@@ -143,10 +143,10 @@ extension Note {
     public func serializeToMarkdown() -> String {
         var fm = "---\n"
         fm += "id: \(id.uuidString)\n"
-        fm += "title: \"\(title.replacingOccurrences(of: "\"", with: "\\\""))\"\n"
+        fm += "title: \"\(Self.escapeYAML(title))\"\n"
         fm += "type: \(categoryType.rawValue)\n"
         if let target = targetName, !target.isEmpty {
-            fm += "target: \"\(target.replacingOccurrences(of: "\"", with: "\\\""))\"\n"
+            fm += "target: \"\(Self.escapeYAML(target))\"\n"
         }
         fm += "created_at: \(Self.isoFormatter.string(from: createdAt))\n"
         fm += "updated_at: \(Self.isoFormatter.string(from: updatedAt))\n"
@@ -161,6 +161,69 @@ extension Note {
         return fm + content
     }
     
+    /// Splits `---` delimited frontmatter from the body without altering the body. The closing
+    /// delimiter must be a line of its own, so "---" inside a title or the body is never mistaken for it.
+    /// Returns nil when the text has no complete frontmatter block.
+    static func splitFrontmatter(_ raw: String) -> (yaml: String, body: String)? {
+        guard raw.hasPrefix("---") else { return nil }
+        var cursor = raw.startIndex
+        func nextLine() -> (text: Substring, next: String.Index)? {
+            guard cursor < raw.endIndex else { return nil }
+            if let newline = raw[cursor...].firstIndex(of: "\n") {
+                return (raw[cursor..<newline], raw.index(after: newline))
+            }
+            return (raw[cursor...], raw.endIndex)
+        }
+        func isDelimiter(_ line: Substring) -> Bool {
+            line.trimmingCharacters(in: .whitespaces) == "---"
+        }
+        
+        guard let opening = nextLine(), isDelimiter(opening.text) else { return nil }
+        cursor = opening.next
+        let yamlStart = cursor
+        while let line = nextLine() {
+            if isDelimiter(line.text) {
+                let yaml = String(raw[yamlStart..<cursor])
+                var body = raw[line.next...]
+                // serializeToMarkdown writes one blank line between the frontmatter and the body
+                if body.hasPrefix("\r\n") { body = body.dropFirst(2) }
+                else if body.hasPrefix("\n") { body = body.dropFirst() }
+                return (yaml, String(body))
+            }
+            cursor = line.next
+        }
+        return nil
+    }
+    
+    static func escapeYAML(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+    }
+    
+    static func unescapeYAML(_ value: String) -> String {
+        var result = ""
+        var iterator = value.makeIterator()
+        while let ch = iterator.next() {
+            guard ch == "\\", let escaped = iterator.next() else {
+                result.append(ch)
+                continue
+            }
+            switch escaped {
+            case "n": result.append("\n")
+            case "r": result.append("\r")
+            case "\"", "\\": result.append(escaped)
+            default:
+                // Not an escape we wrote: keep as is, e.g. files edited by hand
+                result.append(ch)
+                result.append(escaped)
+            }
+        }
+        return result
+    }
+    
     public static func parse(from rawContent: String, fileURL: URL? = nil) -> Note {
         var id = UUID()
         var title = ""
@@ -172,50 +235,47 @@ extension Note {
         var isPinned = false
         var markdownBody = rawContent
         
-        if rawContent.hasPrefix("---") {
-            let components = rawContent.components(separatedBy: "---")
-            if components.count >= 3 {
-                let yaml = components[1]
-                markdownBody = components.dropFirst(2).joined(separator: "---").trimmingCharacters(in: .newlines)
+        if let (yaml, body) = Self.splitFrontmatter(rawContent) {
+            markdownBody = body
+            
+            // Split on "\n" only: titles may hold other Unicode line separators that `.newlines` would cut at
+            let lines = yaml.components(separatedBy: "\n")
+            for line in lines {
+                let parts = line.split(separator: ":", maxSplits: 1).map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+                guard parts.count == 2 else { continue }
+                let key = parts[0]
+                var val = parts[1]
+                if val.hasPrefix("\"") && val.hasSuffix("\"") && val.count >= 2 {
+                    val = Self.unescapeYAML(String(val.dropFirst().dropLast()))
+                }
                 
-                let lines = yaml.components(separatedBy: .newlines)
-                for line in lines {
-                    let parts = line.split(separator: ":", maxSplits: 1).map { String($0).trimmingCharacters(in: .whitespaces) }
-                    guard parts.count == 2 else { continue }
-                    let key = parts[0]
-                    var val = parts[1]
-                    if val.hasPrefix("\"") && val.hasSuffix("\"") && val.count >= 2 {
-                        val = String(val.dropFirst().dropLast())
+                switch key {
+                case "id":
+                    if let parsedUUID = UUID(uuidString: val) { id = parsedUUID }
+                case "title":
+                    title = val
+                case "type":
+                    if let type = CategoryType(rawValue: val) { categoryType = type }
+                case "target":
+                    targetName = val
+                case "pinned":
+                    isPinned = (val.lowercased() == "true")
+                case "created_at":
+                    if let date = isoFormatter.date(from: val) ?? fallbackIsoFormatter.date(from: val) {
+                        createdAt = date
                     }
-                    
-                    switch key {
-                    case "id":
-                        if let parsedUUID = UUID(uuidString: val) { id = parsedUUID }
-                    case "title":
-                        title = val
-                    case "type":
-                        if let type = CategoryType(rawValue: val) { categoryType = type }
-                    case "target":
-                        targetName = val
-                    case "pinned":
-                        isPinned = (val.lowercased() == "true")
-                    case "created_at":
-                        if let date = isoFormatter.date(from: val) ?? fallbackIsoFormatter.date(from: val) {
-                            createdAt = date
-                        }
-                    case "updated_at":
-                        if let date = isoFormatter.date(from: val) ?? fallbackIsoFormatter.date(from: val) {
-                            updatedAt = date
-                        }
-                    case "tags":
-                        let cleaned = val.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
-                        tags = cleaned.split(separator: ",").map {
-                            $0.trimmingCharacters(in: .whitespaces)
-                              .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-                        }.filter { !$0.isEmpty }
-                    default:
-                        break
+                case "updated_at":
+                    if let date = isoFormatter.date(from: val) ?? fallbackIsoFormatter.date(from: val) {
+                        updatedAt = date
                     }
+                case "tags":
+                    let cleaned = val.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+                    tags = cleaned.split(separator: ",").map {
+                        $0.trimmingCharacters(in: .whitespaces)
+                          .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                    }.filter { !$0.isEmpty }
+                default:
+                    break
                 }
             }
         }
