@@ -16,6 +16,17 @@ A high-performance, native macOS quick note-taking app designed for rapid captur
 
 ---
 
+## Download
+
+Get the latest signed and notarized build from the [Releases page](https://github.com/and/scattered-notes/releases/latest):
+
+1. Download `ScatteredNotes-1.0.0.zip` and unzip it.
+2. Drag **ScatteredNotes.app** into your Applications folder and open it.
+
+Requires macOS 14 (Sonoma) or later. Runs on Apple silicon and Intel Macs.
+
+---
+
 ## Features
 
 - ⚡️ **Global Quick Capture (⌥ + N)**:
@@ -49,7 +60,9 @@ A high-performance, native macOS quick note-taking app designed for rapid captur
 
 ## Dashboard
 
-The dashboard reads every note and lists the lines that need action:
+The Dashboard is the app's home view: today's date, four live counters (**overdue**, **today**, **upcoming**, **open to-dos**) and a plain list of everything you've written that needs doing, gathered from all your notes in one place. Each item shows which note it came from; click the note name to jump straight to it. Nothing to set up: write a to-do or a day in any note and it shows up here.
+
+It reads every note and lists the lines that need action:
 
 - **Checklist items**: `- [ ] Renew passport`
 - **Dated or relative lines**: any line that mentions a day, even without a checkbox.
