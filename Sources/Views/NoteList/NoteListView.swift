@@ -14,6 +14,7 @@ public struct NoteListView: View {
     
     @State private var searchText: String = ""
     @State private var sortOption: NoteSortOption = .dateUpdated
+    @FocusState private var listFocused: Bool
     
     public init(selectedCategory: SidebarSelection, selectedNote: Binding<Note?>) {
         self.selectedCategory = selectedCategory
@@ -144,20 +145,40 @@ public struct NoteListView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(selection: $selectedNote) {
-                    ForEach(filteredNotes) { note in
-                        NoteCardRow(note: note, showDestination: selectedCategory == .all)
-                            .tag(note)
-                            .contextMenu {
-                                noteContextMenu(for: note)
-                            }
+                // Selection is drawn by the rows themselves (not by List) so the colors stay WCAG compliant
+                // whatever the system accent color or focus state is
+                ScrollViewReader { proxy in
+                    List {
+                        ForEach(filteredNotes) { note in
+                            let isSelected = note.id == selectedNote?.id
+                            NoteCardRow(note: note, showDestination: selectedCategory == .all, isSelected: isSelected)
+                                .id(note.id)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    selectedNote = note
+                                    listFocused = true
+                                }
+                                .listRowBackground(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(isSelected ? Color.wcagSelection : Color.clear)
+                                        .padding(.horizontal, 6)
+                                )
+                                .contextMenu {
+                                    noteContextMenu(for: note)
+                                }
+                        }
                     }
-                }
-                .listStyle(.inset)
-                .onKeyPress(.return) {
-                    guard let note = selectedNote else { return .ignored }
-                    EditorFocus.request(noteID: note.id, terms: NoteSearch.terms(in: searchText))
-                    return .handled
+                    .listStyle(.plain)
+                    .focusable()
+                    .focusEffectDisabled()
+                    .focused($listFocused)
+                    .onKeyPress(.downArrow) { moveSelection(by: 1, proxy: proxy); return .handled }
+                    .onKeyPress(.upArrow) { moveSelection(by: -1, proxy: proxy); return .handled }
+                    .onKeyPress(.return) {
+                        guard let note = selectedNote else { return .ignored }
+                        EditorFocus.request(noteID: note.id, terms: NoteSearch.terms(in: searchText))
+                        return .handled
+                    }
                 }
             }
         }
@@ -218,6 +239,15 @@ public struct NoteListView: View {
         }
     }
     
+    private func moveSelection(by step: Int, proxy: ScrollViewProxy) {
+        let notes = filteredNotes
+        guard !notes.isEmpty else { return }
+        let current = notes.firstIndex { $0.id == selectedNote?.id } ?? (step > 0 ? -1 : notes.count)
+        let next = notes[min(max(current + step, 0), notes.count - 1)]
+        selectedNote = next
+        proxy.scrollTo(next.id)
+    }
+    
     /// Return in the search box opens the selected note if it matches, otherwise the first match
     private func openFirstMatch() {
         let matches = filteredNotes
@@ -251,11 +281,11 @@ public struct NoteListView: View {
 public struct NoteCardRow: View {
     let note: Note
     let showDestination: Bool
-    @Environment(\.backgroundProminence) private var prominence
+    /// A selected row sits on `wcagSelection`, so every color in it switches to white
+    var isSelected: Bool = false
     
-    /// True while the row is drawn over the accent colored selection, where the theme's colors lose contrast
-    private var onAccent: Bool { prominence == .increased }
-    private var secondaryColor: Color { onAccent ? .white.opacity(0.92) : .wcagSecondaryText }
+    private var onAccent: Bool { isSelected }
+    private var secondaryColor: Color { isSelected ? .white : .wcagSecondaryText }
     
     public var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -268,6 +298,7 @@ public struct NoteCardRow: View {
                 
                 Text(note.displayTitle)
                     .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(isSelected ? .white : .primary)
                     .lineLimit(1)
                 
                 Spacer()
@@ -293,7 +324,7 @@ public struct NoteCardRow: View {
                     .font(.system(size: 10, weight: .semibold))
                     .padding(.horizontal, 5)
                     .padding(.vertical, 2)
-                    .background(onAccent ? Color.white.opacity(0.22) : badgeColor.opacity(0.15))
+                    .background(onAccent ? Color.black.opacity(0.22) : badgeColor.opacity(0.15))
                     .foregroundColor(onAccent ? .white : badgeColor)
                     .cornerRadius(4)
                 }

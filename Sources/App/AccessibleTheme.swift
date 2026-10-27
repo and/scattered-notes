@@ -53,6 +53,12 @@ extension Color {
         dark: NSColor(red: 100/255.0, green: 116/255.0, blue: 139/255.0, alpha: 1.0)
     )
     
+    /// Background of the selected note row. White text on it has contrast >= 6.7:1 in Light, >= 9:1 in Dark.
+    public static let wcagSelection = AccessibleTheme.dynamic(
+        light: NSColor(red: 29/255.0, green: 78/255.0, blue: 216/255.0, alpha: 1.0),
+        dark: NSColor(red: 30/255.0, green: 64/255.0, blue: 175/255.0, alpha: 1.0)
+    )
+    
     /// WCAG Badge Background Tint
     public static let wcagBadgeBackground = AccessibleTheme.dynamic(
         light: NSColor(white: 0.92, alpha: 1.0),

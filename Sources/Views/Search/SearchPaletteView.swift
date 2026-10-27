@@ -108,7 +108,7 @@ private struct SearchResultRow: View {
                 if let snippet = result.snippet {
                     Text(highlighted(snippet, weight: .semibold))
                         .font(.system(size: 12))
-                        .foregroundColor(isSelected ? .white.opacity(0.92) : .wcagSecondaryText)
+                        .foregroundColor(isSelected ? .white : .wcagSecondaryText)
                         .lineLimit(2)
                 }
             }
@@ -119,14 +119,14 @@ private struct SearchResultRow: View {
                 Text(result.note.updatedAt.formatted(date: .abbreviated, time: .omitted))
                     .font(.caption2)
             }
-            .foregroundColor(isSelected ? .white.opacity(0.92) : .wcagSecondaryText)
+            .foregroundColor(isSelected ? .white : .wcagSecondaryText)
         }
         .foregroundColor(isSelected ? .white : .primary)
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isSelected ? Color.accentColor : .clear)
+                .fill(isSelected ? Color.wcagSelection : .clear)
         )
         .contentShape(Rectangle())
     }
@@ -139,7 +139,7 @@ private struct SearchResultRow: View {
             while from < attributed.endIndex,
                   let range = attributed[from...].range(of: term, options: [.caseInsensitive, .diacriticInsensitive]) {
                 attributed[range].font = .system(size: 14, weight: weight)
-                attributed[range].backgroundColor = isSelected ? Color.white.opacity(0.28) : Color.yellow.opacity(0.3)
+                attributed[range].backgroundColor = isSelected ? Color.black.opacity(0.3) : Color.yellow.opacity(0.3)
                 from = range.upperBound
             }
         }
