@@ -186,4 +186,21 @@ final class NoteStorageTests: XCTestCase {
         settings.notesDirectoryURL = FileManager.default.temporaryDirectory
         XCTAssertTrue(settings.hasChosenNotesFolder)
     }
+
+    @MainActor
+    func testProjectAndAreaSelectionsListOnlyTheirOwnNotes() {
+        let launch = Note(title: "Launch", categoryType: .project, targetName: "Website")
+        let other = Note(title: "Other", categoryType: .project, targetName: "Garden")
+        let health = Note(title: "Gym", categoryType: .area, targetName: "Website")
+        let inbox = Note(title: "Errands")
+        let notes = [launch, other, health, inbox]
+
+        XCTAssertEqual(notes.filter(SidebarSelection.project(name: "Website").contains).map(\.title), ["Launch"])
+        XCTAssertEqual(notes.filter(SidebarSelection.area(name: "Website").contains).map(\.title), ["Gym"])
+        XCTAssertEqual(notes.filter(SidebarSelection.inbox.contains).map(\.title), ["Errands"])
+        XCTAssertEqual(notes.filter(SidebarSelection.all.contains).count, 4)
+        XCTAssertTrue(SidebarSelection.project(name: "Website").hasOwnDashboard)
+        XCTAssertFalse(SidebarSelection.dashboard.hasOwnDashboard)
+        XCTAssertFalse(SidebarSelection.inbox.hasOwnDashboard)
+    }
 }

@@ -22,19 +22,8 @@ public struct NoteListView: View {
     }
     
     public var filteredNotes: [Note] {
-        var result = storageManager.notes
-        
         // 1. Filter by category/project
-        switch selectedCategory {
-        case .all, .dashboard:
-            break
-        case .inbox:
-            result = result.filter { $0.categoryType == .inbox }
-        case .project(let name):
-            result = result.filter { $0.categoryType == .project && $0.targetName == name }
-        case .area(let name):
-            result = result.filter { $0.categoryType == .area && $0.targetName == name }
-        }
+        var result = storageManager.notes.filter(selectedCategory.contains)
         
         // 2. Filter by search text
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -122,6 +111,10 @@ public struct NoteListView: View {
             .padding(.top, 10)
             .padding(.bottom, 8)
             
+            if selectedCategory.hasOwnDashboard {
+                dashboardRow
+            }
+            
             Divider()
             
             // Notes List
@@ -180,6 +173,28 @@ public struct NoteListView: View {
             }
         }
         .frame(minWidth: 260)
+    }
+    
+    /// Opens the project's or area's dashboard, which shows whenever no note is selected
+    private var dashboardRow: some View {
+        let isSelected = selectedNote == nil
+        return Button(action: { selectedNote = nil }) {
+            Label("\(selectedCategory.title) Dashboard", systemImage: "square.grid.2x2")
+                .font(.callout.weight(.medium))
+                .foregroundColor(isSelected ? .white : .primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(isSelected ? Color.wcagBlue : Color.clear)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+        .padding(.bottom, 6)
+        .help("To-dos and dates from the notes in \(selectedCategory.title)")
     }
     
     @ViewBuilder

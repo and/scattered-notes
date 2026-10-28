@@ -16,6 +16,24 @@ public enum SidebarSelection: Hashable {
         case .area(let name): return name
         }
     }
+
+    /// Projects and areas have their own dashboard, shown until a note is opened
+    public var hasOwnDashboard: Bool {
+        switch self {
+        case .project, .area: return true
+        default: return false
+        }
+    }
+
+    /// Whether `note` is listed under this selection
+    public func contains(_ note: Note) -> Bool {
+        switch self {
+        case .all, .dashboard: return true
+        case .inbox: return note.categoryType == .inbox
+        case .project(let name): return note.categoryType == .project && note.targetName == name
+        case .area(let name): return note.categoryType == .area && note.targetName == name
+        }
+    }
 }
 
 public struct SidebarView: View {

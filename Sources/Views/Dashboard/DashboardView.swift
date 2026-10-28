@@ -3,11 +3,14 @@ import SwiftUI
 public struct DashboardView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
 
+    /// `.dashboard` for every note, or a project or area for only its notes
+    var scope: SidebarSelection
     var onOpenNote: (Note) -> Void
 
     private let upcomingDays = 14
 
-    public init(onOpenNote: @escaping (Note) -> Void) {
+    public init(scope: SidebarSelection = .dashboard, onOpenNote: @escaping (Note) -> Void) {
+        self.scope = scope
         self.onOpenNote = onOpenNote
     }
 
@@ -17,8 +20,7 @@ public struct DashboardView: View {
 
     // MARK: - Body
     public var body: some View {
-        let snapshot = DashboardSnapshot(notes: storageManager.notes, items: storageManager.agendaItems,
-                                today: today, upcomingDays: upcomingDays, calendar: calendar)
+        let snapshot = scopedSnapshot()
         let lookup = snapshot.notesByID
         let overdue = snapshot.overdue
         let dueToday = snapshot.dueToday
@@ -102,15 +104,35 @@ public struct DashboardView: View {
         .scrollContentBackground(.hidden)
     }
 
+    private func scopedSnapshot() -> DashboardSnapshot {
+        guard scope.hasOwnDashboard else {
+            return DashboardSnapshot(notes: storageManager.notes, items: storageManager.agendaItems,
+                                     today: today, upcomingDays: upcomingDays, calendar: calendar)
+        }
+        let notes = storageManager.notes.filter(scope.contains)
+        let ids = Set(notes.map(\.id))
+        return DashboardSnapshot(notes: notes, items: storageManager.agendaItems.filter { ids.contains($0.noteID) },
+                                 today: today, upcomingDays: upcomingDays, calendar: calendar)
+    }
+
     // MARK: - Pieces
     private func header(_ snapshot: DashboardSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(Date().formatted(.dateTime.weekday(.wide)))
-                    .font(.title3.weight(.medium))
-                    .foregroundStyle(.secondary)
-                Text(Date().formatted(.dateTime.day().month(.wide).year()))
-                    .font(.system(size: 34, weight: .bold))
+                if scope.hasOwnDashboard {
+                    Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)))
+                        .font(.title3.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Text(scope.title)
+                        .font(.system(size: 34, weight: .bold))
+                        .lineLimit(1)
+                } else {
+                    Text(Date().formatted(.dateTime.weekday(.wide)))
+                        .font(.title3.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Text(Date().formatted(.dateTime.day().month(.wide).year()))
+                        .font(.system(size: 34, weight: .bold))
+                }
             }
             HStack(spacing: 8) {
                 StatChip(value: snapshot.overdue.count, label: "overdue", tint: .wcagOrange)
@@ -125,7 +147,9 @@ public struct DashboardView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Nothing to show yet")
                 .font(.headline)
-            Text("The dashboard collects checklists and dated lines from all your notes. Try writing:")
+            Text(scope.hasOwnDashboard
+                 ? "This dashboard collects to-dos and dated lines from the notes in \(scope.title). Try writing:"
+                 : "The dashboard collects to-dos and dated lines from all your notes. Try writing:")
                 .font(.callout)
                 .foregroundColor(.wcagSecondaryText)
             VStack(alignment: .leading, spacing: 4) {

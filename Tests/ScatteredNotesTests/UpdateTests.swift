@@ -57,7 +57,7 @@ final class UpdateTests: XCTestCase {
     func testSignatureCheckAcceptsTheNotarizedRelease() throws {
         let release = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("build/release/DerivedData/Build/Products/Release/ScatteredNotes.app")
+            .appendingPathComponent("build/release/export/ScatteredNotes.app")
         guard FileManager.default.fileExists(atPath: release.path) else { throw XCTSkip("No release build; run scripts/release.sh") }
         XCTAssertNoThrow(try UpdateChecker.verifySignature(of: release))
     }

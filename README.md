@@ -136,6 +136,8 @@ It reads every note and lists the lines that need action:
 
 **Relative words use the day you wrote the line**, not the day the note was created or last opened. The app records when each line first appeared in a hidden `.agenda-log.json` at the root of your notes folder, so editing a note later never moves earlier lines. The log is derived data; deleting it is safe, and older relative lines then fall back to the note's creation date.
 
+**Project dashboards**: selecting a project or area in the sidebar opens a dashboard with only that project's to-dos and dates. Open a note from the list to edit it; **<Project> Dashboard** at the top of the list brings the dashboard back.
+
 **Completing items**: click the circle next to an item on the dashboard or in the note's agenda column (right margin of the editor, toggled with the sidebar button). Completing a plain dated line turns it into a checked item (`- [x] ...`) in the note.
 
 ---

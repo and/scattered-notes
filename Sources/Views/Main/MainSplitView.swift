@@ -42,6 +42,12 @@ public struct MainSplitView: View {
                 onClose: { showingSearch = false }
             )
         }
+        .onChange(of: sidebarSelection) { _, selection in
+            // A project or area opens on its own dashboard
+            if selection.hasOwnDashboard {
+                selectedNote = nil
+            }
+        }
         .onChange(of: selectedNote?.id) { _, newID in
             // The dashboard hides the editor, so picking or creating a note must leave it
             if newID != nil, sidebarSelection == .dashboard {
@@ -104,6 +110,11 @@ public struct MainSplitView: View {
                 selectedNote = note
                 sidebarSelection = .all
             }
+        } else if sidebarSelection.hasOwnDashboard && selectedNote == nil {
+            DashboardView(scope: sidebarSelection) { note in
+                selectedNote = note
+            }
+            .id(sidebarSelection)
         } else if let note = selectedNote {
             NoteDetailEditorView(note: note)
                 .id(note.id)
@@ -129,6 +140,9 @@ public struct MainSplitView: View {
         }
         if let note = selectedNote {
             return "\(note.displayTitle) — \(sidebarSelection.title)"
+        }
+        if sidebarSelection.hasOwnDashboard {
+            return "\(sidebarSelection.title) Dashboard"
         }
         return sidebarSelection.title
     }
