@@ -141,12 +141,59 @@ final class AgendaTests: XCTestCase {
         let id = UUID()
         let later = monday.addingTimeInterval(4 * 86_400)
 
-        XCTAssertTrue(log.update(noteID: id, lines: [("a tomorrow", "A tomorrow")], seenAt: monday))
-        XCTAssertFalse(log.update(noteID: id, lines: [("a tomorrow", "A tomorrow")], seenAt: later))
-        XCTAssertTrue(log.update(noteID: id, lines: [("a tomorrow", "A tomorrow"), ("b today", "B today")], seenAt: later))
+        XCTAssertTrue(log.update(noteID: id, lines: [("a tomorrow", "A tomorrow", false)], seenAt: monday))
+        XCTAssertFalse(log.update(noteID: id, lines: [("a tomorrow", "A tomorrow", false)], seenAt: later))
+        XCTAssertTrue(log.update(noteID: id, lines: [("a tomorrow", "A tomorrow", false), ("b today", "B today", false)], seenAt: later))
         XCTAssertEqual(log.anchors(for: id), ["a tomorrow": monday, "b today": later])
-        XCTAssertTrue(log.update(noteID: id, lines: [("b today", "B today")], seenAt: later))
+        XCTAssertTrue(log.update(noteID: id, lines: [("b today", "B today", false)], seenAt: later))
         XCTAssertEqual(Set(log.anchors(for: id).keys), ["b today"])
+    }
+
+    func testDashboardHidesOrShowsWhatWasTickedToday() {
+        let note = Note(title: "Errands")
+        let today = day(10, 26)
+        func item(_ line: Int, done: Bool, date: Date?) -> AgendaItem {
+            AgendaItem(noteID: note.id, lineIndex: line, text: "item \(line)", isTodo: true, isDone: done,
+                       date: date, writtenOn: today)
+        }
+        let items = [
+            item(0, done: true, date: today),        // planned for today, ticked
+            item(1, done: true, date: nil),          // to-do ticked today
+            item(2, done: true, date: nil),          // to-do ticked on an earlier day
+            item(3, done: false, date: nil),
+        ]
+        let doneToday: Set<String> = [items[0].id, items[1].id]
+        func snapshot(showCompleted: Bool) -> DashboardSnapshot {
+            DashboardSnapshot(notes: [note], items: items, today: today, upcomingDays: 14, calendar: calendar,
+                              doneToday: doneToday, showCompleted: showCompleted)
+        }
+
+        let shown = snapshot(showCompleted: true)
+        XCTAssertEqual(shown.dueToday.map(\.lineIndex), [0])
+        XCTAssertEqual(shown.undatedTodosByNote.first?.items.map(\.lineIndex), [1, 3])
+        XCTAssertEqual(shown.completedTodayCount, 2)
+        XCTAssertTrue(shown.isTodayDone)
+
+        let hidden = snapshot(showCompleted: false)
+        XCTAssertTrue(hidden.dueToday.isEmpty)
+        XCTAssertEqual(hidden.undatedTodosByNote.first?.items.map(\.lineIndex), [3])
+        XCTAssertEqual(hidden.completedTodayCount, 2)
+        XCTAssertTrue(hidden.isTodayDone)
+    }
+
+    func testAgendaLogRemembersWhenALineWasTicked() {
+        var log = AgendaLog()
+        let id = UUID()
+        let later = monday.addingTimeInterval(3_600)
+
+        _ = log.update(noteID: id, lines: [("call bank", "- [ ] call bank", false)], seenAt: monday)
+        XCTAssertEqual(log.doneDates(for: id), [:])
+        XCTAssertTrue(log.update(noteID: id, lines: [("call bank", "- [x] call bank", true)], seenAt: later))
+        XCTAssertFalse(log.update(noteID: id, lines: [("call bank", "- [x] call bank", true)], seenAt: later.addingTimeInterval(60)))
+        XCTAssertEqual(log.doneDates(for: id), ["call bank": later])
+        XCTAssertEqual(log.anchors(for: id), ["call bank": monday])
+        XCTAssertTrue(log.update(noteID: id, lines: [("call bank", "- [ ] call bank", false)], seenAt: later))
+        XCTAssertEqual(log.doneDates(for: id), [:])
     }
 
     @MainActor

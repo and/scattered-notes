@@ -2,6 +2,8 @@ import SwiftUI
 
 public struct DashboardView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
+    /// Whether items ticked today stay on the dashboard, struck through
+    @AppStorage("dashboard.showCompleted") private var showCompleted = true
 
     /// `.dashboard` for every note, or a project or area for only its notes
     var scope: SidebarSelection
@@ -28,95 +30,108 @@ public struct DashboardView: View {
         let todos = snapshot.undatedTodosByNote
         let isEmpty = snapshot.isEmpty
 
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                header(snapshot)
-
-                if isEmpty {
-                    emptyState
-                } else {
-                    if !overdue.isEmpty {
-                        DashboardSection(title: "Overdue", systemImage: "exclamationmark.circle.fill", tint: .wcagOrange) {
-                            ForEach(overdue) { item in
-                                row(item, note: lookup[item.noteID], showDate: true)
-                            }
-                        }
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    header(snapshot) { section in
+                        withAnimation { proxy.scrollTo(section, anchor: .top) }
                     }
 
-                    DashboardSection(title: "Today", systemImage: "sun.max.fill", tint: .wcagBlue) {
-                        if dueToday.isEmpty {
-                            Text("Nothing planned for today.")
-                                .font(.callout)
-                                .foregroundColor(.wcagSecondaryText)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 8)
-                        } else {
-                            ForEach(dueToday) { item in
-                                row(item, note: lookup[item.noteID], showDate: false)
+                    if isEmpty {
+                        emptyState
+                    } else {
+                        if !overdue.isEmpty {
+                            DashboardSection(title: "Overdue", systemImage: "exclamationmark.circle.fill", tint: .wcagOrange) {
+                                ForEach(overdue) { item in
+                                    row(item, note: lookup[item.noteID], showDate: true)
+                                }
                             }
+                            .id(Section.overdue)
                         }
-                    }
 
-                    if !upcoming.isEmpty {
-                        DashboardSection(title: "Next \(upcomingDays) Days", systemImage: "calendar", tint: .wcagPurple) {
-                            ForEach(upcoming, id: \.day) { group in
-                                Text(dayLabel(group.day))
-                                    .font(.caption.weight(.semibold))
+                        DashboardSection(title: "Today", systemImage: "sun.max.fill", tint: .wcagBlue) {
+                            if dueToday.isEmpty {
+                                Text(snapshot.isTodayDone ? "All done for today." : "Nothing planned for today.")
+                                    .font(.callout)
                                     .foregroundColor(.wcagSecondaryText)
                                     .padding(.horizontal, 10)
-                                    .padding(.top, 10)
-                                    .padding(.bottom, 2)
-                                ForEach(group.items) { item in
+                                    .padding(.vertical, 8)
+                            } else {
+                                ForEach(dueToday) { item in
                                     row(item, note: lookup[item.noteID], showDate: false)
                                 }
                             }
                         }
-                    }
+                        .id(Section.today)
 
-                    if !todos.isEmpty {
-                        DashboardSection(title: "To-do", systemImage: "checklist", tint: .wcagGreen) {
-                            ForEach(todos, id: \.note.id) { group in
-                                Button(action: { onOpenNote(group.note) }) {
-                                    Label(group.note.displayTitle, systemImage: group.note.categoryType.iconName)
+                        if !upcoming.isEmpty {
+                            DashboardSection(title: "Next \(upcomingDays) Days", systemImage: "calendar", tint: .wcagPurple) {
+                                ForEach(upcoming, id: \.day) { group in
+                                    Text(dayLabel(group.day))
                                         .font(.caption.weight(.semibold))
                                         .foregroundColor(.wcagSecondaryText)
-                                        .lineLimit(1)
-                                }
-                                .buttonStyle(.plain)
-                                .padding(.horizontal, 10)
-                                .padding(.top, 10)
-                                .padding(.bottom, 2)
-                                .help("Open note")
-                                ForEach(group.items) { item in
-                                    row(item, note: nil, showDate: false)
+                                        .padding(.horizontal, 10)
+                                        .padding(.top, 10)
+                                        .padding(.bottom, 2)
+                                    ForEach(group.items) { item in
+                                        row(item, note: lookup[item.noteID], showDate: false)
+                                    }
                                 }
                             }
+                            .id(Section.upcoming)
+                        }
+
+                        if !todos.isEmpty {
+                            DashboardSection(title: "To-do", systemImage: "checklist", tint: .wcagGreen) {
+                                ForEach(todos, id: \.note.id) { group in
+                                    Button(action: { onOpenNote(group.note) }) {
+                                        Label(group.note.displayTitle, systemImage: group.note.categoryType.iconName)
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundColor(.wcagSecondaryText)
+                                            .lineLimit(1)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.horizontal, 10)
+                                    .padding(.top, 10)
+                                    .padding(.bottom, 2)
+                                    .help("Open note")
+                                    ForEach(group.items) { item in
+                                        row(item, note: nil, showDate: false)
+                                    }
+                                }
+                            }
+                            .id(Section.todos)
                         }
                     }
                 }
+                .padding(.horizontal, 32)
+                .padding(.vertical, 28)
+                .frame(maxWidth: 760, alignment: .leading)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 32)
-            .padding(.vertical, 28)
-            .frame(maxWidth: 760, alignment: .leading)
-            .frame(maxWidth: .infinity)
+            .background(Color(nsColor: .windowBackgroundColor))
+            .scrollContentBackground(.hidden)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
-        .scrollContentBackground(.hidden)
     }
 
+    /// The sections the summary chips scroll to
+    private enum Section { case overdue, today, upcoming, todos }
+
     private func scopedSnapshot() -> DashboardSnapshot {
-        guard scope.hasOwnDashboard else {
-            return DashboardSnapshot(notes: storageManager.notes, items: storageManager.agendaItems,
-                                     today: today, upcomingDays: upcomingDays, calendar: calendar)
+        var notes = storageManager.notes
+        var items = storageManager.agendaItems
+        if scope.hasOwnDashboard {
+            notes = notes.filter(scope.contains)
+            let ids = Set(notes.map(\.id))
+            items = items.filter { ids.contains($0.noteID) }
         }
-        let notes = storageManager.notes.filter(scope.contains)
-        let ids = Set(notes.map(\.id))
-        return DashboardSnapshot(notes: notes, items: storageManager.agendaItems.filter { ids.contains($0.noteID) },
-                                 today: today, upcomingDays: upcomingDays, calendar: calendar)
+        let doneToday = Set(storageManager.itemsDone(on: today, in: items, calendar: calendar).map(\.id))
+        return DashboardSnapshot(notes: notes, items: items, today: today, upcomingDays: upcomingDays,
+                                 calendar: calendar, doneToday: doneToday, showCompleted: showCompleted)
     }
 
     // MARK: - Pieces
-    private func header(_ snapshot: DashboardSnapshot) -> some View {
+    private func header(_ snapshot: DashboardSnapshot, show: @escaping (Section) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 if scope.hasOwnDashboard {
@@ -135,10 +150,27 @@ public struct DashboardView: View {
                 }
             }
             HStack(spacing: 8) {
-                StatChip(value: snapshot.overdue.count, label: "overdue", tint: .wcagOrange)
-                StatChip(value: snapshot.dueToday.filter { !$0.isDone }.count, label: "today", tint: .wcagBlue)
-                StatChip(value: snapshot.upcomingCount, label: "upcoming", tint: .wcagPurple)
-                StatChip(value: snapshot.openTodoCount, label: "open to-dos", tint: .wcagGreen)
+                StatChip(value: snapshot.overdueCount, label: "overdue", tint: .wcagOrange) { show(.overdue) }
+                StatChip(value: snapshot.openTodayCount, label: "today", tint: .wcagBlue,
+                         isAllDone: snapshot.isTodayDone) { show(.today) }
+                StatChip(value: snapshot.upcomingCount, label: "upcoming", tint: .wcagPurple) { show(.upcoming) }
+                StatChip(value: snapshot.openTodoCount, label: "open to-dos", tint: .wcagGreen) { show(.todos) }
+                Spacer()
+                Button(showCompleted ? "Hide Completed" : "Show Completed",
+                       systemImage: showCompleted ? "eye.slash" : "eye") {
+                    withAnimation { showCompleted.toggle() }
+                }
+                .buttonStyle(.borderless)
+                .foregroundColor(.wcagSecondaryText)
+                .help(showCompleted ? "Hide items ticked today" : "Show items ticked today")
+            }
+            if snapshot.completedTodayCount > 0 {
+                Text(snapshot.isTodayDone
+                     ? "All done for today: \(snapshot.completedTodayCount) completed"
+                     : "\(snapshot.completedTodayCount) completed today")
+                    .font(.caption)
+                    .foregroundColor(.wcagSecondaryText)
+                    .padding(.horizontal, 4)
             }
         }
     }
@@ -222,19 +254,36 @@ private struct StatChip: View {
     let value: Int
     let label: String
     let tint: Color
+    /// Shows a smiley in place of the count, once everything it counts is done
+    var isAllDone = false
+    let action: () -> Void
 
     var body: some View {
-        HStack(spacing: 5) {
-            Text("\(value)")
-                .font(.callout.weight(.semibold).monospacedDigit())
-                .foregroundColor(value > 0 ? tint : .wcagSecondaryText)
-            Text(label)
-                .font(.callout)
-                .foregroundStyle(.secondary)
+        Button(action: action) {
+            HStack(spacing: 5) {
+                if isAllDone {
+                    Image(systemName: "face.smiling.inverse")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(tint)
+                        .accessibilityLabel("All done")
+                } else {
+                    Text("\(value)")
+                        .font(.callout.weight(.semibold).monospacedDigit())
+                        .foregroundColor(value > 0 ? tint : .wcagSecondaryText)
+                }
+                Text(label)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.quaternary.opacity(0.6), in: Capsule())
+            .contentShape(Capsule())
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(.quaternary.opacity(0.6), in: Capsule())
+        .buttonStyle(.plain)
+        // With nothing to show, the section may not be there to scroll to
+        .disabled(value == 0 && !isAllDone)
+        .help(value > 0 || isAllDone ? "Show \(label)" : "")
     }
 }
 

@@ -382,6 +382,17 @@ public final class NoteStorageManager: ObservableObject {
         return items
     }
     
+    /// The ticked items among `items` that were ticked on the same day as `day`.
+    public func itemsDone(on day: Date, in items: [AgendaItem], calendar: Calendar = .current) -> [AgendaItem] {
+        var doneDates: [UUID: [String: Date]] = [:]
+        return items.filter { item in
+            guard item.isDone else { return false }
+            if doneDates[item.noteID] == nil { doneDates[item.noteID] = agendaLog.doneDates(for: item.noteID) }
+            return doneDates[item.noteID]?[AgendaExtractor.logKey(for: item.text)]
+                .map { calendar.isDate($0, inSameDayAs: day) } ?? false
+        }
+    }
+
     // MARK: - Agenda Log
     private func loadAgendaLog() {
         guard let data = try? Data(contentsOf: agendaLogURL),
@@ -421,7 +432,9 @@ public final class NoteStorageManager: ObservableObject {
     /// Adds log entries for new lines and drops entries for lines that are gone. Returns whether anything changed.
     @discardableResult
     private func recordAgenda(for note: Note, seenAt: Date) -> Bool {
-        let lines = AgendaExtractor.items(from: note).map { (key: AgendaExtractor.logKey(for: $0.text), line: $0.text) }
+        let lines = AgendaExtractor.items(from: note).map {
+            (key: AgendaExtractor.logKey(for: $0.text), line: $0.text, isDone: $0.isDone)
+        }
         let changed = agendaLog.update(noteID: note.id, lines: lines, seenAt: seenAt)
         if changed { invalidateAgenda(for: note.id) }
         return changed
