@@ -38,7 +38,6 @@ public enum SidebarSelection: Hashable {
 
 public struct SidebarView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
-    @ObservedObject var settings = AppSettings.shared
     
     @Binding var selection: SidebarSelection
     @State private var showingNewProjectDialog: Bool = false
@@ -163,54 +162,19 @@ public struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 0) {
-                Divider()
-                HStack {
-                    Menu {
-                        Text(storageManager.rootURL.path)
-                        Divider()
-                        Button("Reveal in Finder") {
-                            NSWorkspace.shared.open(storageManager.rootURL)
-                        }
-                        Button("Change Notes Folder…") {
-                            StorageFolderPicker.chooseAndRelocate(storageManager: storageManager)
-                        }
-                    } label: {
-                        Label("Notes Folder", systemImage: "folder")
-                            .font(.caption)
-                            .lineLimit(1)
-                            .fixedSize()
-                    }
-                    .menuStyle(.borderlessButton)
-                    .menuIndicator(.hidden)
-                    .fixedSize()
-                    .foregroundColor(.wcagSecondaryText)
-                    .help(storageManager.rootURL.path)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        QuickCapturePanel.shared.showPanel()
-                    }) {
-                        HStack(spacing: 3) {
-                            Text(settings.quickCaptureShortcut.displayString)
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 1)
-                                .background(Color.wcagBadgeBackground)
-                                .cornerRadius(3)
-                                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.wcagBorder, lineWidth: 1))
-                            Text("Quick Note")
-                                .font(.caption)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundColor(.wcagSecondaryText)
+            HStack {
+                SettingsLink {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 13))
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color(NSColor.windowBackgroundColor).opacity(0.4))
+                .buttonStyle(.borderless)
+                .foregroundColor(.wcagSecondaryText)
+                .help("Settings")
+                .accessibilityLabel("Settings")
+                Spacer()
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
         .sheet(isPresented: $showingNewProjectDialog) {
             NewProjectAreaSheet(type: .project) { name, icon in
