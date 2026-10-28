@@ -94,11 +94,24 @@ Requirements: JDK 17 or 21 (Gradle 8.14 does not run on newer JDKs) and the Andr
 ```bash
 cd android
 export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # or /opt/homebrew/opt/openjdk@21
-./gradlew testDebugUnitTest   # core logic tests
-./gradlew installDebug        # build and install on a running emulator or device
+./gradlew testGithubDebugUnitTest   # core logic tests
+./gradlew installGithubDebug        # build and install on a running emulator or device
 ```
 
-`./gradlew assembleRelease` builds a minified APK that still needs signing with your upload key before it can be installed or published. The launcher icon is `generate_icon.swift --android`, scaled into the `mipmap-*` folders.
+There are two builds (product flavors) with the same app ID:
+
+| Flavor | Published as | Updates |
+| :--- | :--- | :--- |
+| `github` | `ScatteredNotes-<version>-android.apk` on the GitHub release | Checks GitHub once a day (`update/Updater.kt`), downloads the APK and installs it through Android's `PackageInstaller`, after the user confirms |
+| `play` | `ScatteredNotes-<version>-play.aab`, uploaded to Google Play | By Google Play. It has no updater, internet permission or install permission, since Play doesn't allow apps to update themselves |
+
+`scripts/release-android.sh` builds both, signed with the same release key, so a phone can move from one to the other. The key is `~/.config/scattered-notes/android-release.jks`. Its password is in the keychain, under the service `scattered-notes-android-keystore`. Keep a backup of both somewhere safe: without the key, no update can be installed over an existing install.
+
+In Google Play, Play App Signing has to use this same key, not a key Google generates; otherwise the Play build and the GitHub APK can't update each other. When creating the app, choose to export and upload your own key from a Java keystore and follow the Play Console's PEPK steps with the keystore above.
+
+Debug builds are signed with the Android debug key, so a release can't be installed over them. Uninstall a debug build first.
+
+The launcher icon is `generate_icon.swift --android`, scaled into the `mipmap-*` folders.
 
 ## Data safety rules
 
@@ -119,18 +132,30 @@ xcrun notarytool store-credentials scattered-notes-notary \
     --apple-id <apple id> --team-id <team id>
 ```
 
-Release steps:
+Release steps. All apps share one version number; the build number (`CFBundleVersion`, Android `versionCode`) goes up by one each release.
 
-1. Bump `CFBundleShortVersionString` and `CFBundleVersion` in `Sources/App/Info.plist` and `project.yml`.
+1. Bump the version and build number in:
+   - `Sources/App/Info.plist` and `project.yml` (Mac)
+   - `ios/project.yml` (iPhone and iPad)
+   - `android/app/build.gradle.kts` (`versionName`, `versionCode`)
+   - `windows/Directory.Build.props` and `windows/src/ScatteredNotes.App/app.manifest`
 2. Run `make test`.
 3. Commit and push.
-4. Run `scripts/release.sh`. Use `SKIP_NOTARIZE=1 scripts/release.sh` to sign only.
-5. Tag and publish:
+4. Build:
+   - `scripts/release.sh` (Mac). Use `SKIP_NOTARIZE=1 scripts/release.sh` to sign only.
+   - `scripts/release-android.sh` (Android APK and Play bundle)
+   - `cd windows && dotnet publish src/ScatteredNotes.App -c Release -r win-x64 -o <dir>`, then rename `ScatteredNotes.exe` to `ScatteredNotes-X.Y.Z-windows.exe`
+5. Tag and publish on GitHub:
 
    ```bash
    git tag -a vX.Y.Z -m "Scattered Notes X.Y.Z"
    git push origin vX.Y.Z
-   gh release create vX.Y.Z build/release/ScatteredNotes-X.Y.Z.zip --title "Scattered Notes X.Y.Z" --notes "..."
+   gh release create vX.Y.Z build/release/ScatteredNotes-X.Y.Z-mac.zip \
+       build/release-android/ScatteredNotes-X.Y.Z-android.apk <windows exe> \
+       --title "Scattered Notes X.Y.Z" --notes-file <notes>
    ```
+
+6. Run `scripts/release-ios.sh` to upload the iPhone and iPad app to TestFlight.
+7. Upload `build/release-android/ScatteredNotes-X.Y.Z-play.aab` in the Play Console (Test and release), with the same notes.
 
 The script's environment variables: `TEAM_ID` (default `RLVYQT69D4`), `NOTARY_PROFILE` (default `scattered-notes-notary`) and `SKIP_NOTARIZE`.

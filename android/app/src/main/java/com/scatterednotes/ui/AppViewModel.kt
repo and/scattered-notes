@@ -14,6 +14,7 @@ import com.scatterednotes.storage.LocalFolder
 import com.scatterednotes.storage.NoteFolder
 import com.scatterednotes.storage.NoteStore
 import com.scatterednotes.storage.TreeFolder
+import com.scatterednotes.update.Updater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,6 +45,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _state = MutableStateFlow(NotesState())
     val state: StateFlow<NotesState> = _state.asStateFlow()
+
+    /** Updates from GitHub; does nothing in the Google Play build */
+    val updater = Updater(application, viewModelScope)
 
     private val _folderName = MutableStateFlow<String?>(null)
     /** Name of the picked folder, or null when notes are kept in the app's own storage. */

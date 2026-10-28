@@ -12,14 +12,45 @@ android {
         applicationId = "com.scatterednotes.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        // Same version as the Mac and Windows apps; versionCode follows the Mac app's CFBundleVersion
+        versionCode = 7
+        versionName = "1.1.4"
+    }
+
+    // The release key stays outside the repo. scripts/release-android.sh passes its path and password in;
+    // without them release builds are left unsigned
+    val keystore = System.getenv("SN_ANDROID_KEYSTORE")
+    signingConfigs {
+        create("release") {
+            if (keystore != null) {
+                storeFile = file(keystore)
+                storePassword = System.getenv("SN_ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = "scattered-notes"
+                keyPassword = System.getenv("SN_ANDROID_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
+    // Both builds have the same app ID and key, so either can update the other
+    flavorDimensions += "store"
+    productFlavors {
+        // The APK attached to GitHub releases, which checks GitHub for updates
+        create("github") {
+            dimension = "store"
+            buildConfigField("boolean", "UPDATES_FROM_GITHUB", "true")
+        }
+        // Google Play updates the app itself and doesn't allow apps to update themselves
+        create("play") {
+            dimension = "store"
+            buildConfigField("boolean", "UPDATES_FROM_GITHUB", "false")
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            if (keystore != null) signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -28,6 +59,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

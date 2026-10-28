@@ -67,7 +67,7 @@ Go to the [latest release](https://github.com/and/scattered-notes/releases/lates
 
 ### iPhone and iPad (preview)
 
-**Requirements:** iOS 17 or later. Not on the App Store yet: build it from source with Xcode (see [DEVELOPMENT.md](DEVELOPMENT.md#iphone-and-ipad-app)).
+**Requirements:** iOS 17 or later. Coming soon to TestFlight, Apple's beta app, which installs updates automatically. Until then, build it from source with Xcode (see [DEVELOPMENT.md](DEVELOPMENT.md#iphone-and-ipad-app)).
 
 - Four parts: the **Dashboard** (tick to-dos, tap an item to open its note), **Notes** (search, edit, swipe to delete), **Quick Capture** (the pencil on the Dashboard) and **Settings**.
 - If the iPhone is signed in to iCloud, notes are kept in **iCloud Drive → Scattered Notes**, the same folder the Mac app uses, and changes from your Mac show up as they sync.
@@ -75,7 +75,10 @@ Go to the [latest release](https://github.com/and/scattered-notes/releases/lates
 
 ### Android (preview)
 
-**Requirements:** Android 8 or later. Not on Google Play yet: build it from source (see [DEVELOPMENT.md](DEVELOPMENT.md#android-app)).
+**Requirements:** Android 8 or later.
+
+- **From GitHub:** download `ScatteredNotes-<version>-android.apk` from the [latest release](https://github.com/and/scattered-notes/releases/latest) on your phone and open it. Android asks once to allow installing apps from your browser. The app checks GitHub once a day for a new version and asks before installing it; **Settings → Check for Updates** checks at once.
+- **From Google Play:** coming soon. Play updates the app itself. The Play and GitHub versions are the same app, so either can update the other.
 
 - The same four parts as on iPhone. Text shared from another app (**Share → Scattered Notes**) opens Quick Capture.
 - Notes are saved inside the app. To share them with a computer, choose **Settings → Choose Folder…** and pick a folder a sync app (for example Syncthing, Dropbox or OneDrive) keeps in step with your computer's notes folder.
@@ -139,6 +142,12 @@ It reads every note and lists the lines that need action:
 **Project dashboards**: selecting a project or area in the sidebar opens a dashboard with only that project's to-dos and dates. Open a note from the list to edit it; **<Project> Dashboard** at the top of the list brings the dashboard back.
 
 **Completing items**: click the circle next to an item on the dashboard or in the note's agenda column (right margin of the editor, toggled with the sidebar button). Completing a plain dated line turns it into a checked item (`- [x] ...`) in the note.
+
+---
+
+## Privacy
+
+Scattered Notes collects no data. See [PRIVACY.md](PRIVACY.md).
 
 ---
 

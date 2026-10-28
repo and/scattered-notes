@@ -9,16 +9,20 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -36,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.scatterednotes.update.Updater
 import java.util.UUID
 
 class MainActivity : ComponentActivity() {
@@ -47,6 +52,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         sharedText.value = intent.sharedText()
+        if (intent.action == Updater.ACTION_INSTALL_STATUS) model.updater.onInstallStatus(intent)
+        model.updater.checkIfDue()
         setContent {
             AppTheme {
                 ScatteredNotesApp(model, sharedText.value, onSharedTextUsed = { sharedText.value = null })
@@ -56,6 +63,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (intent.action == Updater.ACTION_INSTALL_STATUS) {
+            model.updater.onInstallStatus(intent)
+            return
+        }
         sharedText.value = intent.sharedText()
     }
 
@@ -138,6 +149,8 @@ fun ScatteredNotesApp(model: AppViewModel, sharedText: String?, onSharedTextUsed
         }
     }
 
+    UpdateDialog(model.updater)
+
     if (capturing || sharedText != null) {
         CaptureSheet(
             model = model,
@@ -149,4 +162,22 @@ fun ScatteredNotesApp(model: AppViewModel, sharedText: String?, onSharedTextUsed
             },
         )
     }
+}
+
+/** Offers a newer GitHub release, with what changed, like the desktop apps' update window. */
+@Composable
+private fun UpdateDialog(updater: Updater) {
+    val state by updater.state.collectAsState()
+    val available = state as? Updater.State.Available ?: return
+    val release = available.release
+    AlertDialog(
+        onDismissRequest = updater::remindLater,
+        title = { Text("Scattered Notes ${release.tag.removePrefix("v")} is available") },
+        text = { Text(release.notes.ifBlank { "A new version is out." }, modifier = Modifier.verticalScroll(rememberScrollState())) },
+        confirmButton = { TextButton(onClick = { updater.install(release) }) { Text("Install") } },
+        dismissButton = {
+            TextButton(onClick = { updater.skip(release) }) { Text("Skip This Version") }
+            TextButton(onClick = updater::remindLater) { Text("Later") }
+        },
+    )
 }

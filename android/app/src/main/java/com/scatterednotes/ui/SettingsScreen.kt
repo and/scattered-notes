@@ -11,10 +11,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.scatterednotes.update.Updater
 
 /** Where the notes live. Picking a folder a sync app keeps in step with the Mac or Windows PC shares the notes. */
 @Composable
@@ -40,5 +43,20 @@ fun SettingsScreen(model: AppViewModel, folderName: String?, modifier: Modifier 
             OutlinedButton(onClick = model::useAppFolder) { Text("Use Folder on This Phone") }
         }
         Text("Version $version", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (Updater.isAvailable) {
+            val update by model.updater.state.collectAsState()
+            OutlinedButton(
+                onClick = { model.updater.check(userInitiated = true) },
+                enabled = update != Updater.State.Checking && update != Updater.State.Downloading,
+            ) { Text("Check for Updates") }
+            val status = when (val current = update) {
+                Updater.State.Checking -> "Checking…"
+                Updater.State.UpToDate -> "Scattered Notes is up to date."
+                Updater.State.Downloading -> "Downloading the update…"
+                is Updater.State.Failed -> current.message
+                else -> "Scattered Notes checks GitHub for a new version once a day and asks before installing it."
+            }
+            Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
