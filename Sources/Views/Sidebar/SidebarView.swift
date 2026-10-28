@@ -5,7 +5,8 @@ public enum SidebarSelection: Hashable {
     case all
     case inbox
     case project(name: String)
-    case area(name: String)
+    case person(name: String)
+    case tag(name: String)
     
     public var title: String {
         switch self {
@@ -13,14 +14,15 @@ public enum SidebarSelection: Hashable {
         case .all: return "All Notes"
         case .inbox: return "Inbox"
         case .project(let name): return name
-        case .area(let name): return name
+        case .person(let name): return "@" + name
+        case .tag(let name): return "#" + name
         }
     }
 
-    /// Projects and areas have their own dashboard, shown until a note is opened
+    /// Projects, people and tags have their own dashboard, shown until a note is opened
     public var hasOwnDashboard: Bool {
         switch self {
-        case .project, .area: return true
+        case .project, .person, .tag: return true
         default: return false
         }
     }
@@ -31,7 +33,8 @@ public enum SidebarSelection: Hashable {
         case .all, .dashboard: return true
         case .inbox: return note.categoryType == .inbox
         case .project(let name): return note.categoryType == .project && note.targetName == name
-        case .area(let name): return note.categoryType == .area && note.targetName == name
+        case .person(let name): return note.people.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
+        case .tag(let name): return note.tags.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
         }
     }
 }
@@ -41,12 +44,28 @@ public struct SidebarView: View {
     
     @Binding var selection: SidebarSelection
     @State private var showingNewProjectDialog: Bool = false
-    @State private var showingNewAreaDialog: Bool = false
     @State private var itemToDelete: ProjectArea? = nil
     @State private var showingDeleteAlert: Bool = false
     
     public init(selection: Binding<SidebarSelection>) {
         self._selection = selection
+    }
+
+    /// Each name used for one kind of mark across all notes, with how many notes use it, sorted by
+    /// name. Names that differ only in case count as one, spelled as first seen.
+    private func counted(_ names: (Note) -> [String]) -> [(name: String, count: Int)] {
+        var spelling: [String: String] = [:]
+        var counts: [String: Int] = [:]
+        for note in storageManager.notes {
+            for name in Set(names(note).map { $0.lowercased() }) {
+                counts[name, default: 0] += 1
+            }
+            for name in names(note) where spelling[name.lowercased()] == nil {
+                spelling[name.lowercased()] = name
+            }
+        }
+        return counts.map { (name: spelling[$0.key] ?? $0.key, count: $0.value) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
     
     public var body: some View {
@@ -121,42 +140,37 @@ public struct SidebarView: View {
                 }
             }
             
-            Section {
-                ForEach(storageManager.areas) { area in
-                    NavigationLink(value: SidebarSelection.area(name: area.name)) {
-                        Label {
-                            Text(area.name)
-                        } icon: {
-                            Image(systemName: area.iconName)
-                                .prominenceAwareColor(.wcagGreen)
-                        }
-                        .badge(storageManager.notes.filter { $0.categoryType == .area && $0.targetName == area.name }.count)
-                    }
-                    .contextMenu {
-                        Button("Reveal in Finder") {
-                            let url = storageManager.areasURL.appendingPathComponent(area.name)
-                            NSWorkspace.shared.activateFileViewerSelecting([url])
-                        }
-                        Divider()
-                        Button(role: .destructive, action: {
-                            itemToDelete = area
-                            showingDeleteAlert = true
-                        }) {
-                            Label("Delete Area", systemImage: "trash")
+            let people = counted(\.people)
+            if !people.isEmpty {
+                Section("People") {
+                    ForEach(people, id: \.name) { person in
+                        NavigationLink(value: SidebarSelection.person(name: person.name)) {
+                            Label {
+                                Text(person.name)
+                            } icon: {
+                                Image(systemName: "person.fill")
+                                    .prominenceAwareColor(.wcagBlue)
+                            }
+                            .badge(person.count)
                         }
                     }
                 }
-            } header: {
-                HStack {
-                    Text("Areas")
-                    Spacer()
-                    Button(action: { showingNewAreaDialog = true }) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.wcagSecondaryText)
+            }
+
+            let tags = counted(\.tags)
+            if !tags.isEmpty {
+                Section("Tags") {
+                    ForEach(tags, id: \.name) { tag in
+                        NavigationLink(value: SidebarSelection.tag(name: tag.name)) {
+                            Label {
+                                Text(tag.name)
+                            } icon: {
+                                Image(systemName: "number")
+                                    .prominenceAwareColor(.wcagGreen)
+                            }
+                            .badge(tag.count)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .help("Add New Area")
                 }
             }
         }
@@ -182,26 +196,13 @@ public struct SidebarView: View {
                 selection = .project(name: name)
             }
         }
-        .sheet(isPresented: $showingNewAreaDialog) {
-            NewProjectAreaSheet(type: .area) { name, icon in
-                storageManager.createArea(name: name, icon: icon)
-                selection = .area(name: name)
-            }
-        }
-        .alert("Delete \(itemToDelete?.type == .project ? "Project" : "Area")?", isPresented: $showingDeleteAlert) {
+        .alert("Delete Project?", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
                 if let item = itemToDelete {
-                    if item.type == .project {
-                        storageManager.deleteProject(name: item.name)
-                        if selection == .project(name: item.name) {
-                            selection = .inbox
-                        }
-                    } else {
-                        storageManager.deleteArea(name: item.name)
-                        if selection == .area(name: item.name) {
-                            selection = .inbox
-                        }
+                    storageManager.deleteProject(name: item.name)
+                    if selection == .project(name: item.name) {
+                        selection = .inbox
                     }
                 }
             }

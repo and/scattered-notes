@@ -8,6 +8,7 @@ public enum NoteSortOption: String, CaseIterable {
 
 public struct NoteListView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
+    @ObservedObject private var highlight = NoteHighlight.shared
     
     var selectedCategory: SidebarSelection
     @Binding var selectedNote: Note?
@@ -144,7 +145,8 @@ public struct NoteListView: View {
                     List {
                         ForEach(filteredNotes) { note in
                             let isSelected = note.id == selectedNote?.id
-                            NoteCardRow(note: note, showDestination: selectedCategory == .all, isSelected: isSelected)
+                            NoteCardRow(note: note, showDestination: selectedCategory == .all, isSelected: isSelected,
+                                        isHighlighted: note.id == highlight.noteID)
                                 .id(note.id)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
@@ -220,17 +222,6 @@ public struct NoteListView: View {
                     }
                 }
             }
-            
-            if !storageManager.areas.isEmpty {
-                Divider()
-                Section("Areas") {
-                    ForEach(storageManager.areas) { area in
-                        Button(area.name) {
-                            storageManager.move(note: note, to: .area, targetName: area.name)
-                        }
-                    }
-                }
-            }
         }
         
         if let path = note.filePath {
@@ -269,22 +260,28 @@ public struct NoteListView: View {
     }
     
     private func createNewNoteInCurrentCategory() {
-        let (category, target): (CategoryType, String?) = {
-            switch selectedCategory {
-            case .all, .inbox, .dashboard:
-                return (.inbox, nil)
-            case .project(let name):
-                return (.project, name)
-            case .area(let name):
-                return (.area, name)
-            }
-        }()
+        var category = CategoryType.inbox
+        var target: String?
+        // A note made while a person or tag is open starts with its mark, so it is listed there
+        var content = ""
+        switch selectedCategory {
+        case .all, .inbox, .dashboard:
+            break
+        case .project(let name):
+            category = .project
+            target = name
+        case .person(let name):
+            content = "@\(name) "
+        case .tag(let name):
+            content = "#\(name) "
+        }
         
         let newNote = storageManager.createNote(
             title: "Untitled Note",
-            content: "",
+            content: content,
             category: category,
-            targetName: target
+            targetName: target,
+            tags: Note.tags(in: content)
         )
         selectedNote = newNote
     }
@@ -295,6 +292,8 @@ public struct NoteCardRow: View {
     let showDestination: Bool
     /// A selected row sits on `wcagSelection`, so every color in it switches to white
     var isSelected: Bool = false
+    /// Marks the note whose text the pointer is over in a dashboard's notes log
+    var isHighlighted: Bool = false
     
     private var onAccent: Bool { isSelected }
     private var secondaryColor: Color { isSelected ? .white : .wcagSecondaryText }
@@ -364,7 +363,7 @@ public struct NoteCardRow: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isSelected ? Color.wcagSelection : Color.clear)
+                .fill(isSelected ? Color.wcagSelection : isHighlighted ? Color.wcagSelection.opacity(0.15) : Color.clear)
         )
     }
     
@@ -373,8 +372,7 @@ public struct NoteCardRow: View {
         case .inbox: return "tray.fill"
         case .project:
             return NoteStorageManager.shared.projects.first(where: { $0.name == note.targetName })?.iconName ?? "folder.fill"
-        case .area:
-            return NoteStorageManager.shared.areas.first(where: { $0.name == note.targetName })?.iconName ?? "square.stack.3d.up.fill"
+        case .area: return "tray.fill"
         }
     }
     
@@ -382,7 +380,7 @@ public struct NoteCardRow: View {
         switch note.categoryType {
         case .inbox: return .wcagOrange
         case .project: return .wcagPurple
-        case .area: return .wcagGreen
+        case .area: return .wcagOrange
         }
     }
 }

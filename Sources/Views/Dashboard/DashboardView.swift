@@ -1,7 +1,16 @@
 import SwiftUI
 
+/// The note whose text the pointer is over in a dashboard's notes log, so the note list can
+/// mark it. Only one dashboard is on screen at a time.
+@MainActor
+final class NoteHighlight: ObservableObject {
+    static let shared = NoteHighlight()
+    @Published var noteID: UUID?
+}
+
 public struct DashboardView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
+    @ObservedObject private var highlight = NoteHighlight.shared
     /// Whether items ticked today stay on the dashboard, struck through
     @AppStorage("dashboard.showCompleted") private var showCompleted = true
 
@@ -103,6 +112,10 @@ public struct DashboardView: View {
                             .id(Section.todos)
                         }
                     }
+
+                    if scope.hasOwnDashboard {
+                        notesLog(snapshot.notesByID.values)
+                    }
                 }
                 .padding(.horizontal, 32)
                 .padding(.vertical, 28)
@@ -172,6 +185,46 @@ public struct DashboardView: View {
                     .foregroundColor(.wcagSecondaryText)
                     .padding(.horizontal, 4)
             }
+        }
+    }
+
+    /// Every note in the scope as one running document, newest first: the day it was written,
+    /// then the whole note. Pointing at a note marks it in the note list; clicking its date opens it.
+    @ViewBuilder
+    private func notesLog(_ notes: some Collection<Note>) -> some View {
+        let entries = notes.sorted { $0.createdAt > $1.createdAt }
+        if !entries.isEmpty {
+            DashboardSection(title: "Notes", systemImage: "doc.text", tint: .wcagSecondaryText) {
+                ForEach(entries) { note in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Button(action: { onOpenNote(note) }) {
+                            Text(note.createdAt.formatted(.dateTime.weekday(.wide).day().month(.wide).year()))
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(.wcagSecondaryText)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Open note")
+                        Text(note.content.trimmingCharacters(in: .whitespacesAndNewlines))
+                            .font(.callout)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(highlight.noteID == note.id ? Color.wcagSelection.opacity(0.15) : Color.clear)
+                    )
+                    .onHover { inside in
+                        if inside {
+                            highlight.noteID = note.id
+                        } else if highlight.noteID == note.id {
+                            highlight.noteID = nil
+                        }
+                    }
+                }
+            }
+            .onDisappear { highlight.noteID = nil }
         }
     }
 
@@ -305,6 +358,7 @@ private struct AgendaRow: View {
             }
             .buttonStyle(.plain)
             .help(item.isDone ? "Mark as not done" : "Mark as done")
+            .accessibilityLabel(item.isDone ? "Mark \(item.text) as not done" : "Mark \(item.text) as done")
 
             Text(item.text)
                 .strikethrough(item.isDone, color: .wcagSecondaryText)

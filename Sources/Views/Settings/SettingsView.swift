@@ -112,7 +112,7 @@ public struct SettingsView: View {
                     .disabled(settings.notesDirectoryURL.standardizedFileURL == AppSettings.defaultNotesDirectoryURL.standardizedFileURL)
                 }
 
-                Text("Changing the folder moves all existing notes, projects and areas into it. iCloud Drive keeps them in sync with your other Macs and the iPhone and iPad app.")
+                Text("Changing the folder moves all existing notes and projects into it. iCloud Drive keeps them in sync with your other Macs and the iPhone and iPad app.")
                     .font(.caption)
                     .foregroundColor(.wcagSecondaryText)
             }
@@ -134,6 +134,18 @@ public struct SettingsView: View {
                 )
 
                 Text("These work from any app. Shortcuts that use only ⌥ stop that key from typing special characters, such as ƒ or ˜, in other apps.")
+                    .font(.caption)
+                    .foregroundColor(.wcagSecondaryText)
+            }
+
+            Section("Quick Note") {
+                Picker("Save", selection: $settings.quickNoteAutoSave) {
+                    Text("As you type").tag(true)
+                    Text("Only when Save is pressed").tag(false)
+                }
+                Text(settings.quickNoteAutoSave
+                     ? "Quick Note keeps what you type. Close it or press Esc when you're done."
+                     : "Quick Note shows a Save button (⌘↩). Closing it or pressing Esc throws the note away.")
                     .font(.caption)
                     .foregroundColor(.wcagSecondaryText)
             }

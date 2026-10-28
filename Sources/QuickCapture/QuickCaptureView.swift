@@ -2,63 +2,26 @@ import SwiftUI
 
 public struct QuickCaptureView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
+    @ObservedObject var settings = AppSettings.shared
     var onDismiss: () -> Void
     
     @State private var noteContent: String = ""
-    @State private var selectedDestination: DestinationOption = .inbox
+    /// The project picked from the menu; a `+project` in the text takes precedence
+    @State private var pickedProject: String?
     @State private var showingNewProjectDialog: Bool = false
-    @State private var newProjectName: String = ""
-    @State private var newCategoryType: CategoryType = .project
+    /// The note saved so far while auto-saving, finished when the panel closes
+    @State private var draft: Note?
+    @State private var autoSaveTimer: Timer?
     @FocusState private var isEditorFocused: Bool
-    
-    public enum DestinationOption: Hashable {
-        case inbox
-        case project(name: String)
-        case area(name: String)
-        
-        var displayName: String {
-            switch self {
-            case .inbox: return "Inbox"
-            case .project(let name): return name
-            case .area(let name): return name
-            }
-        }
-        
-        var iconName: String {
-            switch self {
-            case .inbox: return "tray.fill"
-            case .project: return "folder.fill"
-            case .area: return "square.stack.3d.up.fill"
-            }
-        }
-        
-        var categoryType: CategoryType {
-            switch self {
-            case .inbox: return .inbox
-            case .project: return .project
-            case .area: return .area
-            }
-        }
-        
-        var targetName: String? {
-            switch self {
-            case .inbox: return nil
-            case .project(let name): return name
-            case .area(let name): return name
-            }
-        }
-    }
     
     public init(onDismiss: @escaping () -> Void) {
         self.onDismiss = onDismiss
     }
-    
-    private var destinationColor: Color {
-        switch selectedDestination.categoryType {
-        case .inbox: return .wcagOrange
-        case .project: return .wcagPurple
-        case .area: return .wcagGreen
-        }
+
+    /// The project the note goes to: a `+project` in the text, else the one picked from the menu.
+    /// The name can be new; the project is created when the note is filed.
+    private var destination: String? {
+        Self.inlineProject(in: noteContent, projects: storageManager.projects) ?? pickedProject
     }
     
     public var body: some View {
@@ -66,7 +29,7 @@ public struct QuickCaptureView: View {
             // Compact, Elegant Header: Single Destination Pill & Close
             HStack {
                 Menu {
-                    Button(action: { selectedDestination = .inbox }) {
+                    Button(action: { pickedProject = nil }) {
                         Label("Inbox", systemImage: "tray.fill")
                     }
                     
@@ -74,43 +37,23 @@ public struct QuickCaptureView: View {
                         Divider()
                         Section("Projects") {
                             ForEach(storageManager.projects) { proj in
-                                Button(action: { selectedDestination = .project(name: proj.name) }) {
+                                Button(action: { pickedProject = proj.name }) {
                                     Label(proj.name, systemImage: proj.iconName)
                                 }
                             }
                         }
                     }
                     
-                    if !storageManager.areas.isEmpty {
-                        Divider()
-                        Section("Areas") {
-                            ForEach(storageManager.areas) { area in
-                                Button(action: { selectedDestination = .area(name: area.name) }) {
-                                    Label(area.name, systemImage: area.iconName)
-                                }
-                            }
-                        }
-                    }
-                    
                     Divider()
-                    Button(action: {
-                        newCategoryType = .project
-                        showingNewProjectDialog = true
-                    }) {
+                    Button(action: { showingNewProjectDialog = true }) {
                         Label("New Project...", systemImage: "folder.badge.plus")
-                    }
-                    Button(action: {
-                        newCategoryType = .area
-                        showingNewProjectDialog = true
-                    }) {
-                        Label("New Area...", systemImage: "square.stack.3d.up.badge.automatic")
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: selectedDestination.iconName)
+                        Image(systemName: destination == nil ? "tray.fill" : "folder.fill")
                             .font(.system(size: 12))
                             .foregroundColor(destinationColor)
-                        Text(selectedDestination.displayName)
+                        Text(destination ?? "Inbox")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(destinationColor)
                         Image(systemName: "chevron.up.chevron.down")
@@ -133,6 +76,7 @@ public struct QuickCaptureView: View {
                         .foregroundColor(.wcagSecondaryText)
                 }
                 .buttonStyle(.plain)
+                .help(settings.quickNoteAutoSave ? "Done" : "Close without saving")
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
@@ -144,7 +88,7 @@ public struct QuickCaptureView: View {
             // Text Editor Area (Precisely Aligned Cursor & Placeholder)
             ZStack(alignment: .topLeading) {
                 if noteContent.isEmpty {
-                    Text("Type a quick note, thought, or checklist...\nTip: Type @Project, +Project, or [[Project]] to assign to a project inline.")
+                    Text("Type a quick note, thought, or checklist...\nTip: +project files it in a project, #tag tags it, @name mentions a person.")
                         .font(.system(size: 15))
                         .lineSpacing(4)
                         .foregroundColor(.wcagPlaceholderText)
@@ -155,14 +99,15 @@ public struct QuickCaptureView: View {
                 }
                 
                 TextEditor(text: $noteContent)
+                    .accessibilityIdentifier("quickNoteText")
                     .font(.system(size: 15))
                     .lineSpacing(4)
                     .focused($isEditorFocused)
                     .scrollContentBackground(.hidden)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
-                    .onChange(of: noteContent) { _, newText in
-                        detectInlineProjectTag(in: newText)
+                    .onChange(of: noteContent) { _, _ in
+                        scheduleAutoSave()
                     }
             }
             .frame(minHeight: 250, maxHeight: .infinity)
@@ -173,27 +118,34 @@ public struct QuickCaptureView: View {
             // Bottom Action & Shortcut Bar
             HStack {
                 HStack(spacing: 12) {
-                    ShortcutBadge(key: "Esc", label: "Close")
-                    ShortcutBadge(key: "@Project", label: "Tag")
-                    ShortcutBadge(key: "⌘ Enter", label: "Save")
+                    ShortcutBadge(key: "Esc", label: settings.quickNoteAutoSave ? "Done" : "Discard")
+                    ShortcutBadge(key: "+project", label: "File")
+                    ShortcutBadge(key: "#tag", label: "Tag")
+                    if !settings.quickNoteAutoSave {
+                        ShortcutBadge(key: "⌘ Enter", label: "Save")
+                    }
                 }
                 
                 Spacer()
                 
-                Button(action: { saveNote() }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.up.circle.fill")
-                        Text("Save Note")
+                if settings.quickNoteAutoSave {
+                    autoSaveStatus
+                } else {
+                    Button(action: { saveNote() }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.up.circle.fill")
+                            Text("Save Note")
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(isBlank ? Color.wcagBorder.opacity(0.3) : Color.wcagBlue)
+                        .foregroundColor(isBlank ? Color.wcagSecondaryText : Color.white)
+                        .cornerRadius(7)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(noteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.wcagBorder.opacity(0.3) : Color.wcagBlue)
-                    .foregroundColor(noteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.wcagSecondaryText : Color.white)
-                    .cornerRadius(7)
+                    .buttonStyle(.plain)
+                    .keyboardShortcut(.return, modifiers: [.command])
+                    .disabled(isBlank)
                 }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.return, modifiers: [.command])
-                .disabled(noteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -203,132 +155,165 @@ public struct QuickCaptureView: View {
         .onAppear {
             isEditorFocused = true
         }
+        .onReceive(NotificationCenter.default.publisher(for: QuickCapturePanel.willHideNotification)) { _ in
+            panelWillHide()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+            // Quitting with Quick Note open files the note as closing it would
+            panelWillHide()
+        }
         .sheet(isPresented: $showingNewProjectDialog) {
-            NewProjectAreaSheet(type: newCategoryType) { createdName, selectedIcon in
-                if newCategoryType == .project {
-                    storageManager.createProject(name: createdName, icon: selectedIcon)
-                    selectedDestination = .project(name: createdName)
-                } else {
-                    storageManager.createArea(name: createdName, icon: selectedIcon)
-                    selectedDestination = .area(name: createdName)
-                }
+            NewProjectAreaSheet(type: .project) { createdName, selectedIcon in
+                storageManager.createProject(name: createdName, icon: selectedIcon)
+                pickedProject = createdName
             }
         }
     }
-    
-    private func saveNote() {
-        let trimmed = noteContent.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        
-        // Auto-create destination project/area if specified inline but doesn't exist yet
-        if selectedDestination.categoryType == .project, let pName = selectedDestination.targetName {
-            if !storageManager.projects.contains(where: { $0.name.lowercased() == pName.lowercased() }) {
-                storageManager.createProject(name: pName)
-            }
-        } else if selectedDestination.categoryType == .area, let aName = selectedDestination.targetName {
-            if !storageManager.areas.contains(where: { $0.name.lowercased() == aName.lowercased() }) {
-                storageManager.createArea(name: aName)
+
+    private var isBlank: Bool {
+        noteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var destinationColor: Color {
+        destination == nil ? .wcagOrange : .wcagPurple
+    }
+
+    /// "Saved" once what is on screen is on disk, "Saving…" while a save is pending
+    @ViewBuilder
+    private var autoSaveStatus: some View {
+        if draft != nil || autoSaveTimer != nil {
+            let pending = autoSaveTimer != nil
+            Label(pending ? "Saving…" : "Saved to \(draft?.destinationDisplay ?? "Inbox")",
+                  systemImage: pending ? "ellipsis.circle" : "checkmark.circle.fill")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(pending ? .wcagSecondaryText : .wcagGreen)
+                .help("Quick Note saves as you type. Close it or press Esc when you're done.")
+                .accessibilityIdentifier("quickNoteStatus")
+        } else {
+            Text("Saves as you type")
+                .font(.system(size: 12))
+                .foregroundColor(.wcagSecondaryText)
+        }
+    }
+
+    // MARK: - Saving
+
+    private func scheduleAutoSave() {
+        guard settings.quickNoteAutoSave else { return }
+        autoSaveTimer?.invalidate()
+        autoSaveTimer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: false) { _ in
+            Task { @MainActor in
+                autoSaveTimer = nil
+                autoSave()
             }
         }
-        
-        // Extract tags (words starting with # that aren't the project name)
-        let words = trimmed.components(separatedBy: .whitespacesAndNewlines)
-        let extractedTags = words
-            .filter { $0.hasPrefix("#") && $0.count > 1 }
-            .map { String($0.dropFirst()).trimmingCharacters(in: CharacterSet.alphanumerics.inverted) }
-            .filter { !$0.isEmpty && $0.lowercased() != selectedDestination.targetName?.lowercased() }
-        
-        // Remove the inline project tag from the note content (e.g. @project, +project, [[project]])
-        let cleanedContent = Note.removeProjectTag(from: trimmed, targetName: selectedDestination.targetName)
-        let finalContent = cleanedContent.isEmpty ? (selectedDestination.targetName ?? trimmed) : cleanedContent
-        
-        storageManager.createNote(
-            title: "",
-            content: finalContent,
-            category: selectedDestination.categoryType,
-            targetName: selectedDestination.targetName,
-            tags: extractedTags
-        )
-        
-        noteContent = ""
+    }
+
+    /// Writes what has been typed so far, as it stands. A `+project` in the text is only applied
+    /// when the panel closes, so a half-typed name never creates a project.
+    private func autoSave() {
+        guard !isBlank || draft != nil else { return }
+        if var note = draft {
+            note.content = noteContent
+            note.tags = Note.tags(in: noteContent)
+            storageManager.save(note: note)
+            draft = storageManager.notes.first { $0.id == note.id } ?? note
+        } else {
+            let project = pickedProject.flatMap { name in storageManager.projects.first { $0.name == name }?.name }
+            draft = storageManager.createNote(
+                content: noteContent,
+                category: project == nil ? .inbox : .project,
+                targetName: project,
+                tags: Note.tags(in: noteContent)
+            )
+        }
+    }
+
+    private func panelWillHide() {
+        if settings.quickNoteAutoSave {
+            autoSaveTimer?.invalidate()
+            autoSaveTimer = nil
+            if let note = draft {
+                if isBlank {
+                    // Everything typed was deleted again
+                    storageManager.delete(note: storageManager.notes.first { $0.id == note.id } ?? note)
+                } else {
+                    file(content: noteContent, replacing: storageManager.notes.first { $0.id == note.id } ?? note)
+                }
+            } else if !isBlank {
+                file(content: noteContent, replacing: nil)
+            }
+        }
+        // In manual mode, closing throws away what wasn't saved
+        reset()
+    }
+
+    private func saveNote() {
+        guard !isBlank else { return }
+        file(content: noteContent, replacing: nil)
+        reset()
         onDismiss()
     }
-    
-    private func detectInlineProjectTag(in text: String) {
-        // Check for [[ProjectName]] wiki-links
-        if let wikiRangeStart = text.range(of: "[["),
-           let wikiRangeEnd = text.range(of: "]]", range: wikiRangeStart.upperBound..<text.endIndex) {
-            let inside = String(text[wikiRangeStart.upperBound..<wikiRangeEnd.lowerBound]).trimmingCharacters(in: .whitespaces)
-            if !inside.isEmpty {
-                applyDestination(from: inside)
-                return
-            }
+
+    /// Files the note in its destination, creating a new project if needed, without the
+    /// `+project` mark. Updates `existing` when auto-save already wrote the note.
+    private func file(content: String, replacing existing: Note?) {
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let project = destination
+        if let project, !storageManager.projects.contains(where: { $0.name.caseInsensitiveCompare(project) == .orderedSame }) {
+            storageManager.createProject(name: project)
         }
-        
-        // Check words for +Project, @Project, p:Project, or matching #Project
-        let words = text.components(separatedBy: .whitespacesAndNewlines)
-        for word in words {
-            var candidate = ""
-            var isExplicitProjectPrefix = false
-            
-            if word.hasPrefix("+") && word.count > 1 {
-                candidate = String(word.dropFirst())
-                isExplicitProjectPrefix = true
-            } else if word.hasPrefix("@") && word.count > 1 {
-                candidate = String(word.dropFirst())
-                isExplicitProjectPrefix = true
-            } else if word.hasPrefix("p:") && word.count > 2 {
-                candidate = String(word.dropFirst(2))
-                isExplicitProjectPrefix = true
-            } else if word.hasPrefix("#") && word.count > 1 {
-                candidate = String(word.dropFirst())
-            }
-            
-            guard !candidate.isEmpty else { continue }
-            let cleaned = candidate.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-            guard !cleaned.isEmpty else { continue }
-            
-            // 1. Check if matches an existing project
-            if let matchedProject = storageManager.projects.first(where: {
-                $0.name.lowercased() == cleaned.lowercased() ||
-                $0.name.replacingOccurrences(of: " ", with: "").lowercased() == cleaned.lowercased()
-            }) {
-                selectedDestination = .project(name: matchedProject.name)
-                return
-            }
-            
-            // 2. Check if matches an existing area
-            if let matchedArea = storageManager.areas.first(where: {
-                $0.name.lowercased() == cleaned.lowercased() ||
-                $0.name.replacingOccurrences(of: " ", with: "").lowercased() == cleaned.lowercased()
-            }) {
-                selectedDestination = .area(name: matchedArea.name)
-                return
-            }
-            
-            // 3. If explicit prefix like +ProjectName or @ProjectName, treat as a new project target!
-            if isExplicitProjectPrefix && cleaned.count >= 2 {
-                // Capitalize first letter nicely
-                let formattedName = cleaned.prefix(1).uppercased() + cleaned.dropFirst()
-                selectedDestination = .project(name: formattedName)
-                return
-            }
+        let cleaned = Note.removeProjectTag(from: trimmed, targetName: project)
+        let finalContent = cleaned.isEmpty ? (project ?? trimmed) : cleaned
+        let category: CategoryType = project == nil ? .inbox : .project
+
+        if var note = existing {
+            note.content = finalContent
+            note.tags = Note.tags(in: finalContent)
+            note.categoryType = category
+            note.targetName = project
+            storageManager.save(note: note)
+        } else {
+            storageManager.createNote(
+                content: finalContent,
+                category: category,
+                targetName: project,
+                tags: Note.tags(in: finalContent)
+            )
         }
     }
-    
-    private func applyDestination(from rawName: String) {
-        let cleaned = rawName.trimmingCharacters(in: .whitespaces)
-        if let matchedProject = storageManager.projects.first(where: {
-            $0.name.lowercased() == cleaned.lowercased()
-        }) {
-            selectedDestination = .project(name: matchedProject.name)
-        } else if let matchedArea = storageManager.areas.first(where: {
-            $0.name.lowercased() == cleaned.lowercased()
-        }) {
-            selectedDestination = .area(name: matchedArea.name)
-        } else if !cleaned.isEmpty {
-            selectedDestination = .project(name: cleaned)
+
+    private func reset() {
+        noteContent = ""
+        pickedProject = nil
+        draft = nil
+    }
+
+    /// The project named by the first `+project`, `p:project` or `[[project]]` in `text`: an
+    /// existing project's spelling when the name matches one, ignoring case and spaces, else the
+    /// name as typed with a capital first letter.
+    static func inlineProject(in text: String, projects: [ProjectArea]) -> String? {
+        let name: String
+        if let open = text.range(of: "[["),
+           let close = text.range(of: "]]", range: open.upperBound..<text.endIndex),
+           case let inside = text[open.upperBound..<close.lowerBound].trimmingCharacters(in: .whitespaces),
+           !inside.isEmpty {
+            name = inside
+        } else if let mark = Mentions.marks(in: text).first(where: { $0.kind == .project }) {
+            name = mark.name
+        } else if let word = text.split(whereSeparator: \.isWhitespace).first(where: { $0.hasPrefix("p:") && $0.count > 2 }) {
+            name = String(word.dropFirst(2)).trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        } else {
+            return nil
         }
+        guard !name.isEmpty else { return nil }
+        let squashed = name.replacingOccurrences(of: " ", with: "").lowercased()
+        if let match = projects.first(where: {
+            $0.name.lowercased() == name.lowercased() || $0.name.replacingOccurrences(of: " ", with: "").lowercased() == squashed
+        }) {
+            return match.name
+        }
+        return name.prefix(1).uppercased() + name.dropFirst()
     }
 }
 

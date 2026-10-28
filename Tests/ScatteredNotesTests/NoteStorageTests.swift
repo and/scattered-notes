@@ -75,13 +75,14 @@ final class NoteStorageTests: XCTestCase {
     }
     
     @MainActor
-    func testProjectAndAreaDirectoryScaffolding() {
+    func testProjectDirectoryScaffolding() {
         let settings = AppSettings(notesDirectoryURL: tempDirectory, defaults: UserDefaults(suiteName: "com.scatterednotes.app.tests.storage")!)
         let manager = NoteStorageManager(settings: settings, enableFileWatcher: false)
         
         XCTAssertTrue(FileManager.default.fileExists(atPath: manager.inboxURL.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: manager.projectsURL.path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: manager.areasURL.path))
+        // Areas were replaced by tags, so no Areas folder is made
+        XCTAssertFalse(FileManager.default.fileExists(atPath: manager.areasURL.path))
         
         // Create project
         manager.createProject(name: "New Project")
@@ -116,32 +117,32 @@ final class NoteStorageTests: XCTestCase {
     func testRemoveProjectTagFromContent() {
         // Tag at end of sentence
         XCTAssertEqual(
-            Note.removeProjectTag(from: "Buy groceries @groceries", targetName: "groceries"),
+            Note.removeProjectTag(from: "Buy groceries +groceries", targetName: "groceries"),
             "Buy groceries"
         )
         // Tag with punctuation at end
         XCTAssertEqual(
-            Note.removeProjectTag(from: "Buy groceries @groceries.", targetName: "groceries"),
+            Note.removeProjectTag(from: "Buy groceries +groceries.", targetName: "groceries"),
             "Buy groceries."
         )
         // Tag at start
         XCTAssertEqual(
-            Note.removeProjectTag(from: "@groceries Buy groceries", targetName: "groceries"),
+            Note.removeProjectTag(from: "+groceries Buy groceries", targetName: "groceries"),
             "Buy groceries"
         )
         // Tag in middle
         XCTAssertEqual(
-            Note.removeProjectTag(from: "Buy @groceries for dinner", targetName: "groceries"),
+            Note.removeProjectTag(from: "Buy +groceries for dinner", targetName: "groceries"),
             "Buy for dinner"
         )
         // Tag with colon
         XCTAssertEqual(
-            Note.removeProjectTag(from: "@groceries: buy milk, eggs", targetName: "groceries"),
+            Note.removeProjectTag(from: "+groceries: buy milk, eggs", targetName: "groceries"),
             "buy milk, eggs"
         )
         // Checklist task with tag
         XCTAssertEqual(
-            Note.removeProjectTag(from: "- [ ] Call dentist @health", targetName: "health"),
+            Note.removeProjectTag(from: "- [ ] Call dentist +health", targetName: "health"),
             "- [ ] Call dentist"
         )
         // Email address preserved (not stripped)
@@ -151,13 +152,18 @@ final class NoteStorageTests: XCTestCase {
         )
         // Project name with spaces
         XCTAssertEqual(
-            Note.removeProjectTag(from: "Review PR @MobileApp", targetName: "Mobile App"),
+            Note.removeProjectTag(from: "Review PR +MobileApp", targetName: "Mobile App"),
             "Review PR"
         )
         // Plus prefix tag
         XCTAssertEqual(
             Note.removeProjectTag(from: "Fix crash +MobileApp #bug", targetName: "MobileApp"),
             "Fix crash #bug"
+        )
+        // @ marks a person, never a project
+        XCTAssertEqual(
+            Note.removeProjectTag(from: "Ask @groceries about it", targetName: "groceries"),
+            "Ask @groceries about it"
         )
         // Wiki link
         XCTAssertEqual(
@@ -188,18 +194,21 @@ final class NoteStorageTests: XCTestCase {
     }
 
     @MainActor
-    func testProjectAndAreaSelectionsListOnlyTheirOwnNotes() {
-        let launch = Note(title: "Launch", categoryType: .project, targetName: "Website")
+    func testProjectPersonAndTagSelectionsListOnlyTheirOwnNotes() {
+        let launch = Note(title: "Launch", content: "Plan with @Ana", categoryType: .project, targetName: "Website")
         let other = Note(title: "Other", categoryType: .project, targetName: "Garden")
-        let health = Note(title: "Gym", categoryType: .area, targetName: "Website")
-        let inbox = Note(title: "Errands")
-        let notes = [launch, other, health, inbox]
+        let gym = Note(title: "Gym", content: "Knee physio #Health", tags: ["Health"])
+        let inbox = Note(title: "Errands", content: "email ana@example.com")
+        let notes = [launch, other, gym, inbox]
 
         XCTAssertEqual(notes.filter(SidebarSelection.project(name: "Website").contains).map(\.title), ["Launch"])
-        XCTAssertEqual(notes.filter(SidebarSelection.area(name: "Website").contains).map(\.title), ["Gym"])
-        XCTAssertEqual(notes.filter(SidebarSelection.inbox.contains).map(\.title), ["Errands"])
+        XCTAssertEqual(notes.filter(SidebarSelection.person(name: "ana").contains).map(\.title), ["Launch"])
+        XCTAssertEqual(notes.filter(SidebarSelection.tag(name: "health").contains).map(\.title), ["Gym"])
+        XCTAssertEqual(notes.filter(SidebarSelection.inbox.contains).map(\.title), ["Gym", "Errands"])
         XCTAssertEqual(notes.filter(SidebarSelection.all.contains).count, 4)
         XCTAssertTrue(SidebarSelection.project(name: "Website").hasOwnDashboard)
+        XCTAssertTrue(SidebarSelection.person(name: "Ana").hasOwnDashboard)
+        XCTAssertTrue(SidebarSelection.tag(name: "health").hasOwnDashboard)
         XCTAssertFalse(SidebarSelection.dashboard.hasOwnDashboard)
         XCTAssertFalse(SidebarSelection.inbox.hasOwnDashboard)
     }

@@ -128,35 +128,36 @@ final class EndToEndFeatureTests: XCTestCase {
     // MARK: - 4. Wiki-link Syntax [[Project]] Tagging
     @MainActor
     func testE2E_WikiLinkSyntaxProjectTagging() {
-        let areaName = "Health"
-        storageManager.createArea(name: areaName, icon: "heart.fill")
+        let projectName = "Health"
+        storageManager.createProject(name: projectName, icon: "heart.fill")
+        XCTAssertEqual(QuickCaptureView.inlineProject(in: "Daily stretching and 5km jog [[health]]", projects: storageManager.projects), projectName)
         
         // Simulate note tagged via [[Health]]
         let note = storageManager.createNote(
             title: "Morning Routine",
             content: "Daily stretching and 5km jog [[Health]]",
-            category: .area,
-            targetName: areaName
+            category: .project,
+            targetName: projectName
         )
         
-        let expectedAreaDir = storageManager.areasURL.appendingPathComponent(areaName)
-        XCTAssertEqual(note.filePath?.deletingLastPathComponent().path, expectedAreaDir.path)
+        let expectedDir = storageManager.projectsURL.appendingPathComponent(projectName)
+        XCTAssertEqual(note.filePath?.deletingLastPathComponent().path, expectedDir.path)
         XCTAssertEqual(note.destinationDisplay, "Health")
     }
     
-    // MARK: - 4b. Inline @Project Tagging and Content Stripping
+    // MARK: - 4b. Inline +Project Tagging and Content Stripping
     @MainActor
-    func testE2E_AtProjectTaggingAndContentStripping() {
+    func testE2E_PlusProjectTaggingAndContentStripping() {
         let projectName = "ClientPortal"
         storageManager.createProject(name: projectName, icon: "globe")
         
-        let rawInput = "Review API authentication flow @ClientPortal #security"
+        let rawInput = "Review API authentication flow +ClientPortal #security"
         
         // When captured via Quick Capture, the inline project tag routes to ClientPortal
-        // and @ClientPortal is removed from the content
+        // and +ClientPortal is removed from the content
         let cleanedContent = Note.removeProjectTag(from: rawInput, targetName: projectName)
         XCTAssertEqual(cleanedContent, "Review API authentication flow #security")
-        XCTAssertFalse(cleanedContent.contains("@ClientPortal"))
+        XCTAssertFalse(cleanedContent.contains("+ClientPortal"))
         
         let note = storageManager.createNote(
             title: "",
@@ -171,7 +172,7 @@ final class EndToEndFeatureTests: XCTestCase {
         XCTAssertEqual(note.filePath?.deletingLastPathComponent().path, projectDir.path)
         XCTAssertEqual(note.targetName, projectName)
         
-        // Verify disk content contains clean text without @ClientPortal
+        // Verify disk content contains clean text without +ClientPortal
         guard let fileURL = note.filePath,
               let contentOnDisk = try? String(contentsOf: fileURL, encoding: .utf8) else {
             XCTFail("Missing note file")
@@ -218,11 +219,11 @@ final class EndToEndFeatureTests: XCTestCase {
         XCTAssertTrue(rawDisk!.contains("- [ ] Test on Intel Mac"))
     }
     
-    // MARK: - 6. Moving Notes Across Categories (Inbox -> Project -> Area)
+    // MARK: - 6. Moving Notes Across Categories (Inbox -> Project -> Project)
     @MainActor
     func testE2E_MoveNoteAcrossCategories() {
         storageManager.createProject(name: "ClientPitch")
-        storageManager.createArea(name: "Archives")
+        storageManager.createProject(name: "Archives")
         
         // 1. Note created in Inbox
         let note = storageManager.createNote(
@@ -242,15 +243,15 @@ final class EndToEndFeatureTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: initialPath.path)) // Old file removed
         XCTAssertTrue(FileManager.default.fileExists(atPath: noteInProject.filePath!.path)) // New file exists
         
-        // 3. Move to Area "Archives"
+        // 3. Move to another project, "Archives"
         let projectPath = noteInProject.filePath!
-        storageManager.move(note: noteInProject, to: .area, targetName: "Archives")
-        let noteInArea = storageManager.notes.first { $0.id == note.id }!
-        XCTAssertEqual(noteInArea.categoryType, .area)
-        XCTAssertEqual(noteInArea.targetName, "Archives")
-        XCTAssertEqual(noteInArea.filePath?.deletingLastPathComponent().path, storageManager.areasURL.appendingPathComponent("Archives").path)
+        storageManager.move(note: noteInProject, to: .project, targetName: "Archives")
+        let archived = storageManager.notes.first { $0.id == note.id }!
+        XCTAssertEqual(archived.categoryType, .project)
+        XCTAssertEqual(archived.targetName, "Archives")
+        XCTAssertEqual(archived.filePath?.deletingLastPathComponent().path, storageManager.projectsURL.appendingPathComponent("Archives").path)
         XCTAssertFalse(FileManager.default.fileExists(atPath: projectPath.path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: noteInArea.filePath!.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: archived.filePath!.path))
     }
     
     // MARK: - 7. Full-Text Search and Tag Filtering

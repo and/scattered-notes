@@ -10,7 +10,6 @@ public final class NoteStorageManager: ObservableObject {
         didSet { allAgendaItems = nil }
     }
     @Published public private(set) var projects: [ProjectArea] = []
-    @Published public private(set) var areas: [ProjectArea] = []
     
     private let settings: AppSettings
     #if os(macOS)
@@ -89,7 +88,8 @@ public final class NoteStorageManager: ObservableObject {
         rootURL.appendingPathComponent("Projects", isDirectory: true)
     }
     
-    public var areasURL: URL {
+    /// Where areas were kept before tags replaced them; see `migrateAreasToTags()`
+    var areasURL: URL {
         rootURL.appendingPathComponent("Areas", isDirectory: true)
     }
     
@@ -100,7 +100,7 @@ public final class NoteStorageManager: ObservableObject {
     
     public func setupDirectories() {
         let fileManager = FileManager.default
-        let dirs = [inboxURL, projectsURL, areasURL]
+        let dirs = [inboxURL, projectsURL]
         for dir in dirs {
             if !fileManager.fileExists(atPath: dir.path) {
                 try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true, attributes: nil)
@@ -130,22 +130,9 @@ public final class NoteStorageManager: ObservableObject {
         }
         self.projects = discoveredProjects.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         
-        // 2. Discover Areas
-        var discoveredAreas: [ProjectArea] = []
-        if let areaDirs = try? fileManager.contentsOfDirectory(at: areasURL, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) {
-            for dir in areaDirs {
-                var isDir: ObjCBool = false
-                if fileManager.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue {
-                    var customIcon: String? = nil
-                    if let data = try? Data(contentsOf: dir.appendingPathComponent(".metadata.json")),
-                       let dict = try? JSONDecoder().decode([String: String].self, from: data) {
-                        customIcon = dict["icon"]
-                    }
-                    discoveredAreas.append(ProjectArea(name: dir.lastPathComponent, type: .area, customIcon: customIcon))
-                }
-            }
-        }
-        self.areas = discoveredAreas.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        // 2. Find folders left from areas, so their notes can be moved out (see migrateAreasToTags)
+        let areaDirs = (try? fileManager.contentsOfDirectory(at: areasURL, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]))?
+            .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true } ?? []
         
         // 3. Discover Notes
         var loadedNotes: [Note] = []
@@ -159,10 +146,9 @@ public final class NoteStorageManager: ObservableObject {
             loadedNotes.append(contentsOf: loadNotesInDirectory(pDir, defaultCategory: .project, targetName: project.name))
         }
         
-        // Load Area notes
-        for area in self.areas {
-            let aDir = areasURL.appendingPathComponent(area.name, isDirectory: true)
-            loadedNotes.append(contentsOf: loadNotesInDirectory(aDir, defaultCategory: .area, targetName: area.name))
+        // Load notes still in area folders
+        for dir in areaDirs {
+            loadedNotes.append(contentsOf: loadNotesInDirectory(dir, defaultCategory: .area, targetName: dir.lastPathComponent))
         }
         
         // Forget files that are gone, so the cache never outgrows the folder
@@ -197,6 +183,9 @@ public final class NoteStorageManager: ObservableObject {
                 return $0.isPinned && !$1.isPinned
             }
             return $0.updatedAt > $1.updatedAt
+        }
+        if FileManager.default.fileExists(atPath: areasURL.path) || notes.contains(where: { $0.categoryType == .area }) {
+            migrateAreasToTags()
         }
     }
     
@@ -473,26 +462,45 @@ public final class NoteStorageManager: ObservableObject {
         loadAll()
     }
     
-    public func createArea(name: String, icon: String? = nil) {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        let dir = areasURL.appendingPathComponent(trimmed, isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        if let icon = icon, !icon.isEmpty {
-            let meta = ["icon": icon]
-            if let data = try? JSONEncoder().encode(meta) {
-                try? data.write(to: dir.appendingPathComponent(".metadata.json"))
+    // MARK: - Areas
+    /// Areas were replaced by tags. Moves each note still in an area (written by an older version,
+    /// perhaps on another device) to the Inbox and tags it with the area's name, then removes area
+    /// folders that are left with nothing but their icon file. A note is written to the Inbox before
+    /// its old file is removed, as with any move, so a crash can leave a duplicate but never lose it.
+    func migrateAreasToTags() {
+        for note in notes where note.categoryType == .area {
+            var moved = note
+            let tag = Self.tagName(forArea: note.targetName ?? "")
+            if !Note.tags(in: note.content).contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame }) {
+                let body = note.content.trimmingCharacters(in: .newlines)
+                moved.content = body.isEmpty ? "#\(tag)" : body + "\n\n#\(tag)"
             }
+            moved.categoryType = .inbox
+            moved.targetName = nil
+            moved.tags = Note.tags(in: moved.content)
+            save(note: moved)
         }
-        loadAll()
+
+        let fileManager = FileManager.default
+        let leftovers: Set<String> = [".metadata.json", ".DS_Store"]
+        let dirs = (try? fileManager.contentsOfDirectory(at: areasURL, includingPropertiesForKeys: nil)) ?? []
+        for dir in dirs where dir.lastPathComponent != ".DS_Store" {
+            guard let files = try? fileManager.contentsOfDirectory(atPath: dir.path),
+                  files.allSatisfy(leftovers.contains) else { continue }
+            try? coordinate(writingTo: dir, options: .forDeleting) { try fileManager.removeItem(at: $0) }
+        }
+        if let rest = try? fileManager.contentsOfDirectory(atPath: areasURL.path), rest.allSatisfy({ $0 == ".DS_Store" }) {
+            try? coordinate(writingTo: areasURL, options: .forDeleting) { try fileManager.removeItem(at: $0) }
+        }
     }
-    
-    public func deleteArea(name: String) {
-        let dir = areasURL.appendingPathComponent(name, isDirectory: true)
-        try? FileManager.default.removeItem(at: dir)
-        loadAll()
+
+    /// The tag an area becomes: "Home Office" becomes "home-office"
+    nonisolated static func tagName(forArea area: String) -> String {
+        let words = area.lowercased().split(whereSeparator: { !($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") })
+        let name = words.joined(separator: "-")
+        return name.first?.isLetter == true ? name : "area-" + name
     }
-    
+
     // MARK: - Storage Folder Relocation
     public enum RelocationError: LocalizedError {
         case nestedFolder

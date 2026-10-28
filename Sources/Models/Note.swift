@@ -71,6 +71,14 @@ public struct Note: Identifiable, Hashable, Sendable {
         return previewLines.joined(separator: " ")
     }
     
+    /// People mentioned in the note as `@name`, in the order they first appear
+    public var people: [String] { Mentions.names(.person, in: content) }
+
+    /// The tags written in `content` as `#name`, in the order they first appear
+    public static func tags(in content: String) -> [String] {
+        Mentions.names(.tag, in: content)
+    }
+
     public var destinationDisplay: String {
         switch categoryType {
         case .inbox:
@@ -309,6 +317,13 @@ extension Note {
             }
         }
         
+        // Tags written in the body count even when the frontmatter is older than the body, e.g.
+        // after editing the file in another app
+        var seenTags = Set(tags.map { $0.lowercased() })
+        for tag in Self.tags(in: markdownBody) where seenTags.insert(tag.lowercased()).inserted {
+            tags.append(tag)
+        }
+
         var note = Note(
             id: id,
             title: title,
@@ -333,7 +348,7 @@ extension Note {
 
 // MARK: - Inline Project Tag Cleansing
 extension Note {
-    /// Removes inline project tags (e.g. `@project`, `+project`, `p:project`, `[[project]]`)
+    /// Removes inline project marks (`+project`, `p:project`, `[[project]]`)
     /// from the note content so the body text remains clean and concise.
     public static func removeProjectTag(from text: String, targetName: String?) -> String {
         guard let target = targetName?.trimmingCharacters(in: .whitespacesAndNewlines), !target.isEmpty else {
@@ -355,10 +370,10 @@ extension Note {
         
         var lines = text.components(separatedBy: .newlines)
         
-        guard let p1 = try? NSRegularExpression(pattern: "^(?:@|\\+|p:)(?:" + targetRegexPart + ")(?::\\s*|\\s+)", options: .caseInsensitive),
-              let p2 = try? NSRegularExpression(pattern: "\\s+(?:@|\\+|p:)(?:" + targetRegexPart + ")([.,;:])(?=\\s|$)", options: .caseInsensitive),
-              let p3 = try? NSRegularExpression(pattern: "\\s+(?:@|\\+|p:)(?:" + targetRegexPart + ")(?=[.,;:]?(\\s|$))", options: .caseInsensitive),
-              let p4 = try? NSRegularExpression(pattern: "^(?:@|\\+|p:)(?:" + targetRegexPart + ")[.,;:]?$", options: .caseInsensitive),
+        guard let p1 = try? NSRegularExpression(pattern: "^(?:\\+|p:)(?:" + targetRegexPart + ")(?::\\s*|\\s+)", options: .caseInsensitive),
+              let p2 = try? NSRegularExpression(pattern: "\\s+(?:\\+|p:)(?:" + targetRegexPart + ")([.,;:])(?=\\s|$)", options: .caseInsensitive),
+              let p3 = try? NSRegularExpression(pattern: "\\s+(?:\\+|p:)(?:" + targetRegexPart + ")(?=[.,;:]?(\\s|$))", options: .caseInsensitive),
+              let p4 = try? NSRegularExpression(pattern: "^(?:\\+|p:)(?:" + targetRegexPart + ")[.,;:]?$", options: .caseInsensitive),
               let pWiki = try? NSRegularExpression(pattern: "\\[\\[(?:" + targetRegexPart + ")\\]\\]", options: .caseInsensitive) else {
             return text
         }

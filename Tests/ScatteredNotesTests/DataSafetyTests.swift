@@ -150,11 +150,45 @@ final class DataSafetyTests: XCTestCase {
     }
 
     @MainActor
+    func testNotesLeftInAreasMoveToTheInboxAsTags() throws {
+        let root = makeRoot()
+        let fm = FileManager.default
+        let home = root.appendingPathComponent("Areas/Home Office", isDirectory: true)
+        let empty = root.appendingPathComponent("Areas/ideas", isDirectory: true)
+        let kept = root.appendingPathComponent("Areas/Scans", isDirectory: true)
+        for dir in [home, empty, kept] { try fm.createDirectory(at: dir, withIntermediateDirectories: true) }
+        try Data("{\"icon\":\"heart.fill\"}".utf8).write(to: empty.appendingPathComponent(".metadata.json"))
+        try Data("not a note".utf8).write(to: kept.appendingPathComponent("scan.pdf"))
+        let desk = Note(title: "Desk", content: "Buy a lamp\n", categoryType: .area, targetName: "Home Office")
+        try desk.serializeToMarkdown().write(to: home.appendingPathComponent("desk.md"), atomically: true, encoding: .utf8)
+        let tagged = Note(title: "Chair", content: "Fix the chair #home-office", categoryType: .area, targetName: "Home Office")
+        try tagged.serializeToMarkdown().write(to: home.appendingPathComponent("chair.md"), atomically: true, encoding: .utf8)
+
+        let manager = makeManager(root: root)
+
+        let moved = try XCTUnwrap(manager.notes.first { $0.id == desk.id })
+        XCTAssertEqual(moved.categoryType, .inbox)
+        XCTAssertEqual(moved.content, "Buy a lamp\n\n#home-office")
+        XCTAssertEqual(moved.tags, ["home-office"])
+        XCTAssertEqual(moved.filePath?.deletingLastPathComponent().path, manager.inboxURL.path)
+        let chair = try XCTUnwrap(manager.notes.first { $0.id == tagged.id })
+        XCTAssertEqual(chair.content, "Fix the chair #home-office", "a tag already there isn't added twice")
+        XCTAssertEqual(mdFiles(in: root).count, 2)
+        XCTAssertFalse(fm.fileExists(atPath: home.path))
+        XCTAssertFalse(fm.fileExists(atPath: empty.path))
+        XCTAssertTrue(fm.fileExists(atPath: kept.appendingPathComponent("scan.pdf").path), "other files are never removed")
+
+        let reloaded = makeManager(root: root)
+        XCTAssertEqual(Set(reloaded.notes.map(\.id)), [desk.id, tagged.id])
+        XCTAssertTrue(reloaded.notes.allSatisfy { $0.categoryType == .inbox })
+    }
+
+    @MainActor
     func testMovingNotesBetweenFoldersNeverLosesOrDuplicatesThem() throws {
         let root = makeRoot()
         let manager = makeManager(root: root)
         manager.createProject(name: "Alpha")
-        manager.createArea(name: "Beta")
+        manager.createProject(name: "Beta")
         var note = manager.createNote(title: "Traveller", content: "keep me --- safe\n- [ ] item")
         var rng = SeededGenerator(state: 99)
 
@@ -162,7 +196,7 @@ final class DataSafetyTests: XCTestCase {
             switch Int.random(in: 0..<3, using: &rng) {
             case 0: manager.move(note: note, to: .inbox, targetName: nil)
             case 1: manager.move(note: note, to: .project, targetName: "Alpha")
-            default: manager.move(note: note, to: .area, targetName: "Beta")
+            default: manager.move(note: note, to: .project, targetName: "Beta")
             }
             note = try XCTUnwrap(manager.notes.first { $0.id == note.id })
             XCTAssertEqual(mdFiles(in: root).count, 1, "move left a duplicate or lost the file")

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Write a thought down fast and file it in the Inbox, a project or an area.
+/// Write a thought down fast and file it in the Inbox or a project.
 struct CaptureSheet: View {
     @ObservedObject private var storage = NoteStorageManager.shared
     @Environment(\.dismiss) private var dismiss
@@ -11,7 +11,6 @@ struct CaptureSheet: View {
     enum Destination: Hashable {
         case inbox
         case project(String)
-        case area(String)
     }
 
     var body: some View {
@@ -22,16 +21,13 @@ struct CaptureSheet: View {
                         .frame(minHeight: 180)
                         .focused($focused)
                 } footer: {
-                    Text("Lines like \"call the bank tomorrow\" or \"- [ ] renew passport\" show up on the Dashboard.")
+                    Text("Lines like \"call the bank tomorrow\" or \"- [ ] renew passport\" show up on the Dashboard. #tag tags the note and @name mentions a person.")
                 }
                 Section {
                     Picker("Save to", selection: $destination) {
                         Label("Inbox", systemImage: CategoryType.inbox.iconName).tag(Destination.inbox)
                         ForEach(storage.projects) { project in
                             Label(project.name, systemImage: CategoryType.project.iconName).tag(Destination.project(project.name))
-                        }
-                        ForEach(storage.areas) { area in
-                            Label(area.name, systemImage: CategoryType.area.iconName).tag(Destination.area(area.name))
                         }
                     }
                 }
@@ -54,18 +50,12 @@ struct CaptureSheet: View {
     private func save() {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        // Words starting with # become tags, as in the Mac Quick Capture
-        let tags = trimmed.components(separatedBy: .whitespacesAndNewlines)
-            .filter { $0.hasPrefix("#") && $0.count > 1 }
-            .map { String($0.dropFirst()).trimmingCharacters(in: CharacterSet.alphanumerics.inverted) }
-            .filter { !$0.isEmpty }
+        let tags = Note.tags(in: trimmed)
         switch destination {
         case .inbox:
             storage.createNote(content: trimmed, tags: tags)
         case .project(let name):
             storage.createNote(content: trimmed, category: .project, targetName: name, tags: tags)
-        case .area(let name):
-            storage.createNote(content: trimmed, category: .area, targetName: name, tags: tags)
         }
         dismiss()
     }

@@ -81,7 +81,11 @@ public final class QuickCapturePanel: NSPanel {
         orderFrontRegardless()
     }
     
+    /// Posted just before the panel hides, so Quick Note can finish an auto-saved note
+    public static let willHideNotification = Notification.Name("QuickCapturePanel.willHide")
+
     public func hidePanel() {
+        NotificationCenter.default.post(name: Self.willHideNotification, object: self)
         orderOut(nil)
     }
     

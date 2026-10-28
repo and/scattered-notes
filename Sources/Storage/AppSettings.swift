@@ -16,6 +16,7 @@ public final class AppSettings: ObservableObject {
     private let storageKeySearchShortcut = "settings.searchShortcut"
     #endif
     private let storageKeyDefaultEditorFontSize = "settings.editorFontSize"
+    private let storageKeyQuickNoteAutoSave = "settings.quickNoteAutoSave"
     
     // Injected so tests can use an isolated suite instead of the app's real preferences
     private let defaults: UserDefaults
@@ -37,6 +38,13 @@ public final class AppSettings: ObservableObject {
         }
     }
     
+    /// Whether Quick Note saves as you type, instead of only when Save is pressed
+    @Published public var quickNoteAutoSave: Bool {
+        didSet {
+            defaults.set(quickNoteAutoSave, forKey: storageKeyQuickNoteAutoSave)
+        }
+    }
+
     #if os(macOS)
     /// Global shortcut that opens Quick Capture from any app
     @Published public var quickCaptureShortcut: HotKeyShortcut {
@@ -71,6 +79,7 @@ public final class AppSettings: ObservableObject {
         
         let savedFontSize = defaults.double(forKey: storageKeyDefaultEditorFontSize)
         self.editorFontSize = savedFontSize > 0 ? savedFontSize : 14.0
+        self.quickNoteAutoSave = defaults.object(forKey: storageKeyQuickNoteAutoSave) as? Bool ?? true
         #if os(macOS)
         self.quickCaptureShortcut = Self.loadShortcut(from: defaults, key: storageKeyQuickCaptureShortcut, fallback: .quickCaptureDefault)
         self.searchShortcut = Self.loadShortcut(from: defaults, key: storageKeySearchShortcut, fallback: .searchDefault)
