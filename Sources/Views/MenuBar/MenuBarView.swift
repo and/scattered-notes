@@ -20,10 +20,7 @@ public struct MenuBarView: View {
             }
             
             Button(action: {
-                NSApp.activate(ignoringOtherApps: true)
-                for window in NSApp.windows where !(window is QuickCapturePanel) {
-                    window.makeKeyAndOrderFront(nil)
-                }
+                AppRouter.showMainWindow()
             }) {
                 Label("Open Scattered Notes", systemImage: "macwindow")
             }
@@ -34,10 +31,7 @@ public struct MenuBarView: View {
                 Section("Recent Notes") {
                     ForEach(storageManager.notes.prefix(5)) { note in
                         Button(action: {
-                            NSApp.activate(ignoringOtherApps: true)
-                            for window in NSApp.windows where !(window is QuickCapturePanel) {
-                                window.makeKeyAndOrderFront(nil)
-                            }
+                            AppRouter.showMainWindow()
                         }) {
                             HStack {
                                 Image(systemName: note.categoryType.iconName)
