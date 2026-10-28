@@ -35,8 +35,8 @@ targets:
       properties:
         CFBundleDisplayName: "Scattered Notes"
         # Same version as the Mac app
-        CFBundleShortVersionString: "1.1.4"
-        CFBundleVersion: "7"
+        CFBundleShortVersionString: "1.1.5"
+        CFBundleVersion: "8"
         # Uses only the encryption built into iOS, so TestFlight and the App Store need no export paperwork
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}

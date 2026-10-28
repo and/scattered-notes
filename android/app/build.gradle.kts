@@ -13,8 +13,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // Same version as the Mac and Windows apps; versionCode follows the Mac app's CFBundleVersion
-        versionCode = 7
-        versionName = "1.1.4"
+        versionCode = 8
+        versionName = "1.1.5"
     }
 
     // The release key stays outside the repo. scripts/release-android.sh passes its path and password in;
