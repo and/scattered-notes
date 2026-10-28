@@ -1,6 +1,6 @@
 namespace ScatteredNotes.Core.Models;
 
-/// <summary>Where a captured note goes: the Inbox, a project or an area.</summary>
+/// <summary>Where a captured note goes: the Inbox or a project.</summary>
 public sealed record Destination(CategoryType Type, string? Name = null)
 {
     public static readonly Destination Inbox = new(CategoryType.Inbox);
@@ -12,43 +12,26 @@ public sealed record Destination(CategoryType Type, string? Name = null)
 public static class QuickCapture
 {
     /// <summary>
-    /// Picks a destination from inline tags in the text: <c>[[Name]]</c>, <c>+Name</c>, <c>@Name</c>,
-    /// <c>p:Name</c>, or <c>#Name</c> matching an existing project or area. An explicit prefix naming no
-    /// existing folder means a new project. null when the text names none.
+    /// Picks a project from the text, as the Mac app does: <c>[[Name]]</c>, <c>+Name</c> or <c>p:Name</c>. A name
+    /// matching an existing project (ignoring case and spaces) gets its spelling; any other is a new project.
+    /// <c>#tag</c> and <c>@person</c> never move a note. null when the text names no project.
     /// </summary>
-    public static Destination? DetectDestination(string text, IReadOnlyList<ProjectArea> projects, IReadOnlyList<ProjectArea> areas)
+    public static Destination? DetectDestination(string text, IReadOnlyList<ProjectArea> projects)
     {
         var wikiStart = text.IndexOf("[[", StringComparison.Ordinal);
         var wikiEnd = wikiStart < 0 ? -1 : text.IndexOf("]]", wikiStart + 2, StringComparison.Ordinal);
-        if (wikiEnd > 0)
-        {
-            var inside = text[(wikiStart + 2)..wikiEnd].Trim();
-            if (inside.Length > 0)
-            {
-                return Match(projects, inside, false) is { } p ? new Destination(CategoryType.Project, p.Name)
-                    : Match(areas, inside, false) is { } a ? new Destination(CategoryType.Area, a.Name)
-                    : new Destination(CategoryType.Project, inside);
-            }
-        }
+        string? name = null;
+        if (wikiEnd > 0 && text[(wikiStart + 2)..wikiEnd].Trim() is { Length: > 0 } inside)
+            name = inside;
+        else if (Mentions.Marks(text).FirstOrDefault(m => m.Kind == Mentions.Kind.Project) is { } mark)
+            name = mark.Name;
+        else if (text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(w => w.StartsWith("p:", StringComparison.Ordinal) && w.Length > 2) is { } word)
+            name = TrimNonAlphanumerics(word[2..]);
+        if (string.IsNullOrEmpty(name)) return null;
 
-        foreach (var word in text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
-        {
-            var (candidate, explicitPrefix) = word switch
-            {
-                _ when word.StartsWith('+') && word.Length > 1 => (word[1..], true),
-                _ when word.StartsWith('@') && word.Length > 1 => (word[1..], true),
-                _ when word.StartsWith("p:", StringComparison.Ordinal) && word.Length > 2 => (word[2..], true),
-                _ when word.StartsWith('#') && word.Length > 1 => (word[1..], false),
-                _ => ("", false),
-            };
-            var cleaned = TrimNonAlphanumerics(candidate);
-            if (cleaned.Length == 0) continue;
-
-            if (Match(projects, cleaned, true) is { } project) return new Destination(CategoryType.Project, project.Name);
-            if (Match(areas, cleaned, true) is { } area) return new Destination(CategoryType.Area, area.Name);
-            if (explicitPrefix && cleaned.Length >= 2) return new Destination(CategoryType.Project, char.ToUpperInvariant(cleaned[0]) + cleaned[1..]);
-        }
-        return null;
+        return Match(projects, name, true) is { } project
+            ? new Destination(CategoryType.Project, project.Name)
+            : new Destination(CategoryType.Project, char.ToUpperInvariant(name[0]) + name[1..]);
     }
 
     private static ProjectArea? Match(IReadOnlyList<ProjectArea> folders, string name, bool ignoreSpaces) =>
@@ -56,13 +39,8 @@ public static class QuickCapture
             f.Name.Equals(name, StringComparison.OrdinalIgnoreCase) ||
             (ignoreSpaces && f.Name.Replace(" ", "").Equals(name, StringComparison.OrdinalIgnoreCase)));
 
-    /// <summary>Hashtags in the text, without the destination's own name.</summary>
-    public static List<string> Tags(string text, string? destinationName) =>
-        text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
-            .Where(w => w.StartsWith('#') && w.Length > 1)
-            .Select(w => TrimNonAlphanumerics(w[1..]))
-            .Where(t => t.Length > 0 && !t.Equals(destinationName, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+    /// <summary>The <c>#tags</c> in the text.</summary>
+    public static List<string> Tags(string text) => Mentions.Names(Mentions.Kind.Tag, text);
 
     /// <summary>The note body: the trimmed text without the inline destination tag.</summary>
     public static string Content(string text, Destination destination)

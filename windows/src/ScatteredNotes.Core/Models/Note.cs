@@ -60,6 +60,9 @@ public sealed record Note
         }
     }
 
+    /// <summary>People mentioned as <c>@name</c>, in the order they first appear.</summary>
+    public IReadOnlyList<string> People => Mentions.Names(Mentions.Kind.Person, Content);
+
     public string DestinationDisplay => CategoryType switch
     {
         CategoryType.Project => TargetName ?? "Project",

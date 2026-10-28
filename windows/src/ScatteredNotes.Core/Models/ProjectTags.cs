@@ -6,7 +6,7 @@ namespace ScatteredNotes.Core.Models;
 public static class ProjectTags
 {
     /// <summary>
-    /// Removes inline project tags (<c>@project</c>, <c>+project</c>, <c>p:project</c>, <c>[[project]]</c>)
+    /// Removes inline project marks (<c>+project</c>, <c>p:project</c>, <c>[[project]]</c>)
     /// for <paramref name="targetName"/> from captured text, so the body stays clean.
     /// </summary>
     public static string Remove(string text, string? targetName)
@@ -19,10 +19,10 @@ public static class ProjectTags
         var targetPart = string.Join("|", new[] { target, noSpace, noPunct }.Distinct().Select(Regex.Escape));
 
         const RegexOptions options = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
-        var p1 = new Regex($@"^(?:@|\+|p:)(?:{targetPart})(?::\s*|\s+)", options);
-        var p2 = new Regex($@"\s+(?:@|\+|p:)(?:{targetPart})([.,;:])(?=\s|$)", options);
-        var p3 = new Regex($@"\s+(?:@|\+|p:)(?:{targetPart})(?=[.,;:]?(\s|$))", options);
-        var p4 = new Regex($@"^(?:@|\+|p:)(?:{targetPart})[.,;:]?$", options);
+        var p1 = new Regex($@"^(?:\+|p:)(?:{targetPart})(?::\s*|\s+)", options);
+        var p2 = new Regex($@"\s+(?:\+|p:)(?:{targetPart})([.,;:])(?=\s|$)", options);
+        var p3 = new Regex($@"\s+(?:\+|p:)(?:{targetPart})(?=[.,;:]?(\s|$))", options);
+        var p4 = new Regex($@"^(?:\+|p:)(?:{targetPart})[.,;:]?$", options);
         var wiki = new Regex($@"\[\[(?:{targetPart})\]\]", options);
         var spaces = new Regex("  +");
 

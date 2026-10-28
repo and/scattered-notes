@@ -81,7 +81,7 @@ internal sealed class EditorView : UserControl
             flyout.Items.Clear();
             foreach (var item in NoteMenus.MoveItems(_state, _note)) flyout.Items.Add(item);
         };
-        ToolTip.SetTip(_destination, "Move to Inbox, a project or an area");
+        ToolTip.SetTip(_destination, "Move to Inbox or a project");
 
         _modeButtons = [ModeButton(EditorMode.Edit, Symbol.Edit, "Edit"), ModeButton(EditorMode.Split, Symbol.SplitVertical, "Split"), ModeButton(EditorMode.Preview, Symbol.Eye, "Preview")];
         var modes = Ui.Row(0, _modeButtons);
@@ -276,7 +276,7 @@ internal sealed class EditorView : UserControl
         var icon = note.CategoryType switch
         {
             CategoryType.Project => _state.Store.Projects.FirstOrDefault(p => p.Name == note.TargetName)?.IconName ?? "folder.fill",
-            CategoryType.Area => _state.Store.Areas.FirstOrDefault(a => a.Name == note.TargetName)?.IconName ?? "square.stack.3d.up.fill",
+            CategoryType.Area => "tray.fill",
             _ => "tray.fill",
         };
         _destination.Content = Ui.Row(6, Ui.Icon(Ui.SymbolFor(icon), 14, brush), Ui.Text(note.DestinationDisplay, 12, FontWeight.SemiBold, brush));
@@ -352,14 +352,7 @@ internal sealed class EditorView : UserControl
         var content = _text.Text ?? "";
         if (title == current.Title && content == current.Content) return;
 
-        var tags = content.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
-            .Where(w => w.StartsWith('#') && w.Length > 1)
-            .Select(w => w[1..].Trim(w[1..].Where(c => !char.IsLetterOrDigit(c)).Distinct().ToArray()))
-            .Where(t => t.Length > 0)
-            .Distinct()
-            .Order(StringComparer.Ordinal)
-            .ToList();
-        var updated = current with { Title = title, Content = content, Tags = tags.Count > 0 ? tags : current.Tags };
+        var updated = current with { Title = title, Content = content, Tags = Mentions.Names(Mentions.Kind.Tag, content) };
         if (_state.Store.Save(updated)) _note = CurrentNote();
     }
 

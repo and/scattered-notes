@@ -56,14 +56,14 @@ internal sealed class QuickCaptureWindow : Window
             Background = Brushes.Transparent,
             Padding = new Thickness(20, 14),
             VerticalContentAlignment = VerticalAlignment.Top,
-            PlaceholderText = "Type a quick note, thought, or checklist…\nTip: type @Project, +Project, or [[Project]] to file it in a project.",
+            PlaceholderText = "Type a quick note, thought, or checklist…\nTip: +project files it in a project, #tag tags it, @name mentions a person.",
         };
         _text.Resources["TextControlBackgroundFocused"] = Brushes.Transparent;
         _text.Resources["TextControlBackgroundPointerOver"] = Brushes.Transparent;
         Avalonia.Automation.AutomationProperties.SetName(_text, "Quick note");
         _text.TextChanged += (_, _) =>
         {
-            if (!_destinationPicked && QuickCapture.DetectDestination(_text.Text ?? "", _state.Store.Projects, _state.Store.Areas) is { } detected)
+            if (!_destinationPicked && QuickCapture.DetectDestination(_text.Text ?? "", _state.Store.Projects) is { } detected)
                 _destination = detected;
             _save!.IsEnabled = !string.IsNullOrWhiteSpace(_text.Text);
             RefreshDestination();
@@ -71,7 +71,7 @@ internal sealed class QuickCaptureWindow : Window
 
         _save = new Button { Content = Ui.Row(6, Ui.Icon(Symbol.ArrowCircleUp, 16), new TextBlock { Text = "Save Note" }), Classes = { "accent" }, IsEnabled = false };
         _save.Click += (_, _) => Save();
-        var hints = Ui.Row(12, Hint("Esc", "Close"), Hint("@Project", "Tag"), Hint("Ctrl+Enter", "Save"));
+        var hints = Ui.Row(12, Hint("Esc", "Close"), Hint("+project", "File"), Hint("#tag", "Tag"), Hint("Ctrl+Enter", "Save"));
         var footer = new DockPanel { Margin = new Thickness(16, 10) };
         DockPanel.SetDock(_save, Dock.Right);
         footer.Children.Add(_save);
@@ -131,14 +131,9 @@ internal sealed class QuickCaptureWindow : Window
         {
             destination = destination with { Name = _state.Store.CreateProject(project) ?? project };
         }
-        else if (destination.Type == CategoryType.Area && destination.Name is { } area &&
-                 !_state.Store.Areas.Any(a => a.Name.Equals(area, StringComparison.OrdinalIgnoreCase)))
-        {
-            destination = destination with { Name = _state.Store.CreateArea(area) ?? area };
-        }
 
-        _state.Store.CreateNote("", QuickCapture.Content(text, destination), destination.Type, destination.Name,
-            QuickCapture.Tags(text, destination.Name));
+        var content = QuickCapture.Content(text, destination);
+        _state.Store.CreateNote("", content, destination.Type, destination.Name, QuickCapture.Tags(content));
         _text.Text = "";
         _destination = Destination.Inbox;
         _destinationPicked = false;
@@ -152,7 +147,6 @@ internal sealed class QuickCaptureWindow : Window
         var icon = _destination.Type switch
         {
             CategoryType.Project => _state.Store.Projects.FirstOrDefault(p => p.Name == _destination.Name)?.IconName ?? "folder.fill",
-            CategoryType.Area => _state.Store.Areas.FirstOrDefault(a => a.Name == _destination.Name)?.IconName ?? "square.stack.3d.up.fill",
             _ => "tray.fill",
         };
         _destinationButton.Content = Ui.Row(6, Ui.Icon(Ui.SymbolFor(icon), 14, brush), Ui.Text(_destination.DisplayName, 13, FontWeight.SemiBold, brush));
@@ -176,24 +170,17 @@ internal sealed class QuickCaptureWindow : Window
         Add("Inbox", "tray.fill", Destination.Inbox);
         if (_state.Store.Projects.Count > 0) menu.Items.Add(new Separator());
         foreach (var p in _state.Store.Projects) Add(p.Name, p.IconName, new Destination(CategoryType.Project, p.Name));
-        if (_state.Store.Areas.Count > 0) menu.Items.Add(new Separator());
-        foreach (var a in _state.Store.Areas) Add(a.Name, a.IconName, new Destination(CategoryType.Area, a.Name));
         menu.Items.Add(new Separator());
-        foreach (var type in new[] { CategoryType.Project, CategoryType.Area })
+        var create = new MenuItem { Header = "New Project…", Icon = Ui.Icon(Symbol.Add) };
+        create.Click += async (_, _) =>
         {
-            var kind = type == CategoryType.Project ? "Project" : "Area";
-            var create = new MenuItem { Header = $"New {kind}…", Icon = Ui.Icon(Symbol.Add) };
-            create.Click += async (_, _) =>
-            {
-                if (await Dialogs.NewFolderAsync(this, kind) is not { } result) return;
-                var name = type == CategoryType.Project ? _state.Store.CreateProject(result.Name, result.Icon) : _state.Store.CreateArea(result.Name, result.Icon);
-                if (name is null) return;
-                _destination = new Destination(type, name);
-                _destinationPicked = true;
-                RefreshDestination();
-            };
-            menu.Items.Add(create);
-        }
+            if (await Dialogs.NewFolderAsync(this, "Project") is not { } result) return;
+            if (_state.Store.CreateProject(result.Name, result.Icon) is not { } name) return;
+            _destination = new Destination(CategoryType.Project, name);
+            _destinationPicked = true;
+            RefreshDestination();
+        };
+        menu.Items.Add(create);
     }
 
     private static Control Hint(string key, string label)

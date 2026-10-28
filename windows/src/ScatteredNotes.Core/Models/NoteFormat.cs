@@ -184,6 +184,10 @@ public static class NoteFormat
         }
         var now = DateTimeOffset.UtcNow;
 
+        // Tags written in the body count even when the frontmatter is older than the body
+        var seenTags = new HashSet<string>(tags, StringComparer.OrdinalIgnoreCase);
+        tags.AddRange(Mentions.Names(Mentions.Kind.Tag, body).Where(seenTags.Add));
+
         var note = new Note
         {
             Id = id,

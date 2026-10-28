@@ -135,6 +135,10 @@ object NoteFormat {
             }
         }
 
+        // Tags written in the body count even when the frontmatter is older than the body
+        val seenTags = tags.map { it.lowercase() }.toMutableSet()
+        tags = tags + Mentions.names(Mentions.Kind.TAG, body).filter { seenTags.add(it.lowercase()) }
+
         val now = Instant.now()
         val note = Note(
             id = id,

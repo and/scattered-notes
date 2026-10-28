@@ -58,7 +58,8 @@ public class NoteStoreTests
         var store = temp.Store;
         Assert.True(Directory.Exists(store.InboxPath));
         Assert.True(Directory.Exists(store.ProjectsPath));
-        Assert.True(Directory.Exists(store.AreasPath));
+        // Areas were replaced by tags, so no Areas folder is made
+        Assert.False(Directory.Exists(store.AreasPath));
 
         store.CreateProject("New Project");
         Assert.True(Directory.Exists(Path.Combine(store.ProjectsPath, "New Project")));
@@ -77,14 +78,15 @@ public class NoteStoreTests
     }
 
     [Theory]
-    [InlineData("Buy groceries @groceries", "groceries", "Buy groceries")]
-    [InlineData("Buy groceries @groceries.", "groceries", "Buy groceries.")]
-    [InlineData("@groceries Buy groceries", "groceries", "Buy groceries")]
-    [InlineData("Buy @groceries for dinner", "groceries", "Buy for dinner")]
-    [InlineData("@groceries: buy milk, eggs", "groceries", "buy milk, eggs")]
-    [InlineData("- [ ] Call dentist @health", "health", "- [ ] Call dentist")]
+    [InlineData("Buy groceries +groceries", "groceries", "Buy groceries")]
+    [InlineData("Buy groceries +groceries.", "groceries", "Buy groceries.")]
+    [InlineData("+groceries Buy groceries", "groceries", "Buy groceries")]
+    [InlineData("Buy +groceries for dinner", "groceries", "Buy for dinner")]
+    [InlineData("+groceries: buy milk, eggs", "groceries", "buy milk, eggs")]
+    [InlineData("- [ ] Call dentist +health", "health", "- [ ] Call dentist")]
     [InlineData("Contact user@groceries.com for info", "groceries", "Contact user@groceries.com for info")]
-    [InlineData("Review PR @MobileApp", "Mobile App", "Review PR")]
+    [InlineData("Ask @groceries about it", "groceries", "Ask @groceries about it")]
+    [InlineData("Review PR +MobileApp", "Mobile App", "Review PR")]
     [InlineData("Fix crash +MobileApp #bug", "MobileApp", "Fix crash #bug")]
     [InlineData("Daily jog [[Health]]", "Health", "Daily jog")]
     public void RemoveProjectTagFromContent(string text, string target, string expected)

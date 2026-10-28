@@ -6,18 +6,18 @@ namespace ScatteredNotes.Core.Tests;
 public class QuickCaptureAndDashboardTests
 {
     private static readonly ProjectArea[] Projects = [new("Mobile App", CategoryType.Project), new("Website", CategoryType.Project)];
-    private static readonly ProjectArea[] Areas = [new("Health", CategoryType.Area)];
 
     [Fact]
-    public void DetectsDestinationFromInlineTags()
+    public void DetectsTheProjectFromPlusMarks()
     {
-        Assert.Equal(new Destination(CategoryType.Project, "Mobile App"), QuickCapture.DetectDestination("fix crash +MobileApp", Projects, Areas));
-        Assert.Equal(new Destination(CategoryType.Area, "Health"), QuickCapture.DetectDestination("jog #health", Projects, Areas));
-        Assert.Equal(new Destination(CategoryType.Area, "Health"), QuickCapture.DetectDestination("jog [[health]]", Projects, Areas));
-        Assert.Equal(new Destination(CategoryType.Project, "BrandRedesign"), QuickCapture.DetectDestination("logos @brandRedesign", Projects, Areas));
-        Assert.Equal(new Destination(CategoryType.Project, "New thing"), QuickCapture.DetectDestination("see [[New thing]]", Projects, Areas));
-        Assert.Null(QuickCapture.DetectDestination("just #groceries", Projects, Areas));
-        Assert.Null(QuickCapture.DetectDestination("mail a@b.c about it", Projects, Areas));
+        Assert.Equal(new Destination(CategoryType.Project, "Mobile App"), QuickCapture.DetectDestination("fix crash +MobileApp", Projects));
+        Assert.Equal(new Destination(CategoryType.Project, "Website"), QuickCapture.DetectDestination("hero [[website]]", Projects));
+        Assert.Equal(new Destination(CategoryType.Project, "BrandRedesign"), QuickCapture.DetectDestination("logos +brandRedesign", Projects));
+        Assert.Equal(new Destination(CategoryType.Project, "New thing"), QuickCapture.DetectDestination("see [[New thing]]", Projects));
+        // #tags and @people never move a note
+        Assert.Null(QuickCapture.DetectDestination("jog #website", Projects));
+        Assert.Null(QuickCapture.DetectDestination("ask @website", Projects));
+        Assert.Null(QuickCapture.DetectDestination("mail a@b.c about +91 98450", Projects));
     }
 
     [Fact]
@@ -26,7 +26,7 @@ public class QuickCaptureAndDashboardTests
         var destination = new Destination(CategoryType.Project, "Website");
         const string text = "  Hero copy +Website #urgent #website  ";
         Assert.Equal("Hero copy #urgent #website", QuickCapture.Content(text, destination));
-        Assert.Equal(["urgent"], QuickCapture.Tags(text, destination.Name));
+        Assert.Equal(["urgent", "website"], QuickCapture.Tags(QuickCapture.Content(text, destination)));
         Assert.Equal("Website", QuickCapture.Content("+Website", destination));
     }
 

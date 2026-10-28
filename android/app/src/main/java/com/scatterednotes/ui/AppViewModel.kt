@@ -28,7 +28,6 @@ import java.util.UUID
 data class NotesState(
     val notes: List<Note> = emptyList(),
     val projects: List<ProjectArea> = emptyList(),
-    val areas: List<ProjectArea> = emptyList(),
     val agenda: List<AgendaItem> = emptyList(),
     val loaded: Boolean = false,
 )
@@ -77,7 +76,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun publish() {
-        _state.value = NotesState(store.notes, store.projects, store.areas, store.agendaItems(), loaded = true)
+        _state.value = NotesState(store.notes, store.projects, store.agendaItems(), loaded = true)
     }
 
     private fun onStore(action: NoteStore.() -> Unit) {

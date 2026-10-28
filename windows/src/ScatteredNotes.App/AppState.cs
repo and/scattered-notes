@@ -10,7 +10,8 @@ public enum SidebarKind
     All,
     Inbox,
     Project,
-    Area,
+    Person,
+    Tag,
 }
 
 /// <summary>What the sidebar has selected.</summary>
@@ -25,6 +26,8 @@ public sealed record SidebarSelection(SidebarKind Kind, string? Name = null)
         SidebarKind.Dashboard => "Dashboard",
         SidebarKind.All => "All Notes",
         SidebarKind.Inbox => "Inbox",
+        SidebarKind.Person => "@" + Name,
+        SidebarKind.Tag => "#" + Name,
         _ => Name ?? "",
     };
 
@@ -32,7 +35,8 @@ public sealed record SidebarSelection(SidebarKind Kind, string? Name = null)
     {
         SidebarKind.Inbox => note.CategoryType == CategoryType.Inbox,
         SidebarKind.Project => note.CategoryType == CategoryType.Project && note.TargetName == Name,
-        SidebarKind.Area => note.CategoryType == CategoryType.Area && note.TargetName == Name,
+        SidebarKind.Person => note.People.Contains(Name ?? "", StringComparer.OrdinalIgnoreCase),
+        SidebarKind.Tag => note.Tags.Contains(Name ?? "", StringComparer.OrdinalIgnoreCase),
         _ => true,
     };
 }
@@ -96,13 +100,17 @@ public sealed class AppState
 
     public Note CreateNoteInCurrentSelection()
     {
-        var (category, target) = Selection.Kind switch
+        var (category, target) = Selection.Kind == SidebarKind.Project
+            ? (CategoryType.Project, Selection.Name)
+            : (CategoryType.Inbox, (string?)null);
+        // A note made while a person or tag is open starts with its mark, so it is listed there
+        var content = Selection.Kind switch
         {
-            SidebarKind.Project => (CategoryType.Project, Selection.Name),
-            SidebarKind.Area => (CategoryType.Area, Selection.Name),
-            _ => (CategoryType.Inbox, (string?)null),
+            SidebarKind.Person => $"@{Selection.Name} ",
+            SidebarKind.Tag => $"#{Selection.Name} ",
+            _ => "",
         };
-        var note = Store.CreateNote("Untitled Note", "", category, target);
+        var note = Store.CreateNote("Untitled Note", content, category, target, Mentions.Names(Mentions.Kind.Tag, content));
         OpenNote(note);
         return note;
     }

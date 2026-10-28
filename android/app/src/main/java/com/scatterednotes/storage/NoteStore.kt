@@ -6,6 +6,7 @@ import com.scatterednotes.core.AgendaLog
 import com.scatterednotes.core.CategoryType
 import com.scatterednotes.core.Checklist
 import com.scatterednotes.core.FileNames
+import com.scatterednotes.core.Mentions
 import com.scatterednotes.core.Note
 import com.scatterednotes.core.NoteFormat
 import com.scatterednotes.core.ProjectArea
@@ -15,8 +16,11 @@ import java.time.ZoneId
 import java.util.UUID
 
 /**
- * Reads and writes the notes folder, in the layout the Mac and Windows apps use: Inbox, Projects/<name> and
- * Areas/<name>, plus the agenda log. Call it from one thread at a time.
+ * Reads and writes the notes folder, in the layout the Mac and Windows apps use: Inbox and Projects/<name>,
+ * plus the agenda log. Call it from one thread at a time.
+ *
+ * Areas (Areas/<name>) were replaced by tags: a note still in an area, written by an older version, moves to
+ * the Inbox tagged with the area's name. The Mac app removes the emptied area folders.
  *
  * Data safety rules: a moved note's new file is written before the old one is removed; loading never writes a
  * note file; files that cannot be read are left alone.
@@ -25,8 +29,6 @@ class NoteStore(private val root: NoteFolder, private val zone: ZoneId = ZoneId.
     var notes: List<Note> = emptyList()
         private set
     var projects: List<ProjectArea> = emptyList()
-        private set
-    var areas: List<ProjectArea> = emptyList()
         private set
 
     private var agendaLog = AgendaLog()
@@ -50,9 +52,8 @@ class NoteStore(private val root: NoteFolder, private val zone: ZoneId = ZoneId.
     fun loadAll() {
         val inbox = folder(listOf("Inbox"), create = true)
         val projectsDir = folder(listOf("Projects"), create = true)
-        val areasDir = folder(listOf("Areas"), create = true)
+        val areasDir = folder(listOf("Areas"), create = false)
         projects = projectsDir?.folders()?.map { ProjectArea(it.name, CategoryType.PROJECT) }?.sortedBy { it.name.lowercase() } ?: emptyList()
-        areas = areasDir?.folders()?.map { ProjectArea(it.name, CategoryType.AREA) }?.sortedBy { it.name.lowercase() } ?: emptyList()
 
         val loaded = mutableListOf<Note>()
         inbox?.let { loaded += loadNotes(it, listOf("Inbox"), CategoryType.INBOX, null) }
@@ -83,6 +84,23 @@ class NoteStore(private val root: NoteFolder, private val zone: ZoneId = ZoneId.
         if (logChanged) writeAgendaLog()
 
         notes = sorted(unique)
+        moveAreaNotesToInbox()
+    }
+
+    /** Moves each note still in an area to the Inbox, tagged with the area's name; see the class comment. */
+    private fun moveAreaNotesToInbox() {
+        for (note in notes.filter { it.categoryType == CategoryType.AREA }) {
+            val tag = Mentions.tagNameForArea(note.targetName ?: "")
+            val hasTag = Mentions.names(Mentions.Kind.TAG, note.content).any { it.equals(tag, ignoreCase = true) }
+            val body = note.content.trim('\n', '\r')
+            val content = when {
+                hasTag -> note.content
+                body.isEmpty() -> "#$tag"
+                else -> "$body\n\n#$tag"
+            }
+            save(note.copy(content = content, categoryType = CategoryType.INBOX, targetName = null,
+                tags = Mentions.names(Mentions.Kind.TAG, content)))
+        }
     }
 
     private fun loadNotes(dir: NoteFolder, path: List<String>, category: CategoryType, targetName: String?): List<Note> =

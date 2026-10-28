@@ -28,9 +28,8 @@ public sealed class NoteStore : IDisposable
     /// <summary>Notes, pinned first, then most recently updated.</summary>
     public IReadOnlyList<Note> Notes => _notes;
     public IReadOnlyList<ProjectArea> Projects { get; private set; } = [];
-    public IReadOnlyList<ProjectArea> Areas { get; private set; } = [];
 
-    /// <summary>Raised after notes, projects or areas change.</summary>
+    /// <summary>Raised after notes or projects change.</summary>
     public event EventHandler? Changed;
 
     /// <summary>Raised on a background thread when files change outside the app; reload with <see cref="LoadAll"/>.</summary>
@@ -67,12 +66,13 @@ public sealed class NoteStore : IDisposable
     public string RootPath => _settings.NotesDirectory;
     public string InboxPath => Path.Combine(RootPath, "Inbox");
     public string ProjectsPath => Path.Combine(RootPath, "Projects");
+    /// <summary>Where areas were kept before tags replaced them; see <see cref="MoveAreaNotesToInbox"/>.</summary>
     public string AreasPath => Path.Combine(RootPath, "Areas");
     public string AgendaLogPath => Path.Combine(RootPath, AgendaLog.FileName);
 
     public void SetupDirectories()
     {
-        foreach (var dir in new[] { InboxPath, ProjectsPath, AreasPath }) Directory.CreateDirectory(dir);
+        foreach (var dir in new[] { InboxPath, ProjectsPath }) Directory.CreateDirectory(dir);
     }
 
     // MARK: Loading
@@ -81,13 +81,13 @@ public sealed class NoteStore : IDisposable
     {
         SetupDirectories();
         Projects = DiscoverFolders(ProjectsPath, CategoryType.Project);
-        Areas = DiscoverFolders(AreasPath, CategoryType.Area);
+        var areas = DiscoverFolders(AreasPath, CategoryType.Area);
 
         var loaded = new List<Note>();
         loaded.AddRange(LoadNotes(InboxPath, CategoryType.Inbox, null));
         foreach (var project in Projects)
             loaded.AddRange(LoadNotes(Path.Combine(ProjectsPath, project.Name), CategoryType.Project, project.Name));
-        foreach (var area in Areas)
+        foreach (var area in areas)
             loaded.AddRange(LoadNotes(Path.Combine(AreasPath, area.Name), CategoryType.Area, area.Name));
 
         // A crash while moving a note can leave its file in two folders. Show the newest copy and leave
@@ -117,7 +117,38 @@ public sealed class NoteStore : IDisposable
 
         _notes = loaded;
         SortNotes();
+        if (Directory.Exists(AreasPath) || _notes.Any(n => n.CategoryType == CategoryType.Area)) MoveAreaNotesToInbox();
         Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Areas were replaced by tags, as in the Mac app. Moves each note still in an area (written by an older
+    /// version, perhaps on another device) to the Inbox tagged with the area's name, then removes area folders
+    /// left with nothing but their icon file. A note is written to the Inbox before its old file is removed.
+    /// </summary>
+    private void MoveAreaNotesToInbox()
+    {
+        foreach (var note in _notes.Where(n => n.CategoryType == CategoryType.Area).ToList())
+        {
+            var tag = Mentions.TagNameForArea(note.TargetName ?? "");
+            var content = note.Content;
+            if (!Mentions.Names(Mentions.Kind.Tag, content).Contains(tag, StringComparer.OrdinalIgnoreCase))
+            {
+                var body = content.Trim('\n', '\r');
+                content = body.Length == 0 ? "#" + tag : body + "\n\n#" + tag;
+            }
+            Save(note with { Content = content, CategoryType = CategoryType.Inbox, TargetName = null, Tags = Mentions.Names(Mentions.Kind.Tag, content) });
+        }
+
+        if (!Directory.Exists(AreasPath)) return;
+        IgnoreOwnEvents();
+        foreach (var dir in Directory.EnumerateDirectories(AreasPath))
+        {
+            var files = Directory.EnumerateFileSystemEntries(dir).Select(Path.GetFileName).ToList();
+            if (files.All(f => f is MetadataFileName or ".DS_Store" or "desktop.ini")) Directory.Delete(dir, recursive: true);
+        }
+        if (Directory.EnumerateFileSystemEntries(AreasPath).Select(Path.GetFileName).All(f => f is ".DS_Store" or "desktop.ini"))
+            Directory.Delete(AreasPath, recursive: true);
     }
 
     private static bool IsHidden(string path) =>
@@ -338,16 +369,12 @@ public sealed class NoteStore : IDisposable
         return _agendaLog.Update(note.Id, lines, seenAt);
     }
 
-    // MARK: Projects and areas
+    // MARK: Projects
 
     /// <summary>Creates a project folder and returns the name it got, which may differ to be valid on Windows.</summary>
     public string? CreateProject(string name, string? icon = null) => CreateFolder(ProjectsPath, name, icon);
 
     public void DeleteProject(string name) => DeleteFolder(Path.Combine(ProjectsPath, name));
-
-    public string? CreateArea(string name, string? icon = null) => CreateFolder(AreasPath, name, icon);
-
-    public void DeleteArea(string name) => DeleteFolder(Path.Combine(AreasPath, name));
 
     private string? CreateFolder(string parent, string name, string? icon)
     {

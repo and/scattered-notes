@@ -34,7 +34,7 @@ internal static class NoteMenus
         return menu;
     }
 
-    /// <summary>Inbox, then each project and area, for "Move to" menus.</summary>
+    /// <summary>Inbox, then each project, for "Move to" menus.</summary>
     public static List<Control> MoveItems(AppState state, Note note)
     {
         var items = new List<Control>();
@@ -57,11 +57,6 @@ internal static class NoteMenus
         {
             items.Add(new Separator());
             items.AddRange(state.Store.Projects.Select(p => Item(p.Name, p.IconName, CategoryType.Project, p.Name)));
-        }
-        if (state.Store.Areas.Count > 0)
-        {
-            items.Add(new Separator());
-            items.AddRange(state.Store.Areas.Select(a => Item(a.Name, a.IconName, CategoryType.Area, a.Name)));
         }
         return items;
     }

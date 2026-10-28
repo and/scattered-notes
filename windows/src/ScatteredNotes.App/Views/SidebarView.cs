@@ -8,13 +8,16 @@ using ScatteredNotes.Core.Models;
 
 namespace ScatteredNotes.App.Views;
 
-/// <summary>Dashboard, All Notes, Inbox, then the projects and areas, like the Mac sidebar.</summary>
+/// <summary>Dashboard, All Notes, Inbox, then the projects, people and tags, like the Mac sidebar.</summary>
 internal sealed class SidebarView : UserControl
 {
     private readonly AppState _state;
     private readonly ListBox _main;
     private readonly ListBox _projects;
-    private readonly ListBox _areas;
+    private readonly ListBox _people;
+    private readonly ListBox _tags;
+    private readonly Control _peopleHeader;
+    private readonly Control _tagsHeader;
     private bool _syncing;
 
     public SidebarView(AppState state)
@@ -22,14 +25,19 @@ internal sealed class SidebarView : UserControl
         _state = state;
         _main = MakeList();
         _projects = MakeList();
-        _areas = MakeList();
+        _people = MakeList();
+        _tags = MakeList();
+        _peopleHeader = Header("People", null);
+        _tagsHeader = Header("Tags", null);
 
         var panel = new StackPanel { Spacing = 2, Margin = new Thickness(0, 8) };
         panel.Children.Add(_main);
         panel.Children.Add(Header("Projects", () => AddFolderAsync(CategoryType.Project)));
         panel.Children.Add(_projects);
-        panel.Children.Add(Header("Areas", () => AddFolderAsync(CategoryType.Area)));
-        panel.Children.Add(_areas);
+        panel.Children.Add(_peopleHeader);
+        panel.Children.Add(_people);
+        panel.Children.Add(_tagsHeader);
+        panel.Children.Add(_tags);
 
         var settings = new Button
         {
@@ -67,7 +75,7 @@ internal sealed class SidebarView : UserControl
         };
         list.ContextRequested += (_, e) =>
         {
-            if (list == _main || (e.Source as Control)?.DataContext is not SidebarSelection item) return;
+            if (list != _projects || (e.Source as Control)?.DataContext is not SidebarSelection item) return;
             var delete = new MenuItem { Header = $"Delete {item.Name}…", Icon = Ui.Icon(Symbol.Delete) };
             delete.Click += async (_, _) => await DeleteFolderAsync(item);
             new ContextMenu { Items = { delete } }.Open(e.Source as Control);
@@ -85,7 +93,8 @@ internal sealed class SidebarView : UserControl
             SidebarKind.All => (Symbol.Notebook, "WcagBlue"),
             SidebarKind.Inbox => (Symbol.MailInbox, "WcagOrange"),
             SidebarKind.Project => (Ui.SymbolFor(FolderIcon(_state.Store.Projects, item.Name)), "WcagPurple"),
-            _ => (Ui.SymbolFor(FolderIcon(_state.Store.Areas, item.Name)), "WcagGreen"),
+            SidebarKind.Person => (Symbol.Person, "WcagBlue"),
+            _ => (Symbol.NumberSymbol, "WcagGreen"),
         };
         var count = item.Kind == SidebarKind.Dashboard ? "" : _state.Store.Notes.Count(item.Includes).ToString();
         var row = new DockPanel { Margin = new Thickness(10, 7) };
@@ -105,12 +114,15 @@ internal sealed class SidebarView : UserControl
     private static string FolderIcon(IReadOnlyList<ProjectArea> folders, string? name) =>
         folders.FirstOrDefault(f => f.Name == name)?.IconName ?? "folder.fill";
 
-    private static Control Header(string title, Func<Task> onAdd)
+    private static Control Header(string title, Func<Task>? onAdd)
     {
-        var add = Ui.IconButton(Symbol.Add, $"New {title.TrimEnd('s')}", () => _ = onAdd());
         var header = new DockPanel { Margin = new Thickness(16, 14, 8, 2) };
-        DockPanel.SetDock(add, Dock.Right);
-        header.Children.Add(add);
+        if (onAdd is not null)
+        {
+            var add = Ui.IconButton(Symbol.Add, $"New {title.TrimEnd('s')}", () => _ = onAdd());
+            DockPanel.SetDock(add, Dock.Right);
+            header.Children.Add(add);
+        }
         header.Children.Add(new TextBlock { Text = title.ToUpperInvariant(), FontSize = 11, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, Classes = { "secondary" } });
         return header;
     }
@@ -120,12 +132,17 @@ internal sealed class SidebarView : UserControl
         _syncing = true;
         _main.ItemsSource = new[] { SidebarSelection.Dashboard, SidebarSelection.All, SidebarSelection.Inbox };
         _projects.ItemsSource = _state.Store.Projects.Select(p => new SidebarSelection(SidebarKind.Project, p.Name)).ToList();
-        _areas.ItemsSource = _state.Store.Areas.Select(a => new SidebarSelection(SidebarKind.Area, a.Name)).ToList();
+        var people = Counted(n => n.People).Select(p => new SidebarSelection(SidebarKind.Person, p)).ToList();
+        var tags = Counted(n => n.Tags).Select(t => new SidebarSelection(SidebarKind.Tag, t)).ToList();
+        _people.ItemsSource = people;
+        _tags.ItemsSource = tags;
+        _peopleHeader.IsVisible = _people.IsVisible = people.Count > 0;
+        _tagsHeader.IsVisible = _tags.IsVisible = tags.Count > 0;
         _syncing = false;
-        // A project that was deleted elsewhere can no longer be selected
+        // A project deleted elsewhere, or a person or tag no note mentions any more, can no longer be selected
         var current = _state.Selection;
         if (current.Kind == SidebarKind.Project && !_state.Store.Projects.Any(p => p.Name == current.Name) ||
-            current.Kind == SidebarKind.Area && !_state.Store.Areas.Any(a => a.Name == current.Name))
+            current.Kind is SidebarKind.Person or SidebarKind.Tag && !_state.Store.Notes.Any(current.Includes))
         {
             _state.Selection = SidebarSelection.All;
         }
@@ -136,32 +153,36 @@ internal sealed class SidebarView : UserControl
     {
         _syncing = true;
         var selection = _state.Selection;
-        foreach (var list in new[] { _main, _projects, _areas })
+        foreach (var list in new[] { _main, _projects, _people, _tags })
             list.SelectedItem = list.ItemsSource?.Cast<SidebarSelection>().FirstOrDefault(i => i == selection);
         _syncing = false;
+    }
+
+    /// <summary>Each name used across all notes, sorted; names differing only in case count once, spelled as first seen.</summary>
+    private List<string> Counted(Func<Note, IReadOnlyList<string>> names)
+    {
+        var spelling = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var note in _state.Store.Notes)
+            foreach (var name in names(note))
+                spelling.TryAdd(name, name);
+        return spelling.Values.OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase).ToList();
     }
 
     private async Task AddFolderAsync(CategoryType type)
     {
         if (TopLevel.GetTopLevel(this) is not Window window) return;
-        var kind = type == CategoryType.Project ? "Project" : "Area";
-        if (await Dialogs.NewFolderAsync(window, kind) is not { } result) return;
-        var name = type == CategoryType.Project
-            ? _state.Store.CreateProject(result.Name, result.Icon)
-            : _state.Store.CreateArea(result.Name, result.Icon);
-        if (name is not null) _state.Selection = new SidebarSelection(type == CategoryType.Project ? SidebarKind.Project : SidebarKind.Area, name);
+        if (await Dialogs.NewFolderAsync(window, "Project") is not { } result) return;
+        if (_state.Store.CreateProject(result.Name, result.Icon) is { } name) _state.Selection = new SidebarSelection(SidebarKind.Project, name);
     }
 
     private async Task DeleteFolderAsync(SidebarSelection item)
     {
         if (TopLevel.GetTopLevel(this) is not Window window || item.Name is null) return;
-        var kind = item.Kind == SidebarKind.Project ? "Project" : "Area";
         var notes = _state.Store.Notes.Count(item.Includes);
         var message = notes == 0
             ? $"\"{item.Name}\" will be removed."
             : $"\"{item.Name}\" and its {notes} note{(notes == 1 ? "" : "s")} will be deleted from disk.";
-        if (!await Dialogs.ConfirmAsync(window, $"Delete {kind}?", message, "Delete")) return;
-        if (item.Kind == SidebarKind.Project) _state.Store.DeleteProject(item.Name);
-        else _state.Store.DeleteArea(item.Name);
+        if (!await Dialogs.ConfirmAsync(window, "Delete Project?", message, "Delete")) return;
+        _state.Store.DeleteProject(item.Name);
     }
 }

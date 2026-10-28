@@ -63,6 +63,9 @@ data class Note(
             return preview.joinToString(" ")
         }
 
+    /** People mentioned as `@name`, in the order they first appear. */
+    val people: List<String> get() = Mentions.names(Mentions.Kind.PERSON, content)
+
     val destinationDisplay: String
         get() = when (categoryType) {
             CategoryType.PROJECT -> targetName ?: "Project"

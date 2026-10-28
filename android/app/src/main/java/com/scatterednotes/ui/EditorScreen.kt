@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import com.scatterednotes.core.Mentions
 import kotlinx.coroutines.delay
 import java.util.UUID
 
@@ -91,7 +92,7 @@ fun EditorScreen(model: AppViewModel, state: NotesState, noteId: UUID?, onClose:
         if (isBlank) {
             if (leaving) model.delete(current)
         } else if (newTitle != syncedTitle || newContent != syncedContent) {
-            model.save(current.copy(title = newTitle, content = newContent))
+            model.save(current.copy(title = newTitle, content = newContent, tags = Mentions.names(Mentions.Kind.TAG, newContent)))
             syncedTitle = newTitle
             syncedContent = newContent
         }

@@ -159,12 +159,38 @@ public class DataSafetyTests
     }
 
     [Fact]
+    public void NotesLeftInAreasMoveToTheInboxAsTags()
+    {
+        using var temp = new TempStore();
+        var home = Path.Combine(temp.Root, "Areas", "Home Office");
+        var empty = Path.Combine(temp.Root, "Areas", "ideas");
+        var kept = Path.Combine(temp.Root, "Areas", "Scans");
+        foreach (var dir in new[] { home, empty, kept }) Directory.CreateDirectory(dir);
+        File.WriteAllText(Path.Combine(empty, NoteStore.MetadataFileName), "{\"icon\":\"heart.fill\"}");
+        File.WriteAllText(Path.Combine(kept, "scan.pdf"), "not a note");
+        var desk = new Note { Title = "Desk", Content = "Buy a lamp\n", CategoryType = CategoryType.Area, TargetName = "Home Office" };
+        File.WriteAllText(Path.Combine(home, "desk.md"), NoteFormat.Serialize(desk));
+
+        var store = temp.Open();
+
+        var moved = store.Notes.Single();
+        Assert.Equal(desk.Id, moved.Id);
+        Assert.Equal(CategoryType.Inbox, moved.CategoryType);
+        Assert.Equal("Buy a lamp\n\n#home-office", moved.Content);
+        Assert.Equal(["home-office"], moved.Tags);
+        Assert.Single(temp.MarkdownFiles());
+        Assert.False(Directory.Exists(home));
+        Assert.False(Directory.Exists(empty));
+        Assert.True(File.Exists(Path.Combine(kept, "scan.pdf")), "other files are never removed");
+    }
+
+    [Fact]
     public void MovingNotesBetweenFoldersNeverLosesOrDuplicatesThem()
     {
         using var temp = new TempStore();
         var store = temp.Store;
         store.CreateProject("Alpha");
-        store.CreateArea("Beta");
+        store.CreateProject("Beta");
         var note = store.CreateNote("Traveller", "keep me --- safe\n- [ ] item");
         var rng = new Random(99);
 
@@ -174,7 +200,7 @@ public class DataSafetyTests
             {
                 case 0: store.Move(note, CategoryType.Inbox, null); break;
                 case 1: store.Move(note, CategoryType.Project, "Alpha"); break;
-                default: store.Move(note, CategoryType.Area, "Beta"); break;
+                default: store.Move(note, CategoryType.Project, "Beta"); break;
             }
             note = store.Notes.Single(n => n.Id == note.Id);
             Assert.Single(temp.MarkdownFiles());
