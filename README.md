@@ -104,6 +104,7 @@ The Dashboard is the app's home view: today's date, four live counters (**overdu
 It reads every note and lists the lines that need action:
 
 - **Checklist items**: `- [ ] Renew passport`
+- **Plain lines that read as plans**, no checkbox needed: lines starting with an action verb (`fix the login bug`, `call the bank`), an intent (`need to renew passport`, `I'll email Sam`, `don't forget the charger`) or `todo`. Questions and lines ending in `:` don't count. Ticking one turns it into `- [x] …`.
 - **Dated or relative lines**: any line that mentions a day, even without a checkbox.
 
 | Writes like | Means |

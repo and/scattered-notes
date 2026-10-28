@@ -56,6 +56,37 @@ public class AgendaTests
         Assert.Equal([null, null, Day(10, 27), Day(11, 2)], items.Select(i => i.Date));
     }
 
+    [Theory]
+    [InlineData("fix the right side of the mac screen getting unresponsive.")]
+    [InlineData("- Call the bank")]
+    [InlineData("Need to renew passport")]
+    [InlineData("I have to pay rent")]
+    [InlineData("I’ll email Sam the slides")]
+    [InlineData("we're going to repaint the hall")]
+    [InlineData("Don't forget the charger")]
+    [InlineData("TODO: back up photos")]
+    public void PlainLinesThatReadAsPlansAreTodos(string line) =>
+        Assert.True(AgendaExtractor.IsPlannedAction(AgendaExtractor.DisplayText(line)));
+
+    [Theory]
+    [InlineData("Just a thought")]
+    [InlineData("Lunch with Sam")]
+    [InlineData("Fixed the login bug")]
+    [InlineData("Should we move?")]
+    [InlineData("Read later:")]
+    [InlineData("Fixes")]
+    public void OtherPlainLinesAreNotTodos(string line) => Assert.False(AgendaExtractor.IsPlannedAction(line));
+
+    [Fact]
+    public void ExtractsPlannedLinesAsTodos()
+    {
+        var note = new Note { Title = "Mixed", Content = "Sunny today\nfix the screen bug\nWill was here", CreatedAt = Monday };
+        var items = AgendaExtractor.Items(note, timeZone: Zone);
+
+        Assert.Equal(["Sunny today", "fix the screen bug"], items.Select(i => i.Text));
+        Assert.Equal([false, true], items.Select(i => i.IsTodo));
+    }
+
     [Fact]
     public void CrlfLinesKeepTheSameIndexes()
     {

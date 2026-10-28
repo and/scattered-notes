@@ -63,6 +63,39 @@ final class AgendaTests: XCTestCase {
         XCTAssertEqual(items.map(\.date), [nil, nil, day(10, 27), day(11, 2)])
     }
 
+    func testPlainLinesThatReadAsPlansAreTodos() {
+        let plans = [
+            "fix the right side of the mac screen getting unresponsive.",
+            "- Call the bank",
+            "Need to renew passport",
+            "I have to pay rent",
+            "I’ll email Sam the slides",
+            "we're going to repaint the hall",
+            "Don't forget the charger",
+            "TODO: back up photos",
+        ]
+        for line in plans {
+            XCTAssertTrue(AgendaExtractor.isPlannedAction(AgendaExtractor.displayText(for: line)), line)
+        }
+
+        let notPlans = ["Just a thought", "Lunch with Sam", "Fixed the login bug", "Should we move?", "Read later:", "Fixes"]
+        for line in notPlans {
+            XCTAssertFalse(AgendaExtractor.isPlannedAction(line), line)
+        }
+
+        let note = Note(title: "Mixed", content: "Sunny today\nfix the screen bug\nWill was here", createdAt: monday)
+        let items = AgendaExtractor.items(from: note, calendar: calendar)
+        XCTAssertEqual(items.map(\.text), ["Sunny today", "fix the screen bug"])
+        XCTAssertEqual(items.map(\.isTodo), [false, true])
+    }
+
+    func testTickingAPlannedLineMakesItAChecklistItem() {
+        let content = Note.togglingChecklistLine(0, in: "fix the screen bug")
+        XCTAssertEqual(content, "- [x] fix the screen bug")
+        let note = Note(title: "Done", content: content, createdAt: monday)
+        XCTAssertEqual(AgendaExtractor.items(from: note, calendar: calendar).map(\.isDone), [true])
+    }
+
     @MainActor
     func testToggleChecklistItemUpdatesNoteOnDisk() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)

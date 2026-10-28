@@ -14,7 +14,8 @@ public struct AgendaItem: Identifiable, Hashable, Sendable {
     public let writtenOn: Date
 }
 
-/// Scans note content for checklist lines and lines that mention a day.
+/// Scans note content for checklist lines, plain lines that read as plans (see `isPlannedAction(_:)`),
+/// and lines that mention a day.
 ///
 /// Recognised day formats (case-insensitive):
 /// - `2026-10-28` (optionally prefixed with `@`)
@@ -42,16 +43,17 @@ public enum AgendaExtractor {
             let reference = anchors[logKey(for: trimmed)].map { calendar.startOfDay(for: $0) } ?? created
             let date = parseDate(in: trimmed, reference: reference, previous: previousDate, calendar: calendar)
             if let date { previousDate = date }
-            guard checklist != nil || date != nil else { continue }
 
             let text = displayText(for: trimmed)
             guard !text.isEmpty else { continue }
+            let isTodo = checklist != nil || isPlannedAction(text)
+            guard isTodo || date != nil else { continue }
 
             result.append(AgendaItem(
                 noteID: note.id,
                 lineIndex: index,
                 text: text,
-                isTodo: checklist != nil,
+                isTodo: isTodo,
                 isDone: checklist ?? false,
                 date: date,
                 writtenOn: reference
@@ -70,6 +72,31 @@ public enum AgendaExtractor {
         for prefix in ["- [ ]", "* [ ]"] where line.hasPrefix(prefix) { return false }
         for prefix in ["- [x]", "- [X]", "* [x]", "* [X]"] where line.hasPrefix(prefix) { return true }
         return nil
+    }
+
+    /// Verbs that start a line written as an instruction to oneself, e.g. "fix the login bug"
+    private static let actionVerbs = [
+        "add", "ask", "book", "build", "buy", "call", "cancel", "check", "clean", "confirm", "contact",
+        "create", "debug", "delete", "deploy", "draft", "email", "figure", "finish", "fix", "follow",
+        "get", "install", "investigate", "look", "make", "move", "pay", "pick", "ping", "prepare",
+        "print", "publish", "read", "refactor", "remind", "renew", "reply", "research", "review",
+        "schedule", "send", "share", "ship", "sign", "submit", "try", "update", "upload", "visit", "write"
+    ]
+    private static let plannedActionRegex = try! NSRegularExpression(
+        pattern: "^(?:to-?\\s?do\\b"
+            + "|(?:(?:i|we)\\s+(?:am\\s+|are\\s+)?|(?:i|we)['’](?:m|re)\\s+)?"
+            + "(?:needs?\\s+to|ha(?:ve|s)\\s+to|must|should|remember\\s+to|don['’]?t\\s+forget"
+            + "|plan(?:ning)?\\s+to|going\\s+to|gonna|want\\s+to)\\s"
+            + "|(?:i|we)(?:\\s+will|['’]ll)\\s"
+            + "|(?:" + actionVerbs.joined(separator: "|") + ")\\s)",
+        options: .caseInsensitive)
+
+    /// Whether a plain line reads like something the writer plans to do, so it counts as a to-do without
+    /// checklist syntax: it starts with an action verb ("fix the login bug"), an intent ("need to renew
+    /// passport", "I'll call Sam") or "todo". Questions and lines ending in ":" are left out.
+    static func isPlannedAction(_ text: String) -> Bool {
+        guard !text.hasSuffix("?"), !text.hasSuffix(":") else { return false }
+        return plannedActionRegex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
     }
 
     private static let isoDateTokenRegex = try! NSRegularExpression(pattern: "\\s*@?\\b\\d{4}-\\d{2}-\\d{2}\\b")

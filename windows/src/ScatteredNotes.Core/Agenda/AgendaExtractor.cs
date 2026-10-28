@@ -19,7 +19,8 @@ public sealed record AgendaItem(
 }
 
 /// <summary>
-/// Scans note content for checklist lines and lines that mention a day. Recognised (case-insensitive):
+/// Scans note content for checklist lines, plain lines that read as plans (see <see cref="IsPlannedAction"/>),
+/// and lines that mention a day. Recognised (case-insensitive):
 /// <c>2026-10-28</c> (optionally with <c>@</c>), today, tonight, tomorrow, weekday names and
 /// "next friday", "next week", "day after tomorrow", "in 3 days", "in 2 weeks", "the day after" (one day
 /// after the closest dated line above), and month plus day such as "oct 28", "28 october", "Oct 28th".
@@ -51,12 +52,13 @@ public static class AgendaExtractor
                 : created;
             var date = ParseDate(trimmed, reference, previous);
             if (date is not null) previous = date;
-            if (checklist is null && date is null) continue;
 
             var text = DisplayText(trimmed);
             if (text.Length == 0) continue;
+            var isTodo = checklist is not null || IsPlannedAction(text);
+            if (!isTodo && date is null) continue;
 
-            result.Add(new AgendaItem(note.Id, index, text, checklist is not null, checklist ?? false, date, reference));
+            result.Add(new AgendaItem(note.Id, index, text, isTodo, checklist ?? false, date, reference));
         }
         return result;
     }
@@ -69,6 +71,33 @@ public static class AgendaExtractor
 
     private static readonly string[] DisplayPrefixes =
         ["- [ ]", "* [ ]", "- [x]", "- [X]", "* [x]", "* [X]", "- ", "* ", "+ "];
+
+    /// <summary>Verbs that start a line written as an instruction to oneself, e.g. "fix the login bug".</summary>
+    private static readonly string[] ActionVerbs =
+    [
+        "add", "ask", "book", "build", "buy", "call", "cancel", "check", "clean", "confirm", "contact",
+        "create", "debug", "delete", "deploy", "draft", "email", "figure", "finish", "fix", "follow",
+        "get", "install", "investigate", "look", "make", "move", "pay", "pick", "ping", "prepare",
+        "print", "publish", "read", "refactor", "remind", "renew", "reply", "research", "review",
+        "schedule", "send", "share", "ship", "sign", "submit", "try", "update", "upload", "visit", "write",
+    ];
+
+    private static readonly Regex PlannedAction = new(
+        @"^(?:to-?\s?do\b"
+        + @"|(?:(?:i|we)\s+(?:am\s+|are\s+)?|(?:i|we)['’](?:m|re)\s+)?"
+        + @"(?:needs?\s+to|ha(?:ve|s)\s+to|must|should|remember\s+to|don['’]?t\s+forget"
+        + @"|plan(?:ning)?\s+to|going\s+to|gonna|want\s+to)\s"
+        + @"|(?:i|we)(?:\s+will|['’]ll)\s"
+        + "|(?:" + string.Join("|", ActionVerbs) + @")\s)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Whether a plain line reads like something the writer plans to do, so it counts as a to-do without
+    /// checklist syntax: it starts with an action verb ("fix the login bug"), an intent ("need to renew
+    /// passport", "I'll call Sam") or "todo". Questions and lines ending in ":" are left out.
+    /// </summary>
+    public static bool IsPlannedAction(string text) =>
+        !text.EndsWith('?') && !text.EndsWith(':') && PlannedAction.IsMatch(text);
 
     private static readonly Regex IsoDateToken = new(@"\s*@?\b\d{4}-\d{2}-\d{2}\b");
 
