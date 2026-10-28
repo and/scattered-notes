@@ -254,7 +254,7 @@ private struct StatChip: View {
     let value: Int
     let label: String
     let tint: Color
-    /// Shows a smiley in place of the count, once everything it counts is done
+    /// Shows a sun in place of the count, once everything it counts is done
     var isAllDone = false
     let action: () -> Void
 
@@ -262,9 +262,8 @@ private struct StatChip: View {
         Button(action: action) {
             HStack(spacing: 5) {
                 if isAllDone {
-                    Image(systemName: "face.smiling.inverse")
-                        .font(.callout.weight(.semibold))
-                        .foregroundStyle(tint)
+                    Text("☀️")
+                        .font(.callout)
                         .accessibilityLabel("All done")
                 } else {
                     Text("\(value)")
