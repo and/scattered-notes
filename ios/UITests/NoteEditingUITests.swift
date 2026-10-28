@@ -48,4 +48,23 @@ final class NoteEditingUITests: XCTestCase {
         app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(app.staticTexts["No notes yet"].waitForExistence(timeout: 3))
     }
+
+    func testSearchIsVisibleWithoutPullingTheListDown() {
+        XCTAssertTrue(app.searchFields["Search all notes"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.searchFields["Search all notes"].isHittable)
+    }
+
+    func testSearchFindsATypedNote() {
+        app.buttons["New Note"].tap()
+        app.textViews.firstMatch.tap()
+        app.textViews.firstMatch.typeText("Renew the passport")
+        sleep(2)
+        app.navigationBars.buttons.firstMatch.tap()
+        let search = app.searchFields["Search all notes"]
+        search.tap()
+        search.typeText("passport")
+        XCTAssertTrue(app.staticTexts["Renew the passport"].waitForExistence(timeout: 3))
+        search.typeText("zzz")
+        XCTAssertFalse(app.staticTexts["Renew the passport"].waitForExistence(timeout: 1))
+    }
 }

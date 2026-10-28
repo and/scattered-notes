@@ -34,7 +34,8 @@ struct NotesScreen: View {
             .navigationTitle("Notes")
             .navigationDestination(for: Note.ID.self) { NoteEditorScreen(noteID: $0) }
             .navigationDestination(for: NewNote.self) { _ in NoteEditorScreen(noteID: nil) }
-            .searchable(text: $query, prompt: "Search all notes")
+            // Always shown: by default iOS hides it until the list is pulled down
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search all notes")
             .refreshable { NotesFolder.refresh() }
             .toolbar {
                 Button {
