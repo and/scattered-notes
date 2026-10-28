@@ -5,6 +5,12 @@ struct ScatteredNotesPhoneApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        // Screen tests run on an empty folder of their own, never on real notes
+        if ProcessInfo.processInfo.arguments.contains("-uiTesting") {
+            let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            AppSettings.shared.notesDirectoryURL = folder
+            return
+        }
         // Before the storage manager first reads the folder
         NotesFolder.restore()
     }

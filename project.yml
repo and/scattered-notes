@@ -25,7 +25,7 @@ targets:
       path: Sources/App/Info.plist
       properties:
         CFBundleDisplayName: "Scattered Notes"
-        CFBundleIdentifier: "com.scatterednotes.app"
+        CFBundleIdentifier: "$(PRODUCT_BUNDLE_IDENTIFIER)"
         CFBundleShortVersionString: "1.1.7"
         CFBundleVersion: "10"
         CFBundleIconFile: "AppIcon"
@@ -39,9 +39,15 @@ targets:
             NSUbiquitousContainerName: "Scattered Notes"
             NSUbiquitousContainerSupportedFolderLevels: Any
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.scatterednotes.app
-      INFOPLIST_FILE: Sources/App/Info.plist
-      GENERATE_INFOPLIST_FILE: "NO"
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.scatterednotes.app
+        INFOPLIST_FILE: Sources/App/Info.plist
+        GENERATE_INFOPLIST_FILE: "NO"
+      configs:
+        # Debug builds, including the ones tests run, keep their own settings and never touch
+        # those of the installed app
+        Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: com.scatterednotes.app.debug
 
   ScatteredNotesTests:
     type: bundle.unit-test
@@ -54,3 +60,41 @@ targets:
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.scatterednotes.app.tests
       GENERATE_INFOPLIST_FILE: "YES"
+
+  ScatteredNotesUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: UITests
+    dependencies:
+      - target: ScatteredNotes
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.scatterednotes.app.uitests
+      GENERATE_INFOPLIST_FILE: "YES"
+      TEST_TARGET_NAME: ScatteredNotes
+      # XCUIApplication is main-actor-only under Swift 6, which XCTest's set-up methods can't be
+      SWIFT_VERSION: "5.0"
+
+schemes:
+  ScatteredNotes:
+    build:
+      targets:
+        ScatteredNotes: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - ScatteredNotesTests
+    archive:
+      config: Release
+  ScatteredNotesUITests:
+    build:
+      targets:
+        ScatteredNotes: all
+        ScatteredNotesUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - ScatteredNotesUITests

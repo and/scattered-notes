@@ -67,6 +67,10 @@ targets:
       TARGETED_DEVICE_FAMILY: "1,2"
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       GENERATE_INFOPLIST_FILE: "NO"
+    scheme:
+      testTargets:
+        - ScatteredNotesiOSTests
+        - ScatteredNotesiOSUITests
 
   ScatteredNotesiOSTests:
     type: bundle.unit-test
@@ -79,3 +83,15 @@ targets:
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.scatterednotes.ios.tests
       GENERATE_INFOPLIST_FILE: "YES"
+
+  ScatteredNotesiOSUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: ScatteredNotesiOS
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.scatterednotes.ios.uitests
+      GENERATE_INFOPLIST_FILE: "YES"
+      TEST_TARGET_NAME: ScatteredNotesiOS

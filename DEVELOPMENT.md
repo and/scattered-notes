@@ -48,6 +48,13 @@ make e2e-test
 
 The suite covers the agenda parser and log, search, note file round trips and crash leftovers (`DataSafetyTests`), shortcut handling and the storage layer. Tests use a temporary notes folder and an isolated `UserDefaults` suite, so they never touch your real notes.
 
+```bash
+# Screen tests: start the app and use it with the mouse and keyboard
+make ui-test
+```
+
+The screen tests (`UITests`) go through Quick Note, the editor and the dashboard as a person would. They start the app with `-uiTesting` and an empty notes folder of their own (`SN_UITEST_NOTES`), so it never sees real notes, iCloud or update checks. Debug builds use the app ID `com.scatterednotes.app.debug`, so their settings are separate from the installed app's. Run them before each release; they take about a minute, and the Mac can't be used meanwhile.
+
 ## Project layout
 
 | Folder | Contents |
@@ -77,6 +84,8 @@ open ScatteredNotesiOS.xcodeproj  # run on a simulator or your device
 xcodebuild test -project ScatteredNotesiOS.xcodeproj -scheme ScatteredNotesiOS \
     -destination 'platform=iOS Simulator,name=iPhone 17 Pro' CODE_SIGNING_ALLOWED=NO
 ```
+
+The tests include screen tests (`ios/UITests`) that tap through the Notes screens on a simulator. The app started with `-uiTesting` uses an empty folder of its own, so they never touch real notes.
 
 Running on a device signs with the team in `ios/project.yml`. The icon is drawn by the Mac icon script without the squircle, then flattened because the App Store rejects icons with an alpha channel:
 

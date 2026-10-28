@@ -1,4 +1,4 @@
-.PHONY: project build run test e2e-test clean
+.PHONY: project build run test e2e-test ui-test clean
 
 project:
 	xcodegen generate
@@ -11,6 +11,9 @@ test:
 
 e2e-test:
 	xcodebuild test -project ScatteredNotes.xcodeproj -scheme ScatteredNotes -destination 'platform=macOS' -derivedDataPath ./build/DerivedData -only-testing:ScatteredNotesTests/EndToEndFeatureTests
+
+ui-test:
+	xcodebuild test -project ScatteredNotes.xcodeproj -scheme ScatteredNotesUITests -destination 'platform=macOS' -derivedDataPath ./build/DerivedData
 
 run: build
 	open ./build/DerivedData/Build/Products/Debug/ScatteredNotes.app

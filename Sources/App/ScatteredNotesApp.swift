@@ -5,6 +5,10 @@ struct ScatteredNotesApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var storageManager = NoteStorageManager.shared
     @ObservedObject private var settings = AppSettings.shared
+
+    init() {
+        UITesting.prepare(AppSettings.shared)
+    }
     
     var body: some Scene {
         WindowGroup("Scattered Notes", id: "main") {
