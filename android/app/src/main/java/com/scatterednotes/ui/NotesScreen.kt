@@ -31,6 +31,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,6 +49,7 @@ import java.util.UUID
 fun NotesScreen(model: AppViewModel, state: NotesState, onOpenNote: (UUID) -> Unit, modifier: Modifier = Modifier) {
     var query by rememberSaveable { mutableStateOf("") }
     val results = if (query.isBlank()) state.notes.map { it to null } else NoteSearch.search(query, state.notes).map { it.note to it.snippet }
+    val terms = NoteSearch.terms(query).map { it.removePrefix("#") }.filter { it.isNotEmpty() }
 
     Box(modifier.fillMaxSize()) {
         PullToRefreshBox(isRefreshing = false, onRefresh = model::reload) {
@@ -73,7 +77,7 @@ fun NotesScreen(model: AppViewModel, state: NotesState, onOpenNote: (UUID) -> Un
                     }
                 }
                 items(results, key = { it.first.id }) { (note, snippet) ->
-                    NoteRow(note, snippet, onClick = { onOpenNote(note.id) })
+                    NoteRow(note, snippet, terms, onClick = { onOpenNote(note.id) })
                 }
             }
         }
@@ -87,19 +91,19 @@ fun NotesScreen(model: AppViewModel, state: NotesState, onOpenNote: (UUID) -> Un
 }
 
 @Composable
-private fun NoteRow(note: Note, snippet: String?, onClick: () -> Unit) {
+private fun NoteRow(note: Note, snippet: String?, terms: List<String>, onClick: () -> Unit) {
     Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (note.isPinned) {
                     Icon(Icons.Outlined.PushPin, contentDescription = "Pinned", modifier = Modifier.size(16.dp).padding(end = 4.dp))
                 }
-                Text(note.displayTitle, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(highlighted(note.displayTitle, terms), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             val preview = snippet ?: note.previewExcerpt
             if (preview.isNotEmpty()) {
                 Text(
-                    preview,
+                    highlighted(preview, terms),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
@@ -112,6 +116,23 @@ private fun NoteRow(note: Note, snippet: String?, onClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),
             )
+        }
+    }
+}
+
+/** Bolds every match of the search terms, ignoring case and accents like the search itself. */
+@Composable
+private fun highlighted(text: String, terms: List<String>): AnnotatedString {
+    val style = SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+    return buildAnnotatedString {
+        append(text)
+        for (term in terms) {
+            var from = 0
+            while (true) {
+                val (start, length) = NoteSearch.find(text, term, from) ?: break
+                addStyle(style, start, start + length)
+                from = start + length
+            }
         }
     }
 }
