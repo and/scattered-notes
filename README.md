@@ -1,11 +1,11 @@
 # Scattered Notes
 
-A native app for Mac and Windows that organises your scattered notes in two steps:
+A native app for Mac and Windows, with companion apps for iPhone, iPad and Android, that organises your scattered notes in two steps:
 
 1. **Capture**: jot a thought in seconds from anywhere with a global shortcut (`⌥ + N` on a Mac, `Ctrl + Alt + N` on Windows), no matter what you're doing.
 2. **Unify**: the **Dashboard** builds itself from what you wrote. Every to-do and every line that mentions a day ("call the bank tomorrow", "team dinner on friday") is collected from all your notes into one view. There is nothing to set up or maintain.
 
-Notes are stored as plain Markdown files on disk, organised under **Projects** and **Areas**. Both apps use the same files, so one synced folder works on a Mac and a PC.
+Notes are stored as plain Markdown files on disk, organised under **Projects** and **Areas**. All the apps use the same files, so one synced folder works on a Mac, a PC and a phone.
 
 ![macOS 14+](https://img.shields.io/badge/macOS-14.0%2B-blue)
 ![Swift 6](https://img.shields.io/badge/Swift-6.0-orange)
@@ -63,6 +63,22 @@ Go to the [latest release](https://github.com/and/scattered-notes/releases/lates
 **Uninstalling:** quit the app and delete the exe. Your notes stay in the notes folder. Settings are in `%APPDATA%\ScatteredNotes`.
 
 **Building from source:** see [DEVELOPMENT.md](DEVELOPMENT.md).
+
+### iPhone and iPad (preview)
+
+**Requirements:** iOS 17 or later. Not on the App Store yet: build it from source with Xcode (see [DEVELOPMENT.md](DEVELOPMENT.md#iphone-and-ipad-app)).
+
+- Four parts: the **Dashboard** (tick to-dos, tap an item to open its note), **Notes** (search, edit, swipe to delete), **Quick Capture** (the pencil on the Dashboard) and **Settings**.
+- Notes are saved in the app's folder, which shows up in the Files app under **Scattered Notes**. To see the same notes as on your Mac, choose **Settings → Choose Folder…** and pick the iCloud Drive folder your Mac app uses.
+- There is no live folder watching on iOS: the app reloads when you switch back to it, and you can pull down to refresh.
+
+### Android (preview)
+
+**Requirements:** Android 8 or later. Not on Google Play yet: build it from source (see [DEVELOPMENT.md](DEVELOPMENT.md#android-app)).
+
+- The same four parts as on iPhone. Text shared from another app (**Share → Scattered Notes**) opens Quick Capture.
+- Notes are saved inside the app. To share them with a computer, choose **Settings → Choose Folder…** and pick a folder a sync app (for example Syncthing, Dropbox or OneDrive) keeps in step with your computer's notes folder.
+- The app reloads when you switch back to it, and you can pull down to refresh.
 
 ---
 

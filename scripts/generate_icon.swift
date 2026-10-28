@@ -1,6 +1,9 @@
 import AppKit
 
-func drawMasterIcon(size: CGFloat) -> NSImage {
+/// `fullBleed` draws the iOS and Android variant: an opaque square with no squircle, shadow or border,
+/// since the system applies its own mask. `contentScale` shrinks the artwork, not the background, to fit
+/// Android's adaptive icon safe zone.
+func drawMasterIcon(size: CGFloat, fullBleed: Bool = false, contentScale: CGFloat = 1) -> NSImage {
     let image = NSImage(size: NSSize(width: size, height: size))
     image.lockFocus()
     guard let ctx = NSGraphicsContext.current?.cgContext else {
@@ -9,18 +12,20 @@ func drawMasterIcon(size: CGFloat) -> NSImage {
     }
     
     // Draw macOS Squircle Container
-    let margin = size * 0.10
+    let margin = fullBleed ? 0 : size * 0.10
     let squircleRect = CGRect(x: margin, y: margin, width: size - 2 * margin, height: size - 2 * margin)
-    let cornerRadius = squircleRect.width * 0.224
+    let cornerRadius = fullBleed ? 0 : squircleRect.width * 0.224
     let squirclePath = CGPath(roundedRect: squircleRect, cornerWidth: cornerRadius, cornerHeight: cornerRadius, transform: nil)
     
     // Squircle Drop Shadow
+    if !fullBleed {
     ctx.saveGState()
     ctx.setShadow(offset: CGSize(width: 0, height: -size * 0.03), blur: size * 0.06, color: NSColor.black.withAlphaComponent(0.35).cgColor)
     ctx.addPath(squirclePath)
     ctx.setFillColor(NSColor.black.cgColor)
     ctx.fillPath()
     ctx.restoreGState()
+    }
     
     // Clip to Squircle
     ctx.saveGState()
@@ -40,10 +45,17 @@ func drawMasterIcon(size: CGFloat) -> NSImage {
     }
     
     // Subtle interior border glow
-    ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.18).cgColor)
-    ctx.setLineWidth(size * 0.008)
-    ctx.addPath(squirclePath)
-    ctx.strokePath()
+    if !fullBleed {
+        ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.18).cgColor)
+        ctx.setLineWidth(size * 0.008)
+        ctx.addPath(squirclePath)
+        ctx.strokePath()
+    }
+    if contentScale != 1 {
+        ctx.translateBy(x: size / 2, y: size / 2)
+        ctx.scaleBy(x: contentScale, y: contentScale)
+        ctx.translateBy(x: -size / 2, y: -size / 2)
+    }
     
     // Draw 3 "Scattered" Floating Note Cards
     // 1. Back Note (Rotated Left)
@@ -150,6 +162,19 @@ func drawMasterIcon(size: CGFloat) -> NSImage {
     ctx.restoreGState() // Squircle clip
     image.unlockFocus()
     return image
+}
+
+// `generate_icon.swift --ios <file.png>` writes only the iOS icon at 1024 px, and `--android <file.png>`
+// the Android adaptive icon foreground. Flatten the iOS one afterwards, since the App Store rejects
+// icons with an alpha channel (steps in DEVELOPMENT.md)
+if let flag = CommandLine.arguments.firstIndex(where: { $0 == "--ios" || $0 == "--android" }), flag + 1 < CommandLine.arguments.count {
+    let image = drawMasterIcon(size: 1024, fullBleed: true, contentScale: CommandLine.arguments[flag] == "--android" ? 0.62 : 1)
+    guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { fatalError("Failed to render") }
+    let rep = NSBitmapImageRep(cgImage: cgImage)
+    rep.size = NSSize(width: 1024, height: 1024)
+    try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[flag + 1]))
+    print("Generated \(CommandLine.arguments[flag].dropFirst(2)) icon.")
+    exit(0)
 }
 
 let masterImage = drawMasterIcon(size: 1024)

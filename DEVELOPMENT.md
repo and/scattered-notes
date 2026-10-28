@@ -54,6 +54,45 @@ The suite covers the agenda parser and log, search, note file round trips and cr
 | `Sources/Views` | Dashboard, editor, note list, search palette, settings, sidebar, menu bar |
 | `Tests/ScatteredNotesTests` | Unit and end-to-end tests |
 | `scripts` | Release script and app icon generator |
+| `ios` | iPhone and iPad app (SwiftUI), sharing `Sources/Models` and `Sources/Storage` |
+| `android` | Android app (Kotlin, Jetpack Compose) |
+| `windows` | Windows app (.NET, Avalonia) |
+
+## iPhone and iPad app
+
+The iOS app lives in `ios/`. It compiles the Mac app's `Sources/Models` and `Sources/Storage` (except the FSEvents `FolderWatcher`) into its own target, so notes, the agenda parser, the dashboard rules and storage are the same code on both. Mac-only parts of those files are behind `#if os(macOS)`. Its module is also named `ScatteredNotes`, so the shared `AgendaTests` and `NoteSearchTests` run on iOS unchanged.
+
+```bash
+cd ios
+xcodegen generate                 # after adding or removing files
+open ScatteredNotesiOS.xcodeproj  # run on a simulator or your device
+
+# Tests on a simulator
+xcodebuild test -project ScatteredNotesiOS.xcodeproj -scheme ScatteredNotesiOS \
+    -destination 'platform=iOS Simulator,name=iPhone 17 Pro' CODE_SIGNING_ALLOWED=NO
+```
+
+Running on a device signs with the team in `ios/project.yml`. The icon is drawn by the Mac icon script without the squircle, then flattened because the App Store rejects icons with an alpha channel:
+
+```bash
+swift scripts/generate_icon.swift --ios ios/Resources/Assets.xcassets/AppIcon.appiconset/icon_1024.png
+sips -s format jpeg icon_1024.png --out /tmp/icon.jpg && sips -s format png /tmp/icon.jpg --out icon_1024.png
+```
+
+## Android app
+
+The Android app lives in `android/`: Kotlin and Jetpack Compose. `core/` is a port of the Windows `ScatteredNotes.Core` logic (note format, agenda, agenda log, dashboard, search, file names) and must follow the same rules; when you change the agenda rules on Mac and Windows, change `AgendaExtractor.kt` too. `storage/` reads the notes folder either in the app's private storage or in a folder picked with the system folder picker (Storage Access Framework).
+
+Requirements: JDK 17 or 21 (Gradle 8.14 does not run on newer JDKs) and the Android SDK with platform 36.
+
+```bash
+cd android
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # or /opt/homebrew/opt/openjdk@21
+./gradlew testDebugUnitTest   # core logic tests
+./gradlew installDebug        # build and install on a running emulator or device
+```
+
+`./gradlew assembleRelease` builds a minified APK that still needs signing with your upload key before it can be installed or published. The launcher icon is `generate_icon.swift --android`, scaled into the `mipmap-*` folders.
 
 ## Data safety rules
 

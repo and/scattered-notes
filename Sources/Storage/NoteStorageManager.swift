@@ -13,7 +13,9 @@ public final class NoteStorageManager: ObservableObject {
     @Published public private(set) var areas: [ProjectArea] = []
     
     private let settings: AppSettings
+    #if os(macOS)
     private var folderWatcher: FolderWatcher?
+    #endif
     private var isPerformingInternalFileOperation: Bool = false
     private var cancellables = Set<AnyCancellable>()
     private let enableFileWatcher: Bool
@@ -65,8 +67,10 @@ public final class NoteStorageManager: ObservableObject {
     }
     
     public func stopWatching() {
+        #if os(macOS)
         folderWatcher?.stop()
         folderWatcher = nil
+        #endif
     }
     
     // MARK: - Directory Structure
@@ -636,11 +640,14 @@ public final class NoteStorageManager: ObservableObject {
     // MARK: - File System Monitoring
     /// Watches the whole notes folder, subfolders included, so notes edited by other apps or synced
     /// from another device appear without a relaunch. Only changed files are re-read.
+    /// Reloads when files change on disk. iOS has no FSEvents, so the app reloads when it comes to the foreground
     private func startWatching() {
         stopWatching()
+        #if os(macOS)
         folderWatcher = FolderWatcher(url: rootURL) { [weak self] in
             guard let self, !self.isPerformingInternalFileOperation else { return }
             self.loadAll()
         }
+        #endif
     }
 }

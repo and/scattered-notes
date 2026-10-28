@@ -11,8 +11,10 @@ public final class AppSettings: ObservableObject {
     }
     
     private let storageKeyNotesDirectory = "settings.notesDirectory"
+    #if os(macOS)
     private let storageKeyQuickCaptureShortcut = "settings.quickCaptureShortcut"
     private let storageKeySearchShortcut = "settings.searchShortcut"
+    #endif
     private let storageKeyDefaultEditorFontSize = "settings.editorFontSize"
     
     // Injected so tests can use an isolated suite instead of the app's real preferences
@@ -30,6 +32,7 @@ public final class AppSettings: ObservableObject {
         }
     }
     
+    #if os(macOS)
     /// Global shortcut that opens Quick Capture from any app
     @Published public var quickCaptureShortcut: HotKeyShortcut {
         didSet { save(quickCaptureShortcut, forKey: storageKeyQuickCaptureShortcut) }
@@ -47,6 +50,7 @@ public final class AppSettings: ObservableObject {
     private static func loadShortcut(from defaults: UserDefaults, key: String, fallback: HotKeyShortcut) -> HotKeyShortcut {
         defaults.data(forKey: key).flatMap { try? JSONDecoder().decode(HotKeyShortcut.self, from: $0) } ?? fallback
     }
+    #endif
     
     public init(notesDirectoryURL: URL? = nil, defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -62,8 +66,10 @@ public final class AppSettings: ObservableObject {
         
         let savedFontSize = defaults.double(forKey: storageKeyDefaultEditorFontSize)
         self.editorFontSize = savedFontSize > 0 ? savedFontSize : 14.0
+        #if os(macOS)
         self.quickCaptureShortcut = Self.loadShortcut(from: defaults, key: storageKeyQuickCaptureShortcut, fallback: .quickCaptureDefault)
         self.searchShortcut = Self.loadShortcut(from: defaults, key: storageKeySearchShortcut, fallback: .searchDefault)
+        #endif
     }
     
     public func resetToDefault() {
