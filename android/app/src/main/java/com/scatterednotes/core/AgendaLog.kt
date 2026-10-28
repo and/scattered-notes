@@ -17,7 +17,8 @@ import java.util.UUID
  * It is derived data: if it is missing or corrupt it is rebuilt, and notes are never affected.
  */
 class AgendaLog(val notes: MutableMap<String, MutableMap<String, Entry>> = mutableMapOf()) {
-    data class Entry(val line: String, val firstSeen: Instant)
+    /** [doneAt] is when the Mac app saw the line ticked. This app keeps it as it is, so it isn't lost. */
+    data class Entry(val line: String, val firstSeen: Instant, val doneAt: Instant? = null)
 
     fun anchors(noteId: UUID): Map<String, Instant> =
         notes[Note.formatId(noteId)]?.mapValues { it.value.firstSeen } ?: emptyMap()
@@ -66,7 +67,10 @@ class AgendaLog(val notes: MutableMap<String, MutableMap<String, Entry>> = mutab
                 val entry = entries.getValue(key)
                 root.append(if (j == 0) "\n" else ",\n")
                     .append("      ").append(JSONObject.quote(key)).append(" : {\n")
-                    .append("        \"firstSeen\" : ").append(JSONObject.quote(dateFormat.format(entry.firstSeen))).append(",\n")
+                entry.doneAt?.let {
+                    root.append("        \"doneAt\" : ").append(JSONObject.quote(dateFormat.format(it))).append(",\n")
+                }
+                root.append("        \"firstSeen\" : ").append(JSONObject.quote(dateFormat.format(entry.firstSeen))).append(",\n")
                     .append("        \"line\" : ").append(JSONObject.quote(entry.line)).append("\n")
                     .append("      }")
             }
@@ -90,7 +94,8 @@ class AgendaLog(val notes: MutableMap<String, MutableMap<String, Entry>> = mutab
                 for (key in entries.keys()) {
                     val entry = entries.getJSONObject(key)
                     val firstSeen = NoteFormat.parseDate(entry.getString("firstSeen")) ?: return null
-                    map[key] = Entry(entry.getString("line"), firstSeen)
+                    val doneAt = entry.optString("doneAt").takeIf { it.isNotEmpty() }?.let(NoteFormat::parseDate)
+                    map[key] = Entry(entry.getString("line"), firstSeen, doneAt)
                 }
                 // Keys are compared as the Mac app writes them
                 log.notes[id.uppercase()] = map

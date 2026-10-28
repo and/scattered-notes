@@ -138,7 +138,9 @@ public struct MainSplitView: View {
         if sidebarSelection == .dashboard {
             return sidebarSelection.title
         }
-        if let note = selectedNote {
+        if let selected = selectedNote {
+            // The stored note, so a renamed title shows
+            let note = storageManager.notes.first { $0.id == selected.id } ?? selected
             return "\(note.displayTitle) — \(sidebarSelection.title)"
         }
         if sidebarSelection.hasOwnDashboard {

@@ -101,10 +101,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun capture(text: String, category: CategoryType, targetName: String?, tags: List<String>) =
         onStore { createNote(content = text, category = category, targetName = targetName, tags = tags) }
 
-    /** Creates an empty note and hands its ID back once it exists. */
-    fun newNote(onCreated: (UUID) -> Unit) {
+    /** Creates a note from what was typed in a new note and hands its ID back once it exists. */
+    fun createNote(title: String, content: String, onCreated: (UUID) -> Unit) {
         viewModelScope.launch(io) {
-            val note = store.createNote()
+            val note = store.createNote(title = title, content = content)
             publish()
             launch(Dispatchers.Main) { onCreated(note.id) }
         }

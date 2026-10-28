@@ -16,9 +16,12 @@ public sealed class AgendaLog
 {
     public const string FileName = ".agenda-log.json";
 
+    /// <summary><c>DoneAt</c> is when the Mac app saw the line ticked. This app keeps it as it is, so it isn't lost.</summary>
     public sealed record Entry(
         [property: JsonPropertyName("line")] string Line,
-        [property: JsonPropertyName("firstSeen"), JsonConverter(typeof(SecondsDateConverter))] DateTimeOffset FirstSeen);
+        [property: JsonPropertyName("firstSeen"), JsonConverter(typeof(SecondsDateConverter))] DateTimeOffset FirstSeen,
+        [property: JsonPropertyName("doneAt"), JsonConverter(typeof(OptionalSecondsDateConverter)),
+         JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTimeOffset? DoneAt = null);
 
     [JsonPropertyName("notes")]
     public Dictionary<string, Dictionary<string, Entry>> Notes { get; set; } = [];
@@ -120,5 +123,19 @@ public sealed class AgendaLog
 
         public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options) =>
             writer.WriteStringValue(value.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture));
+    }
+
+    private sealed class OptionalSecondsDateConverter : JsonConverter<DateTimeOffset?>
+    {
+        public override DateTimeOffset? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+            reader.TokenType == JsonTokenType.Null ? null : Models.NoteFormat.ParseDate(reader.GetString() ?? "");
+
+        public override void Write(Utf8JsonWriter writer, DateTimeOffset? value, JsonSerializerOptions options)
+        {
+            if (value is { } date)
+                writer.WriteStringValue(date.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture));
+            else
+                writer.WriteNullValue();
+        }
     }
 }

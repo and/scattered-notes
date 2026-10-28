@@ -149,6 +149,23 @@ public class AgendaTests
     }
 
     [Fact]
+    public void AgendaLogKeepsWhenTheMacSawALineTicked()
+    {
+        var id = Guid.Parse("02eff95a-ff15-4719-990a-0a091abe49f6");
+        const string mac = """
+        { "notes" : { "02EFF95A-FF15-4719-990A-0A091ABE49F6" : { "call bank" : {
+          "doneAt" : "2026-10-28T09:30:00Z", "firstSeen" : "2026-10-26T10:00:00Z", "line" : "- [x] call bank" } } } }
+        """;
+        var log = AgendaLog.Decode(System.Text.Encoding.UTF8.GetBytes(mac));
+        Assert.NotNull(log);
+        log.Update(id, [("call bank", "- [x] call bank"), ("new", "New")], Monday);
+        var json = System.Text.Encoding.UTF8.GetString(log.Encode());
+        Assert.Contains("\"doneAt\": \"2026-10-28T09:30:00Z\"", json);
+        var again = AgendaLog.Decode(log.Encode());
+        Assert.Null(again!.Notes["02EFF95A-FF15-4719-990A-0A091ABE49F6"]["new"].DoneAt);
+    }
+
+    [Fact]
     public void AgendaLogFileMatchesMacFormat()
     {
         var log = new AgendaLog();

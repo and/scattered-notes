@@ -4,7 +4,7 @@ import SwiftUI
 struct NotesScreen: View {
     @ObservedObject private var storage = NoteStorageManager.shared
     @State private var query = ""
-    @State private var path: [Note.ID] = []
+    @State private var path = NavigationPath()
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -33,11 +33,12 @@ struct NotesScreen: View {
             }
             .navigationTitle("Notes")
             .navigationDestination(for: Note.ID.self) { NoteEditorScreen(noteID: $0) }
+            .navigationDestination(for: NewNote.self) { _ in NoteEditorScreen(noteID: nil) }
             .searchable(text: $query, prompt: "Search all notes")
             .refreshable { NotesFolder.refresh() }
             .toolbar {
                 Button {
-                    path.append(storage.createNote().id)
+                    path.append(NewNote())
                 } label: {
                     Label("New Note", systemImage: "square.and.pencil")
                 }
@@ -45,6 +46,9 @@ struct NotesScreen: View {
         }
     }
 }
+
+/// Opens the editor on a note that doesn't exist until something is typed
+private struct NewNote: Hashable {}
 
 private struct NoteRow: View {
     let note: Note

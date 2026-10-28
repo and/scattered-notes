@@ -5,10 +5,18 @@ public struct NoteDetailEditorView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
     @ObservedObject var settings = AppSettings.shared
     
-    var note: Note
+    /// The note as it was when opened; it only says which note this is
+    private let opened: Note
+    /// The note as stored now. Moves, pins, saves and edits from other devices all change it, so the
+    /// editor always works from this one, never from the copy it was opened with
+    private var note: Note { storageManager.notes.first { $0.id == opened.id } ?? opened }
     
     @State private var editableTitle: String
     @State private var editableContent: String
+    /// The title and text last loaded from or saved to the note. While the fields still match them,
+    /// nothing was typed since, so a newer version from another device can replace them
+    @State private var syncedTitle: String
+    @State private var syncedContent: String
     @State private var editorMode: EditorMode = .edit
     @State private var saveDebounceTimer: Timer?
     @State private var showingDeleteAlert = false
@@ -29,9 +37,11 @@ public struct NoteDetailEditorView: View {
     }
     
     public init(note: Note) {
-        self.note = note
+        self.opened = note
         self._editableTitle = State(initialValue: note.title)
         self._editableContent = State(initialValue: note.content)
+        self._syncedTitle = State(initialValue: note.title)
+        self._syncedContent = State(initialValue: note.content)
     }
     
     private var currentDestinationIcon: String {
@@ -44,10 +54,8 @@ public struct NoteDetailEditorView: View {
             }
             return "folder.fill"
         case .area:
-            if let name = note.targetName, let area = storageManager.areas.first(where: { $0.name == name }) {
-                return area.iconName
-            }
-            return "square.stack.3d.up.fill"
+            // Only until the note is moved out of its old area, which happens as notes load
+            return "tray.fill"
         }
     }
     
@@ -55,13 +63,13 @@ public struct NoteDetailEditorView: View {
         switch note.categoryType {
         case .inbox: return .wcagOrange
         case .project: return .wcagPurple
-        case .area: return .wcagGreen
+        case .area: return .wcagOrange
         }
     }
     
     /// Agenda lines of the saved note; empty when the note has none
     private var agendaItems: [AgendaItem] {
-        storageManager.agendaItems(for: storageManager.notes.first { $0.id == note.id } ?? note)
+        storageManager.agendaItems(for: note)
     }
 
     public var body: some View {
@@ -83,6 +91,7 @@ public struct NoteDetailEditorView: View {
             // Header: Title, Category Picker, Actions
             HStack(spacing: 12) {
                 TextField("Note Title", text: $editableTitle)
+                    .accessibilityIdentifier("noteTitle")
                     .font(.system(size: 18, weight: .semibold))
                     .textFieldStyle(.plain)
                     .onChange(of: editableTitle) { _, newTitle in
@@ -109,17 +118,6 @@ public struct NoteDetailEditorView: View {
                             }
                         }
                     }
-                    
-                    if !storageManager.areas.isEmpty {
-                        Divider()
-                        Section("Areas") {
-                            ForEach(storageManager.areas) { area in
-                                Button(action: { moveTo(category: .area, target: area.name) }) {
-                                    Label(area.name, systemImage: area.iconName)
-                                }
-                            }
-                        }
-                    }
                 } label: {
                     HStack(spacing: 5) {
                         Image(systemName: currentDestinationIcon)
@@ -138,6 +136,7 @@ public struct NoteDetailEditorView: View {
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(destinationColor.opacity(0.3), lineWidth: 1))
                 }
                 .menuStyle(.borderlessButton)
+                .accessibilityIdentifier("noteDestination")
                 
                 // Mode Picker (Edit / Split / Preview)
                 Picker("", selection: $editorMode) {
@@ -201,6 +200,7 @@ public struct NoteDetailEditorView: View {
                 switch editorMode {
                 case .edit:
                     TextEditor(text: $editableContent)
+                        .accessibilityIdentifier("noteText")
                         .font(.system(size: CGFloat(settings.editorFontSize)))
                         .lineSpacing(4)
                         .padding(16)
@@ -297,6 +297,9 @@ public struct NoteDetailEditorView: View {
         .onChange(of: note.id) { _, _ in
             syncFromNote()
         }
+        .onChange(of: [note.title, note.content]) { _, _ in
+            takeNewerVersion()
+        }
         .alert("Delete Note?", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -316,6 +319,15 @@ public struct NoteDetailEditorView: View {
         if editableContent != note.content {
             editableContent = note.content
         }
+        syncedTitle = note.title
+        syncedContent = note.content
+    }
+
+    /// Shows a version of the note saved elsewhere, e.g. on the iPhone, unless something was typed
+    /// here since the last save; then the typing wins when it is saved.
+    private func takeNewerVersion() {
+        guard saveDebounceTimer == nil, editableTitle == syncedTitle, editableContent == syncedContent else { return }
+        syncFromNote()
     }
     
     /// Puts the cursor in the text when Enter was pressed on this note or it was opened from a search
@@ -343,25 +355,21 @@ public struct NoteDetailEditorView: View {
     }
     
     private func saveNow() {
+        syncedTitle = editableTitle
+        syncedContent = editableContent
         guard editableTitle != note.title || editableContent != note.content else { return }
         var updated = note
         updated.title = editableTitle
         updated.content = editableContent
         
-        // Re-extract tags
-        let words = editableContent.components(separatedBy: .whitespacesAndNewlines)
-        let tags = words
-            .filter { $0.hasPrefix("#") && $0.count > 1 }
-            .map { String($0.dropFirst()).trimmingCharacters(in: CharacterSet.alphanumerics.inverted) }
-            .filter { !$0.isEmpty }
-        if !tags.isEmpty {
-            updated.tags = Array(Set(tags)).sorted()
-        }
+        updated.tags = Note.tags(in: editableContent)
         
         storageManager.save(note: updated)
     }
     
     private func moveTo(category: CategoryType, target: String?) {
+        // Typing not yet saved goes with the note
+        flushPendingSave()
         storageManager.move(note: note, to: category, targetName: target)
     }
 }

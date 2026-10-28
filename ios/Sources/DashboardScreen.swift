@@ -78,8 +78,8 @@ private struct Counters: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            counter("Overdue", snapshot.overdue.count, tint: .orange)
-            counter("Today", snapshot.dueToday.count, tint: .blue)
+            counter("Overdue", snapshot.overdueCount, tint: .orange)
+            counter("Today", snapshot.openTodayCount, tint: .blue)
             counter("Upcoming", snapshot.upcomingCount, tint: .purple)
             counter("To-dos", snapshot.openTodoCount, tint: .green)
         }

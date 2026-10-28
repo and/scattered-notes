@@ -162,6 +162,17 @@ class AgendaLogTests {
         assertNull(AgendaLog.decode("not json"))
         assertEquals(emptyMap<String, Any>(), AgendaLog.decode(AgendaLog().encode())!!.notes)
     }
+
+    @Test
+    fun keepsWhenTheMacSawALineTicked() {
+        val mac = "{\"notes\":{\"${Note.formatId(id)}\":{\"call bank\":" +
+            "{\"doneAt\":\"2026-10-28T09:30:00Z\",\"firstSeen\":\"2026-10-26T10:00:00Z\",\"line\":\"- [x] call bank\"}}}}"
+        val log = AgendaLog.decode(mac)!!
+        log.update(id, listOf("call bank" to "- [x] call bank", "new" to "New"), Instant.parse("2026-10-28T10:00:00Z"))
+        val again = AgendaLog.decode(log.encode())!!
+        assertEquals(Instant.parse("2026-10-28T09:30:00Z"), again.notes.getValue(Note.formatId(id)).getValue("call bank").doneAt)
+        assertNull(again.notes.getValue(Note.formatId(id)).getValue("new").doneAt)
+    }
 }
 
 class SearchAndFileNameTests {

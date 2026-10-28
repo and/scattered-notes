@@ -46,7 +46,7 @@ import java.util.UUID
 /** Every note, pinned first then newest, with search over titles, text and tags. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotesScreen(model: AppViewModel, state: NotesState, onOpenNote: (UUID) -> Unit, modifier: Modifier = Modifier) {
+fun NotesScreen(model: AppViewModel, state: NotesState, onOpenNote: (UUID) -> Unit, onNewNote: () -> Unit, modifier: Modifier = Modifier) {
     var query by rememberSaveable { mutableStateOf("") }
     val results = if (query.isBlank()) state.notes.map { it to null } else NoteSearch.search(query, state.notes).map { it.note to it.snippet }
     val terms = NoteSearch.terms(query).map { it.removePrefix("#") }.filter { it.isNotEmpty() }
@@ -82,7 +82,7 @@ fun NotesScreen(model: AppViewModel, state: NotesState, onOpenNote: (UUID) -> Un
             }
         }
         FloatingActionButton(
-            onClick = { model.newNote(onOpenNote) },
+            onClick = onNewNote,
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
         ) {
             Icon(Icons.Outlined.Add, contentDescription = "New Note")

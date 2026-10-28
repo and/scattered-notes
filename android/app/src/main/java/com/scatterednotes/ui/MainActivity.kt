@@ -88,6 +88,9 @@ private fun AppTheme(content: @Composable () -> Unit) {
 
 private enum class Tab(val title: String) { DASHBOARD("Dashboard"), NOTES("Notes"), SETTINGS("Settings") }
 
+/** Stands for the editor of a note not yet created, in place of a note ID */
+private const val NEW_NOTE = "new"
+
 @Composable
 fun ScatteredNotesApp(model: AppViewModel, sharedText: String?, onSharedTextUsed: () -> Unit) {
     val state by model.state.collectAsState()
@@ -110,10 +113,10 @@ fun ScatteredNotesApp(model: AppViewModel, sharedText: String?, onSharedTextUsed
         onDispose { lifecycle.removeObserver(observer) }
     }
 
-    val noteId = openNote?.let(UUID::fromString)
-    if (noteId != null) {
+    if (openNote != null) {
         BackHandler { openNote = null }
-        EditorScreen(model, state, noteId, onClose = { openNote = null })
+        // A new note has no ID until something is typed in it
+        EditorScreen(model, state, openNote.takeIf { it != NEW_NOTE }?.let(UUID::fromString), onClose = { openNote = null })
         return
     }
 
@@ -144,7 +147,7 @@ fun ScatteredNotesApp(model: AppViewModel, sharedText: String?, onSharedTextUsed
         val modifier = Modifier.padding(padding)
         when (tab) {
             Tab.DASHBOARD -> DashboardScreen(model, state, onOpenNote = open, onCapture = { capturing = true }, modifier = modifier)
-            Tab.NOTES -> NotesScreen(model, state, onOpenNote = open, modifier = modifier)
+            Tab.NOTES -> NotesScreen(model, state, onOpenNote = open, onNewNote = { openNote = NEW_NOTE }, modifier = modifier)
             Tab.SETTINGS -> SettingsScreen(model, folderName, modifier = modifier)
         }
     }

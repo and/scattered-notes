@@ -39,39 +39,72 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import java.util.UUID
 
-/** Plain Markdown editing of one note. Changes are saved a moment after typing stops and when leaving. */
+/**
+ * Plain Markdown editing of one note. Changes are saved a moment after typing stops and when leaving.
+ * With no [noteId] it writes a new note, which is only created once something is typed.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditorScreen(model: AppViewModel, state: NotesState, noteId: UUID, onClose: () -> Unit) {
-    val note = state.notes.firstOrNull { it.id == noteId }
-    var title by rememberSaveable(noteId) { mutableStateOf<String?>(null) }
-    var content by rememberSaveable(noteId) { mutableStateOf<String?>(null) }
+fun EditorScreen(model: AppViewModel, state: NotesState, noteId: UUID?, onClose: () -> Unit) {
+    var createdId by rememberSaveable { mutableStateOf<String?>(null) }
+    val id = noteId ?: createdId?.let(UUID::fromString)
+    val isNew = id == null
+    val note = id?.let { current -> state.notes.firstOrNull { it.id == current } }
+    var title by rememberSaveable(noteId) { mutableStateOf<String?>(if (noteId == null) "" else null) }
+    var content by rememberSaveable(noteId) { mutableStateOf<String?>(if (noteId == null) "" else null) }
+    // The title and text last loaded from or saved to the note. While the fields still match them,
+    // nothing was typed since, so nothing is saved and a newer version from another device shows
+    var syncedTitle by rememberSaveable(noteId) { mutableStateOf(title) }
+    var syncedContent by rememberSaveable(noteId) { mutableStateOf(content) }
+    var creating by rememberSaveable { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     val focus = androidx.compose.runtime.remember { FocusRequester() }
+    val isEdited = title != syncedTitle || content != syncedContent
 
-    // Fill the fields once, when the note is first available
-    if (note != null && title == null) {
+    // Fill the fields when the note is first available, and again when a version saved on another
+    // device arrives while nothing was typed here
+    if (note != null && (title == null || (!isEdited && (note.title != title || note.content != content)))) {
         title = note.title
         content = note.content
+        syncedTitle = note.title
+        syncedContent = note.content
     }
 
-    val save: () -> Unit = save@{
-        val current = state.notes.firstOrNull { it.id == noteId } ?: return@save
+    // Saves only what was typed, so leaving a note never puts an older version back over one saved
+    // on another device. A note emptied here is removed when leaving rather than kept as a blank file
+    val save: (Boolean) -> Unit = save@{ leaving ->
         val newTitle = title ?: return@save
         val newContent = content ?: return@save
-        // A note created here and left empty is dropped rather than kept as a blank file
-        if (newTitle.isBlank() && newContent.isBlank()) model.delete(current)
-        else model.save(current.copy(title = newTitle, content = newContent))
+        val isBlank = newTitle.isBlank() && newContent.isBlank()
+        if (isNew) {
+            if (isBlank || creating) return@save
+            creating = true
+            model.createNote(newTitle, newContent) { created ->
+                createdId = created.toString()
+                creating = false
+            }
+            syncedTitle = newTitle
+            syncedContent = newContent
+            return@save
+        }
+        val current = state.notes.firstOrNull { it.id == id } ?: return@save
+        if (isBlank) {
+            if (leaving) model.delete(current)
+        } else if (newTitle != syncedTitle || newContent != syncedContent) {
+            model.save(current.copy(title = newTitle, content = newContent))
+            syncedTitle = newTitle
+            syncedContent = newContent
+        }
     }
     val latestSave by rememberUpdatedState(save)
 
     LaunchedEffect(title, content) {
         delay(800)
-        latestSave()
+        latestSave(false)
     }
-    DisposableEffect(noteId) { onDispose { latestSave() } }
+    DisposableEffect(noteId) { onDispose { latestSave(true) } }
     LaunchedEffect(noteId, note != null) {
-        if (note != null && note.content.isEmpty()) focus.requestFocus()
+        if (isNew || (note != null && note.content.isEmpty())) focus.requestFocus()
     }
 
     Scaffold(
@@ -98,7 +131,7 @@ fun EditorScreen(model: AppViewModel, state: NotesState, noteId: UUID, onClose: 
             )
         },
     ) { padding ->
-        if (note == null) {
+        if (note == null && !isNew) {
             Text(
                 if (state.loaded) "This note was deleted, maybe on another device." else "",
                 modifier = Modifier.padding(padding).padding(16.dp),
