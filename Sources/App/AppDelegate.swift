@@ -8,6 +8,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     public func applicationDidFinishLaunching(_ notification: Notification) {
         EscapeToClose.install()
         UpdateChecker.shared.start()
+        Task { await StorageFolderPicker.offerICloudIfNeeded() }
         let hotKeys = GlobalHotKeyManager.shared
         let settings = AppSettings.shared
 

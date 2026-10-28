@@ -16,6 +16,7 @@ public final class NoteStorageManager: ObservableObject {
     #if os(macOS)
     private var folderWatcher: FolderWatcher?
     #endif
+    private var iCloudWatcher: ICloudWatcher?
     private var isPerformingInternalFileOperation: Bool = false
     private var cancellables = Set<AnyCancellable>()
     private let enableFileWatcher: Bool
@@ -71,6 +72,8 @@ public final class NoteStorageManager: ObservableObject {
         folderWatcher?.stop()
         folderWatcher = nil
         #endif
+        iCloudWatcher?.stop()
+        iCloudWatcher = nil
     }
     
     // MARK: - Directory Structure
@@ -314,9 +317,9 @@ public final class NoteStorageManager: ObservableObject {
         
         let markdown = updatedNote.serializeToMarkdown()
         do {
-            try markdown.write(to: fileURL, atomically: true, encoding: .utf8)
+            try coordinate(writingTo: fileURL) { try markdown.write(to: $0, atomically: true, encoding: .utf8) }
             if let staleURL, staleURL.path != fileURL.path {
-                try? fileManager.removeItem(at: staleURL)
+                try? coordinate(writingTo: staleURL, options: .forDeleting) { try fileManager.removeItem(at: $0) }
             }
             
             // Update in-memory state
@@ -341,7 +344,7 @@ public final class NoteStorageManager: ObservableObject {
         }
         
         if let fileURL = note.filePath {
-            try? FileManager.default.removeItem(at: fileURL)
+            try? coordinate(writingTo: fileURL, options: .forDeleting) { try FileManager.default.removeItem(at: $0) }
         }
         notes.removeAll { $0.id == note.id }
         invalidateAgenda(for: note.id)
@@ -397,7 +400,22 @@ public final class NoteStorageManager: ObservableObject {
             self.isPerformingInternalFileOperation = false
         }
         guard let data = try? AgendaLog.encoder.encode(agendaLog) else { return }
-        try? data.write(to: agendaLogURL, options: .atomic)
+        try? coordinate(writingTo: agendaLogURL) { try data.write(to: $0, options: .atomic) }
+    }
+
+    /// Runs a write through NSFileCoordinator, so iCloud and other sync clients never upload a
+    /// half-written file and don't swap in another device's copy while the app is writing.
+    private func coordinate(
+        writingTo url: URL,
+        options: NSFileCoordinator.WritingOptions = [],
+        _ write: (URL) throws -> Void
+    ) throws {
+        var coordinationError: NSError?
+        var writeError: Error?
+        NSFileCoordinator().coordinate(writingItemAt: url, options: options, error: &coordinationError) { url in
+            do { try write(url) } catch { writeError = error }
+        }
+        if let error = coordinationError ?? writeError { throw error }
     }
     
     /// Adds log entries for new lines and drops entries for lines that are gone. Returns whether anything changed.
@@ -640,7 +658,9 @@ public final class NoteStorageManager: ObservableObject {
     // MARK: - File System Monitoring
     /// Watches the whole notes folder, subfolders included, so notes edited by other apps or synced
     /// from another device appear without a relaunch. Only changed files are re-read.
-    /// Reloads when files change on disk. iOS has no FSEvents, so the app reloads when it comes to the foreground
+    /// Reloads when files change on disk. iOS has no FSEvents, so outside iCloud the app reloads when
+    /// it comes to the foreground. In the app's iCloud folder iCloud's own index also reports notes
+    /// changed on other devices, on both platforms, and gets notes that are only in the cloud downloaded.
     private func startWatching() {
         stopWatching()
         #if os(macOS)
@@ -649,5 +669,11 @@ public final class NoteStorageManager: ObservableObject {
             self.loadAll()
         }
         #endif
+        if ICloudFolder.contains(rootURL) {
+            iCloudWatcher = ICloudWatcher { [weak self] in
+                guard let self, !self.isPerformingInternalFileOperation else { return }
+                self.loadAll()
+            }
+        }
     }
 }

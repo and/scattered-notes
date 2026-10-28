@@ -30,6 +30,12 @@ The Xcode project is generated from `project.yml`. After adding, removing or ren
 make project    # runs xcodegen generate
 ```
 
+### iCloud Drive folder
+
+The Mac and iOS apps share an iCloud container, `iCloud.com.scatterednotes`, which shows up as **Scattered Notes** in iCloud Drive (`NSUbiquitousContainers` in both Info.plists). `ICloudFolder` finds it, and `NoteStorageManager` follows it with an `NSMetadataQuery`. That query reports notes changed on other devices and downloads notes that are only in the cloud. Writes go through `NSFileCoordinator`.
+
+Only signed builds carry the iCloud entitlement. `make build` and the tests are unsigned, so they never see the container and the "Use iCloud Drive" button says iCloud isn't available. `scripts/release.sh` adds `Sources/App/ScatteredNotes.entitlements`; the iOS target has it in `ios/project.yml`. In the Apple Developer website, the App IDs `com.scatterednotes.app` and `com.scatterednotes.ios` must have iCloud on, with the container `iCloud.com.scatterednotes` ticked.
+
 ## Tests
 
 ```bash
@@ -104,7 +110,7 @@ Notes are the user's data, so these hold for any change to storage:
 
 ## Releasing
 
-`scripts/release.sh` builds a universal (Apple silicon and Intel) Release app, signs it with a Developer ID certificate, notarizes it with Apple, staples the ticket, and writes `build/release/ScatteredNotes-<version>.zip`.
+`scripts/release.sh` archives a universal (Apple silicon and Intel) Release app and exports it signed with a Developer ID certificate and provisioning profile. It then notarizes it with Apple, staples the ticket, and writes `build/release/ScatteredNotes-<version>-mac.zip`. The profile is needed for the iCloud entitlement. Xcode creates and renews it on its own, as long as Xcode is signed in to the team's Apple account (Xcode → Settings → Accounts).
 
 One-time setup. Run this in a normal Terminal window, not through a tool that records commands, and leave off `--password` so you are prompted for the app-specific password with hidden input:
 
@@ -127,4 +133,4 @@ Release steps:
    gh release create vX.Y.Z build/release/ScatteredNotes-X.Y.Z.zip --title "Scattered Notes X.Y.Z" --notes "..."
    ```
 
-The script's environment variables: `SIGN_IDENTITY` (default `Developer ID Application`), `TEAM_ID`, `NOTARY_PROFILE` (default `scattered-notes-notary`) and `SKIP_NOTARIZE`.
+The script's environment variables: `TEAM_ID` (default `RLVYQT69D4`), `NOTARY_PROFILE` (default `scattered-notes-notary`) and `SKIP_NOTARIZE`.

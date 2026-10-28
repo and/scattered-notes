@@ -31,6 +31,13 @@ targets:
         CFBundleIconFile: "AppIcon"
         LSMinimumSystemVersion: "14.0"
         NSHighResolutionCapable: true
+        # The app's own folder in iCloud Drive, shared with the iPhone and iPad app. The iCloud
+        # entitlement is added only when signing a release (scripts/release.sh)
+        NSUbiquitousContainers:
+          iCloud.com.scatterednotes:
+            NSUbiquitousContainerIsDocumentScopePublic: true
+            NSUbiquitousContainerName: "Scattered Notes"
+            NSUbiquitousContainerSupportedFolderLevels: Any
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.scatterednotes.app
       INFOPLIST_FILE: Sources/App/Info.plist

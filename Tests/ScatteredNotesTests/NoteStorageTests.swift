@@ -165,4 +165,25 @@ final class NoteStorageTests: XCTestCase {
             "Daily jog"
         )
     }
+
+    @MainActor
+    func testRecognisesTheAppsICloudFolder() {
+        let mac = URL(fileURLWithPath: "/Users/me/Library/Mobile Documents/iCloud~com~scatterednotes/Documents")
+        let phone = URL(fileURLWithPath: "/private/var/mobile/Library/Mobile Documents/iCloud~com~scatterednotes/Documents/Inbox")
+        XCTAssertTrue(ICloudFolder.contains(mac))
+        XCTAssertTrue(ICloudFolder.contains(phone))
+        XCTAssertFalse(ICloudFolder.contains(URL(fileURLWithPath: "/Users/me/Library/Mobile Documents/com~apple~CloudDocs/ScatteredNotes")))
+        XCTAssertFalse(ICloudFolder.contains(AppSettings.defaultNotesDirectoryURL))
+    }
+
+    @MainActor
+    func testOnlyAChosenNotesFolderCountsAsChosen() {
+        let suite = "com.scatterednotes.app.tests.chosen"
+        let defaults = UserDefaults(suiteName: suite)!
+        addTeardownBlock { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
+        let settings = AppSettings(defaults: defaults)
+        XCTAssertFalse(settings.hasChosenNotesFolder)
+        settings.notesDirectoryURL = FileManager.default.temporaryDirectory
+        XCTAssertTrue(settings.hasChosenNotesFolder)
+    }
 }

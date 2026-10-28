@@ -37,7 +37,8 @@ Go to the [latest release](https://github.com/and/scattered-notes/releases/lates
 
 **First launch**
 - The Dashboard opens first. Press `⌥ + N` in any app to capture your first note.
-- Notes are saved in `~/Documents/ScatteredNotes/`. To keep them somewhere else (for example an iCloud Drive folder), choose **Scattered Notes → Settings → Notes Folder → Change…**. Existing notes move with it.
+- If the Mac is signed in to iCloud, the app keeps your notes in its own iCloud Drive folder, **iCloud Drive → Scattered Notes**. That folder is shared with the iPhone and iPad app and your other Macs. If you already have notes, the app asks once before moving them.
+- Without iCloud, notes are saved in `~/Documents/ScatteredNotes/`. To switch at any time, choose **Scattered Notes → Settings → Notes Folder** and click **Use iCloud Drive**, **Change…** (any folder) or **Use Default**. Existing notes move with it.
 - The two global shortcuts, `⌥ + N` (Quick Capture) and `⌥ + F` (search), can be changed in **Settings → Global Shortcuts**. If a shortcut doesn't respond, another app may already use it; pick a different one.
 - The app also lives in the menu bar, so Quick Capture and your recent notes are one click away.
 
@@ -55,7 +56,7 @@ Go to the [latest release](https://github.com/and/scattered-notes/releases/lates
 
 **First launch**
 - The Dashboard opens first. Press `Ctrl + Alt + N` in any app to capture a note, and `Ctrl + Alt + F` to search all notes. Both can be changed in **Settings**.
-- Notes are saved in `Documents\ScatteredNotes`. To use the same notes as on a Mac, choose **Settings → Notes folder → Choose Folder…** and pick your iCloud Drive or OneDrive folder.
+- Notes are saved in `Documents\ScatteredNotes`. To use the same notes as on a Mac, choose **Settings → Notes folder → Choose Folder…** and pick the folder the Mac uses. For iCloud Drive, install iCloud for Windows and pick `iCloud Drive\Scattered Notes`.
 - Closing the window keeps the app running in the notification area (the system tray), so the shortcuts keep working. Use **Quit Scattered Notes** in its menu to stop it. **Settings → Startup** starts it when you sign in.
 
 **Updating:** from version 1.1.1 the app checks GitHub once a day and, when a new version is out, shows what changed and asks before installing. **Install and Restart** replaces the exe in place. You can also choose **Check for Updates…** in the tray menu, and turn automatic checks off in **Settings → Updates**.
@@ -69,8 +70,8 @@ Go to the [latest release](https://github.com/and/scattered-notes/releases/lates
 **Requirements:** iOS 17 or later. Not on the App Store yet: build it from source with Xcode (see [DEVELOPMENT.md](DEVELOPMENT.md#iphone-and-ipad-app)).
 
 - Four parts: the **Dashboard** (tick to-dos, tap an item to open its note), **Notes** (search, edit, swipe to delete), **Quick Capture** (the pencil on the Dashboard) and **Settings**.
-- Notes are saved in the app's folder, which shows up in the Files app under **Scattered Notes**. To see the same notes as on your Mac, choose **Settings → Choose Folder…** and pick the iCloud Drive folder your Mac app uses.
-- There is no live folder watching on iOS: the app reloads when you switch back to it, and you can pull down to refresh.
+- If the iPhone is signed in to iCloud, notes are kept in **iCloud Drive → Scattered Notes**, the same folder the Mac app uses, and changes from your Mac show up as they sync.
+- Otherwise, or after **Settings → Use Folder on This iPhone**, notes are saved on the device and show up in the Files app under **Scattered Notes**. **Settings → Choose Folder…** picks any other folder in Files. Picked folders reload when you switch back to the app, and you can pull down to refresh.
 
 ### Android (preview)
 

@@ -24,6 +24,12 @@ targets:
         group: Shared
         excludes:
           - FolderWatcher.swift
+    entitlements:
+      path: Sources/ScatteredNotesiOS.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers: [iCloud.com.scatterednotes]
+        com.apple.developer.icloud-services: [CloudDocuments]
+        com.apple.developer.ubiquity-container-identifiers: [iCloud.com.scatterednotes]
     info:
       path: Sources/Info.plist
       properties:
@@ -36,6 +42,12 @@ targets:
         # Lets the default notes folder show up in the Files app
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
+        # The app's own folder in iCloud Drive, shared with the Mac app
+        NSUbiquitousContainers:
+          iCloud.com.scatterednotes:
+            NSUbiquitousContainerIsDocumentScopePublic: true
+            NSUbiquitousContainerName: "Scattered Notes"
+            NSUbiquitousContainerSupportedFolderLevels: Any
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft

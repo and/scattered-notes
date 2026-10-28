@@ -42,6 +42,7 @@
 		CBE177BC02CC684AAC4A5BC9 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AD0995BDF9BB09527A428A5 /* DashboardView.swift */; };
 		D74320944DAC68EB643B94CB /* HotKeyShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C433EEA1D6AD573F06C1EF /* HotKeyShortcutTests.swift */; };
 		D8D237A04D13BF8DE6792BFE /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = B889F6C7CEFC77B495D6B9EF /* Note.swift */; };
+		DCC456ACEF5B007711A297CF /* ICloudFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF0519FCCC948608D85411EA /* ICloudFolder.swift */; };
 		E2267CCBBB615C692CE7FBEF /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491DCCFBF499B26B1D779C28 /* SidebarView.swift */; };
 		E479A56499A04DF6CAB8FB39 /* Agenda.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93BD501F2CA7D78018D55F8E /* Agenda.swift */; };
 		F2B36D315B0DFBE79CFD8591 /* AgendaLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0514FEA1FF45CF8457E457A7 /* AgendaLog.swift */; };
@@ -77,6 +78,7 @@
 		254C136DED09B4C7C19ED46E /* NoteSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteSearchTests.swift; sourceTree = "<group>"; };
 		34B14D0E8F2DBAA7519142E2 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		358ABA585A6F6C2E56A0D9FF /* QuickCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCaptureView.swift; sourceTree = "<group>"; };
+		35C9C84AAE74683C89150102 /* ScatteredNotes.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScatteredNotes.entitlements; sourceTree = "<group>"; };
 		375C3ACDA9396302966FED59 /* WatcherAndCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatcherAndCacheTests.swift; sourceTree = "<group>"; };
 		43FAEF0A2236DB4AFCD18781 /* UpdateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateWindow.swift; sourceTree = "<group>"; };
 		491DCCFBF499B26B1D779C28 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
@@ -104,6 +106,7 @@
 		B0D3F5A1FB3271FA8E45D6CD /* QuickCapturePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCapturePanel.swift; sourceTree = "<group>"; };
 		B889F6C7CEFC77B495D6B9EF /* Note.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Note.swift; sourceTree = "<group>"; };
 		BD00A926E07A01D24792BB6B /* MainSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainSplitView.swift; sourceTree = "<group>"; };
+		BF0519FCCC948608D85411EA /* ICloudFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICloudFolder.swift; sourceTree = "<group>"; };
 		C4CCC19D990F14AD784DEA18 /* MarkdownRendererView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRendererView.swift; sourceTree = "<group>"; };
 		C94F3E16F17D9C9944BFC7CF /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		CE0E8281E222797379469F0A /* ScatteredNotes.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScatteredNotes.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -161,6 +164,7 @@
 				0514FEA1FF45CF8457E457A7 /* AgendaLog.swift */,
 				108AC7B769F802061E8C0FB5 /* AppSettings.swift */,
 				629987ADBA93F4FD3F142AEC /* FolderWatcher.swift */,
+				BF0519FCCC948608D85411EA /* ICloudFolder.swift */,
 				11EC9B7FA9D2423F85EB0963 /* NoteStorageManager.swift */,
 			);
 			path = Storage;
@@ -259,6 +263,7 @@
 				75D71A8D07D299EBE48B67EE /* AppRouter.swift */,
 				9F12A0D2E17C2710B8D65D87 /* EscapeToClose.swift */,
 				FAA8DB7BC71F2EC7F36226CB /* Info.plist */,
+				35C9C84AAE74683C89150102 /* ScatteredNotes.entitlements */,
 				E9CD20AE23EA70422AE47AC4 /* ScatteredNotesApp.swift */,
 			);
 			path = App;
@@ -419,6 +424,7 @@
 				AFE6F5422907DD8B4123A3E6 /* FolderWatcher.swift in Sources */,
 				5B19E7BCA82F306FC5514FF8 /* GlobalHotKeyManager.swift in Sources */,
 				1872E7E92C3CF73C6B017248 /* HotKeyShortcut.swift in Sources */,
+				DCC456ACEF5B007711A297CF /* ICloudFolder.swift in Sources */,
 				F83DBA831F68E107C3442BBD /* MainSplitView.swift in Sources */,
 				1D34C31FA778B6831038AEAB /* MarkdownRendererView.swift in Sources */,
 				5C4963482F909A41C7279613 /* MenuBarView.swift in Sources */,

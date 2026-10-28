@@ -26,6 +26,11 @@ public final class AppSettings: ObservableObject {
         }
     }
     
+    /// Whether a notes folder was ever set, as opposed to the app running on the default one
+    public var hasChosenNotesFolder: Bool {
+        defaults.string(forKey: storageKeyNotesDirectory) != nil
+    }
+
     @Published public var editorFontSize: Double {
         didSet {
             defaults.set(editorFontSize, forKey: storageKeyDefaultEditorFontSize)
