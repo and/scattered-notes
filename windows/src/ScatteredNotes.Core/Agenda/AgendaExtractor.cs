@@ -240,6 +240,9 @@ public static class AgendaExtractor
     private static readonly Regex DayMonth = new(@"\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?" + MonthPattern + @"\b", Options);
     private static readonly Regex Relative = new(@"\b(today|tonight|tomorrow)\b", Options);
     private static readonly Regex Weekday = new(@"\b(next\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b", Options);
+    private static readonly Regex DayOfMonth = new(@"\b(\d{1,2})(?:st|nd|rd|th)?\s+of\s+(?:the\s+)?(next|this)\s+month\b", Options);
+    private static readonly Regex EndOfMonth = new(@"\bend\s+of\s+(?:the\s+)?(next\s+|this\s+)?month\b", Options);
+    private static readonly Regex TheOrdinal = new(@"\bthe\s+(\d{1,2})(?:st|nd|rd|th)\b", Options);
     private static readonly Regex DayAfterTomorrow = new(@"\bday\s+after\s+tomorrow\b", Options);
     private static readonly Regex DayAfter = new(@"\bday\s+after\b", Options);
     private static readonly Regex InInterval = new(@"\bin\s+(\d{1,3})\s+(day|week)s?\b", Options);
@@ -277,6 +280,30 @@ public static class AgendaExtractor
             return dayMonth;
         }
 
+        // "22nd of the next month", "22 of this month"
+        if (DayOfMonth.Match(line) is { Success: true } dom && Number(dom.Groups[1]) is { } domDay &&
+            InMonth(domDay, dom.Groups[2].Value.Equals("next", StringComparison.OrdinalIgnoreCase) ? 1 : 0, reference) is { } domDate)
+        {
+            return AsRelative(domDate, out isRelative);
+        }
+
+        // "end of the month", "end of next month"
+        if (EndOfMonth.Match(line) is { Success: true } eom)
+        {
+            var ahead = eom.Groups[1].Value.StartsWith("next", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+            var target = new DateOnly(reference.Year, reference.Month, 1).AddMonths(ahead);
+            return AsRelative(new DateOnly(target.Year, target.Month, DateTime.DaysInMonth(target.Year, target.Month)), out isRelative);
+        }
+
+        // "on the 22nd": the next such day of a month, today included
+        if (TheOrdinal.Match(line) is { Success: true } ord && Number(ord.Groups[1]) is { } ordDay)
+        {
+            for (var ahead = 0; ahead <= 2; ahead++)
+            {
+                if (InMonth(ordDay, ahead, reference) is { } date && date >= reference) return AsRelative(date, out isRelative);
+            }
+        }
+
         if (DayAfterTomorrow.IsMatch(line)) return AsRelative(reference.AddDays(2), out isRelative);
 
         // "the day after" continues from the dated line above, e.g. "buy milk today" then "bake the day after"
@@ -311,6 +338,13 @@ public static class AgendaExtractor
     {
         isRelative = true;
         return day;
+    }
+
+    /// <summary>The day of the month <paramref name="monthsAhead"/> months after the one <paramref name="reference"/> is in; null when the month has no such day.</summary>
+    private static DateOnly? InMonth(int day, int monthsAhead, DateOnly reference)
+    {
+        var month = new DateOnly(reference.Year, reference.Month, 1).AddMonths(monthsAhead);
+        return day >= 1 && day <= DateTime.DaysInMonth(month.Year, month.Month) ? new DateOnly(month.Year, month.Month, day) : null;
     }
 
     private static DateOnly? ResolveMonthDay(string month, int? day, DateOnly reference)

@@ -109,6 +109,21 @@ public class AgendaTests
     }
 
     [Fact]
+    public void ParsesDaysOfTheMonth()
+    {
+        Assert.Equal(Day(11, 22), Parse("there is a driving class on 22nd of the next month"));
+        Assert.Equal(Day(11, 1), Parse("Rent due 1 of next month"));
+        Assert.Equal(Day(10, 28), Parse("Report on the 28th of this month"));
+        Assert.Equal(Day(10, 31), Parse("Pay it by the end of the month"));
+        Assert.Equal(Day(11, 30), Parse("Plan ready end of next month"));
+        Assert.Equal(Day(10, 28), Parse("Class on the 28th"));
+        Assert.Equal(Day(11, 22), Parse("Class on the 22nd")); // already past this month
+        Assert.Equal(Day(10, 26), Parse("Class on the 26th")); // today counts
+        Assert.Null(Parse("Class on 31st of next month")); // November has no 31st
+        Assert.Null(Parse("Buy the 3 apples"));
+    }
+
+    [Fact]
     public void ParsesDayAfterAndIntervals()
     {
         Assert.Equal(Day(10, 28), Parse("Party the day after tomorrow"));

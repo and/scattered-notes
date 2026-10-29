@@ -187,6 +187,9 @@ object AgendaExtractor {
     private val dayMonth = Regex("""\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?""" + MONTH_PATTERN + """\b""", options)
     private val relative = Regex("""\b(today|tonight|tomorrow)\b""", options)
     private val weekday = Regex("""\b(next\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b""", options)
+    private val dayOfMonth = Regex("""\b(\d{1,2})(?:st|nd|rd|th)?\s+of\s+(?:the\s+)?(next|this)\s+month\b""", options)
+    private val endOfMonth = Regex("""\bend\s+of\s+(?:the\s+)?(next\s+|this\s+)?month\b""", options)
+    private val theOrdinal = Regex("""\bthe\s+(\d{1,2})(?:st|nd|rd|th)\b""", options)
     private val dayAfterTomorrow = Regex("""\bday\s+after\s+tomorrow\b""", options)
     private val dayAfter = Regex("""\bday\s+after\b""", options)
     private val inInterval = Regex("""\bin\s+(\d{1,3})\s+(day|week)s?\b""", options)
@@ -213,6 +216,22 @@ object AgendaExtractor {
         dayMonth.find(line)?.let { match ->
             resolveMonthDay(match.groupValues[2], match.groupValues[1].toIntOrNull(), reference)?.let { return it to false }
         }
+        // "22nd of the next month", "22 of this month"
+        dayOfMonth.find(line)?.let { match ->
+            val ahead = if (match.groupValues[2].equals("next", ignoreCase = true)) 1L else 0L
+            inMonth(match.groupValues[1].toInt(), ahead, reference)?.let { return it to true }
+        }
+        // "end of the month", "end of next month"
+        endOfMonth.find(line)?.let { match ->
+            val month = reference.withDayOfMonth(1).plusMonths(if (match.groupValues[1].startsWith("next", ignoreCase = true)) 1 else 0)
+            return month.withDayOfMonth(month.lengthOfMonth()) to true
+        }
+        // "on the 22nd": the next such day of a month, today included
+        theOrdinal.find(line)?.let { match ->
+            for (ahead in 0L..2L) {
+                inMonth(match.groupValues[1].toInt(), ahead, reference)?.takeIf { it >= reference }?.let { return it to true }
+            }
+        }
         if (dayAfterTomorrow.containsMatchIn(line)) return reference.plusDays(2) to true
         // "the day after" continues from the dated line above, e.g. "buy milk today" then "bake the day after"
         if (dayAfter.containsMatchIn(line)) return (previous ?: reference).plusDays(1) to true
@@ -235,6 +254,12 @@ object AgendaExtractor {
         }
         if (nextWeek.containsMatchIn(line)) return reference.plusDays(7) to true
         return null
+    }
+
+    /** The [day] of the month [monthsAhead] months after the one [reference] is in; null when the month has no such day. */
+    private fun inMonth(day: Int, monthsAhead: Long, reference: LocalDate): LocalDate? {
+        val month = reference.withDayOfMonth(1).plusMonths(monthsAhead)
+        return if (day in 1..month.lengthOfMonth()) month.withDayOfMonth(day) else null
     }
 
     private fun resolveMonthDay(month: String, day: Int?, reference: LocalDate): LocalDate? {

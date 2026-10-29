@@ -230,6 +230,12 @@ public enum AgendaExtractor {
     private static let weekdayRegex = try! NSRegularExpression(
         pattern: "\\b(next\\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\\b", options: .caseInsensitive)
 
+    private static let dayOfMonthRegex = try! NSRegularExpression(
+        pattern: "\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+of\\s+(?:the\\s+)?(next|this)\\s+month\\b", options: .caseInsensitive)
+    private static let endOfMonthRegex = try! NSRegularExpression(
+        pattern: "\\bend\\s+of\\s+(?:the\\s+)?(next\\s+|this\\s+)?month\\b", options: .caseInsensitive)
+    private static let theOrdinalRegex = try! NSRegularExpression(
+        pattern: "\\bthe\\s+(\\d{1,2})(?:st|nd|rd|th)\\b", options: .caseInsensitive)
     private static let dayAfterTomorrowRegex = try! NSRegularExpression(
         pattern: "\\bday\\s+after\\s+tomorrow\\b", options: .caseInsensitive)
     private static let dayAfterRegex = try! NSRegularExpression(
@@ -269,6 +275,31 @@ public enum AgendaExtractor {
             }
         }
 
+        // "22nd of the next month", "22 of this month"
+        if let m = dayOfMonthRegex.firstMatch(in: line, range: range), let day = Int(group(m, 1)),
+           let date = dayOfMonth(day, monthsAhead: group(m, 2) == "next" ? 1 : 0, of: reference, calendar: calendar) {
+            return relative(date)
+        }
+
+        // "end of the month", "end of next month"
+        if let m = endOfMonthRegex.firstMatch(in: line, range: range) {
+            let ahead = m.range(at: 1).location != NSNotFound && group(m, 1).hasPrefix("next") ? 1 : 0
+            if let first = dayOfMonth(1, monthsAhead: ahead, of: reference, calendar: calendar),
+               let days = calendar.range(of: .day, in: .month, for: first),
+               let date = dayOfMonth(days.count, monthsAhead: ahead, of: reference, calendar: calendar) {
+                return relative(date)
+            }
+        }
+
+        // "on the 22nd": the next such day of a month, today included
+        if let m = theOrdinalRegex.firstMatch(in: line, range: range), let day = Int(group(m, 1)) {
+            for ahead in 0...2 {
+                if let date = dayOfMonth(day, monthsAhead: ahead, of: reference, calendar: calendar), date >= reference {
+                    return relative(date)
+                }
+            }
+        }
+
         if dayAfterTomorrowRegex.firstMatch(in: line, range: range) != nil {
             return relative(calendar.date(byAdding: .day, value: 2, to: reference))
         }
@@ -302,6 +333,18 @@ public enum AgendaExtractor {
         }
 
         return nil
+    }
+
+    /// The `day` of the month `monthsAhead` months after the one `reference` is in; nil when the month has no such day.
+    private static func dayOfMonth(_ day: Int, monthsAhead: Int, of reference: Date, calendar: Calendar) -> Date? {
+        guard (1...31).contains(day),
+              let thisMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: reference)),
+              let month = calendar.date(byAdding: .month, value: monthsAhead, to: thisMonth) else { return nil }
+        var parts = calendar.dateComponents([.year, .month], from: month)
+        parts.day = day
+        guard let date = calendar.date(from: parts),
+              calendar.component(.month, from: date) == calendar.component(.month, from: month) else { return nil }
+        return date
     }
 
     private static func relative(_ date: Date?) -> (date: Date, isRelative: Bool)? {

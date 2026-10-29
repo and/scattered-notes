@@ -78,6 +78,22 @@ class AgendaTests {
     }
 
     @Test
+    fun parsesDaysOfTheMonth() {
+        val reference = day(10, 26)
+        fun parse(line: String) = AgendaExtractor.parseDate(line, reference)
+        assertEquals(day(11, 22), parse("there is a driving class on 22nd of the next month"))
+        assertEquals(day(11, 1), parse("Rent due 1 of next month"))
+        assertEquals(day(10, 28), parse("Report on the 28th of this month"))
+        assertEquals(day(10, 31), parse("Pay it by the end of the month"))
+        assertEquals(day(11, 30), parse("Plan ready end of next month"))
+        assertEquals(day(10, 28), parse("Class on the 28th"))
+        assertEquals(day(11, 22), parse("Class on the 22nd"))
+        assertEquals(day(10, 26), parse("Class on the 26th"))
+        assertNull(parse("Class on 31st of next month"))
+        assertNull(parse("Buy the 3 apples"))
+    }
+
+    @Test
     fun tickingAPlainLineMakesItAChecklistItem() {
         assertEquals("a\n- [x] fix the screen bug\r\nb", Checklist.toggleLine(1, "a\nfix the screen bug\r\nb"))
         assertEquals("  - [ ] Pay rent", Checklist.toggleLine(0, "  - [x] Pay rent"))
