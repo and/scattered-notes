@@ -214,6 +214,25 @@ final class MacAppUITests: XCTestCase {
         XCTAssertTrue(app.textViews["noteText"].waitForExistence(timeout: 5), "right then down opens the project's first note")
     }
 
+    func testArrowKeysKeepWorkingInTheProjectListAfterTheDashboard() throws {
+        try writeNote("Kickoff notes for the project", in: "Projects/Work")
+        launch()
+        openNote(titled: "Kickoff notes for the project")
+        app.typeKey(.leftArrow, modifierFlags: [])
+        XCTAssertTrue(text("Work Dashboard").waitForExistence(timeout: 5))
+
+        // Work, Inbox, All Notes, Dashboard
+        for _ in 0..<3 {
+            app.typeKey(.upArrow, modifierFlags: [])
+            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        }
+        XCTAssertFalse(app.textFields["Search notes or #tags..."].exists, "the Dashboard has no note list")
+
+        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+        app.typeKey(.downArrow, modifierFlags: [])
+        XCTAssertTrue(app.textFields["Search notes or #tags..."].waitForExistence(timeout: 5), "down from the Dashboard reaches All Notes")
+    }
+
     func testTickingTodaysLastTaskShowsTheSunAndCompletedCanBeHidden() throws {
         try writeNote("- [ ] water the plants today\n- [ ] call mum")
         launch()

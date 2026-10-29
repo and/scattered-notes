@@ -44,7 +44,12 @@ public struct MainSplitView: View {
                 onClose: { showingSearch = false }
             )
         }
-        .onChange(of: sidebarSelection) { _, selection in
+        .onChange(of: sidebarSelection) { old, selection in
+            // The Dashboard has two columns and the rest three, so the sidebar is rebuilt when moving
+            // between them and loses the keyboard; give it back so the arrow keys keep working
+            if (old == .dashboard) != (selection == .dashboard), sidebarHasFocus {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focusRequest = .sidebar }
+            }
             // A project or area opens on its own dashboard
             if selection.hasOwnDashboard {
                 selectedNote = nil
