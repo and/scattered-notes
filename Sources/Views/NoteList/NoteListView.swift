@@ -250,7 +250,12 @@ public struct NoteListView: View {
     private func moveSelection(by step: Int, proxy: ScrollViewProxy) {
         let notes = filteredNotes
         guard !notes.isEmpty else { return }
-        let current = notes.firstIndex { $0.id == selectedNote?.id } ?? (step > 0 ? -1 : notes.count)
+        let current = notes.firstIndex { $0.id == selectedNote?.id } ?? (step > 0 || selectedCategory.hasOwnDashboard ? -1 : notes.count)
+        // Up from the first note goes to the dashboard row above the list, and stays there
+        if step < 0, current <= 0, selectedCategory.hasOwnDashboard {
+            selectedNote = nil
+            return
+        }
         let next = notes[min(max(current + step, 0), notes.count - 1)]
         selectedNote = next
         proxy.scrollTo(next.id)
