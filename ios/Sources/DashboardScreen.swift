@@ -4,6 +4,8 @@ import SwiftUI
 struct DashboardScreen: View {
     @ObservedObject private var storage = NoteStorageManager.shared
     @State private var isCapturing = false
+    /// Everything ticked earlier starts folded away
+    @AppStorage("dashboard.completedExpanded") private var completedExpanded = false
 
     private let upcomingDays = 14
 
@@ -49,6 +51,13 @@ struct DashboardScreen: View {
                 ForEach(snapshot.undatedTodosByNote, id: \.note.id) { group in
                     Section(group.note.displayTitle) {
                         rows(group.items, in: snapshot, showNote: false)
+                    }
+                }
+                if !snapshot.completed.isEmpty {
+                    Section {
+                        DisclosureGroup("Completed (\(snapshot.completed.count))", isExpanded: $completedExpanded) {
+                            rows(snapshot.completed, in: snapshot)
+                        }
                     }
                 }
             }

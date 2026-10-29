@@ -18,6 +18,8 @@ data class Dashboard(
     /** Open to-dos without a date, grouped by note, most recently updated note first. */
     val undatedTodos: List<Pair<Note, List<AgendaItem>>>,
     val openTodoCount: Int,
+    /** Ticked items the sections above do not show, newest tick first; ones with no ✅ day come last. */
+    val completed: List<AgendaItem>,
     val notesById: Map<UUID, Note>,
 ) {
     val upcomingCount: Int get() = upcoming.sumOf { it.second.size }
@@ -44,6 +46,14 @@ data class Dashboard(
                     .mapNotNull { (id, group) -> notesById[id]?.let { it to group.sortedBy { item -> item.lineIndex } } }
                     .sortedByDescending { it.first.updatedAt },
                 openTodoCount = items.count { it.isTodo && !it.isDone },
+                completed = items
+                    .filter { it.isDone && it.date != today }
+                    .sortedWith(
+                        compareByDescending<AgendaItem> { it.doneOn?.toEpochDay() ?: Long.MIN_VALUE }
+                            .thenByDescending { notesById[it.noteId]?.updatedAt }
+                            .thenBy { it.noteId }
+                            .thenBy { it.lineIndex },
+                    ),
                 notesById = notesById,
             )
         }

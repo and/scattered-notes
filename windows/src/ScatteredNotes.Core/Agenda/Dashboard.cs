@@ -18,6 +18,8 @@ public sealed class Dashboard
     /// <summary>Open to-dos without a date, grouped by note, most recently updated note first.</summary>
     public required List<(Note Note, List<AgendaItem> Items)> UndatedTodos { get; init; }
     public required int OpenTodoCount { get; init; }
+    /// <summary>Ticked items the sections above do not show, newest tick first; ones with no <c>✅</c> day come last.</summary>
+    public required List<AgendaItem> Completed { get; init; }
 
     public int DueTodayOpenCount => DueToday.Count(i => !i.IsDone);
     public int UpcomingCount => Upcoming.Sum(g => g.Items.Count);
@@ -46,6 +48,13 @@ public sealed class Dashboard
                 .OrderByDescending(g => g.Item1.UpdatedAt)
                 .ToList(),
             OpenTodoCount = items.Count(i => i.IsTodo && !i.IsDone),
+            Completed = items
+                .Where(i => i.IsDone && i.Date != today)
+                .OrderByDescending(i => i.DoneOn)
+                .ThenByDescending(i => notesById.TryGetValue(i.NoteId, out var note) ? note.UpdatedAt : DateTimeOffset.MinValue)
+                .ThenBy(i => i.NoteId)
+                .ThenBy(i => i.LineIndex)
+                .ToList(),
         };
     }
 

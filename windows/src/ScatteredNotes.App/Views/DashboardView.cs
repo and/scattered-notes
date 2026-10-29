@@ -17,6 +17,8 @@ internal sealed class DashboardView : UserControl
     private readonly StackPanel _panel = new() { Spacing = 24, Margin = new Thickness(32, 28), MaxWidth = 760 };
     private readonly DispatcherTimer _midnight = new() { Interval = TimeSpan.FromMinutes(1) };
     private DateOnly _renderedDay;
+    /// <summary>The list of everything ticked earlier starts folded away.</summary>
+    private bool _completedExpanded;
 
     public DashboardView(AppState state)
     {
@@ -84,6 +86,46 @@ internal sealed class DashboardView : UserControl
             }
             _panel.Children.Add(Section("To-do", Symbol.CheckboxChecked, "WcagGreen", rows));
         }
+
+        if (dashboard.Completed.Count > 0) _panel.Children.Add(CompletedSection(dashboard, byId, today));
+    }
+
+    /// <summary>Everything ticked that the sections above do not show, folded away until asked for.</summary>
+    private Control CompletedSection(Dashboard dashboard, Dictionary<Guid, Note> byId, DateOnly today)
+    {
+        var header = new Button
+        {
+            Classes = { "link" },
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Content = Ui.Row(8,
+                Ui.Icon(_completedExpanded ? Symbol.ChevronDown : Symbol.ChevronRight, 12, "WcagSecondaryText"),
+                Ui.Icon(Symbol.CheckmarkCircle, 18, "WcagGreen", IconVariant.Filled),
+                Ui.Text("Completed", 18, FontWeight.SemiBold),
+                Ui.Text(dashboard.Completed.Count.ToString(CultureInfo.CurrentCulture), 13, brushKey: "WcagSecondaryText")),
+        };
+        ToolTip.SetTip(header, _completedExpanded ? "Hide completed items" : "Show completed items");
+        Avalonia.Automation.AutomationProperties.SetName(header, $"Completed, {dashboard.Completed.Count}, {(_completedExpanded ? "expanded" : "collapsed")}");
+        header.Click += (_, _) =>
+        {
+            _completedExpanded = !_completedExpanded;
+            Render();
+        };
+
+        var section = new StackPanel { Spacing = 8 };
+        section.Children.Add(header);
+        if (_completedExpanded)
+        {
+            var rows = new List<Control>();
+            string? label = null;
+            foreach (var item in dashboard.Completed)
+            {
+                var group = item.DoneOn is { } day ? Dashboard.DayLabel(day, today) : "Earlier";
+                if (group != label) rows.Add(GroupLabel(label = group));
+                rows.Add(Row(item, byId, null));
+            }
+            section.Children.Add(Card(rows));
+        }
+        return section;
     }
 
     private Control Header(Dashboard dashboard)
@@ -117,18 +159,22 @@ internal sealed class DashboardView : UserControl
             Child = Ui.Row(5, Ui.Text(value.ToString(CultureInfo.CurrentCulture), 13, FontWeight.SemiBold, value > 0 ? brush : "WcagSecondaryText"), Ui.Text(label, 13, brushKey: "WcagSecondaryText")),
         };
 
-    private static Control Section(string title, Symbol symbol, string brush, IEnumerable<Control> rows)
+    private static Border Card(IEnumerable<Control> rows)
     {
         var list = new StackPanel { Spacing = 0 };
         list.Children.AddRange(rows);
-        var card = new Border
+        return new Border
         {
             CornerRadius = new CornerRadius(12),
             BorderThickness = new Thickness(1),
             Padding = new Thickness(6),
             Child = list,
         }.Themed(Border.BackgroundProperty, "CardBackground").Themed(Border.BorderBrushProperty, "CardBorder");
+    }
 
+    private static Control Section(string title, Symbol symbol, string brush, IEnumerable<Control> rows)
+    {
+        var card = Card(rows);
         var section = new StackPanel { Spacing = 8 };
         section.Children.Add(Ui.Row(8, Ui.Icon(symbol, 18, brush, IconVariant.Filled), Ui.Text(title, 18, FontWeight.SemiBold)));
         section.Children.Add(card);

@@ -340,4 +340,27 @@ final class AgendaTests: XCTestCase {
         XCTAssertEqual(note.displayTitle, "do this tomorrow")
         XCTAssertEqual(note.previewExcerpt, "do this tomorrow - [x] check linkedin today")
     }
+
+    func testCompletedListsEveryTickedItemNotShownInPlaceNewestFirst() {
+        let note = Note(title: "Errands", updatedAt: monday)
+        let today = day(10, 26)
+        func item(_ line: Int, done: Bool, date: Date? = nil, doneOn: Date? = nil) -> AgendaItem {
+            AgendaItem(noteID: note.id, lineIndex: line, text: "item \(line)", isTodo: true, isDone: done,
+                       date: date, writtenOn: today, doneOn: doneOn)
+        }
+        let items = [
+            item(0, done: true, doneOn: day(10, 20)),
+            item(1, done: true),                               // no tick day
+            item(2, done: true, doneOn: day(10, 25)),
+            item(3, done: true, date: today, doneOn: today),   // planned today, shown in place
+            item(4, done: false),
+        ]
+        let snapshot = DashboardSnapshot(notes: [note], items: items, today: today, upcomingDays: 14, calendar: calendar,
+                                         doneToday: [items[3].id], showCompleted: true)
+        XCTAssertEqual(snapshot.completed.map(\.lineIndex), [2, 0, 1])
+
+        let hidden = DashboardSnapshot(notes: [note], items: items, today: today, upcomingDays: 14, calendar: calendar,
+                                       doneToday: [items[3].id], showCompleted: false)
+        XCTAssertEqual(hidden.completed.map(\.lineIndex), [3, 2, 0, 1], "ticked items hidden in place are still listed")
+    }
 }

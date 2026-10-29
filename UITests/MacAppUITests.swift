@@ -233,6 +233,18 @@ final class MacAppUITests: XCTestCase {
         XCTAssertTrue(app.textFields["Search notes or #tags..."].waitForExistence(timeout: 5), "down from the Dashboard reaches All Notes")
     }
 
+    func testCompletedItemsAreFoldedAwayUntilAsked() throws {
+        try writeNote("- [x] send the form ✅ 2026-10-20\nKickoff notes", in: "Projects/Work")
+        launch()
+        sidebarItem("Work").click()
+        let completed = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Completed'")).firstMatch
+        XCTAssertTrue(completed.waitForExistence(timeout: 5), "an older ticked item has a Completed section")
+        XCTAssertFalse(app.buttons["Mark send the form as not done"].exists, "folded away to begin with")
+
+        completed.click()
+        XCTAssertTrue(app.buttons["Mark send the form as not done"].waitForExistence(timeout: 5))
+    }
+
     func testTickingTodaysLastTaskShowsTheSunAndCompletedCanBeHidden() throws {
         try writeNote("- [ ] water the plants today\n- [ ] call mum")
         launch()

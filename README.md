@@ -142,6 +142,8 @@ It reads every note and lists the lines that need action:
 
 **Relative words use the day you wrote the line**, not the day the note was created or last opened. When a note is saved, the app writes the day into the line, like `call the bank tomorrow 📅 2026-10-27`, and `✅ 2026-10-28` when you tick it (the format the Obsidian Tasks plugin uses). So the date is in the file, any other app can read it, and editing or rewording a line later never moves it. Edit the date in the marker if you want a different day; the marker wins over the words. A line written in another app has no marker until the note is next saved in Scattered Notes; until then it is dated from when the note was last updated.
 
+**Completed items** are listed in a folded **Completed** section at the bottom of every dashboard, newest tick first, each under the day it was ticked (from its `✅` marker). Ticked items from before the markers existed are listed under **Earlier**. Click the heading to open it; unticking an item there puts it back among the open ones.
+
 **Project dashboards**: selecting a project or area in the sidebar opens a dashboard with only that project's to-dos and dates. Open a note from the list to edit it; **<Project> Dashboard** at the top of the list brings the dashboard back.
 
 **Completing items**: click the circle next to an item on the dashboard or in the note's agenda column (right margin of the editor, toggled with the sidebar button). Completing a plain dated line turns it into a checked item (`- [x] ...`) in the note.

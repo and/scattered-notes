@@ -73,4 +73,24 @@ public class QuickCaptureAndDashboardTests
         Assert.Equal("Monday", Dashboard.DayLabel(new DateOnly(2026, 11, 2), today, culture));
         Assert.Equal("Tue, 3 Nov", Dashboard.DayLabel(new DateOnly(2026, 11, 3), today, culture));
     }
+
+    [Fact]
+    public void CompletedListsEveryTickedItemNotShownInPlaceNewestFirst()
+    {
+        var today = new DateOnly(2026, 10, 27);
+        var id = Guid.NewGuid();
+        AgendaItem Item(int line, DateOnly? date, DateOnly? doneOn) => new(id, line, $"line {line}", true, true, date, today, doneOn);
+        var note = new Note { Id = id, Title = "n" };
+        var items = new[]
+        {
+            Item(0, null, today.AddDays(-6)),
+            Item(1, null, null),
+            Item(2, null, today.AddDays(-1)),
+            Item(3, today, today), // dated today: shown in place
+        };
+
+        var dashboard = Dashboard.Build([note], items, today);
+
+        Assert.Equal([2, 0, 1], dashboard.Completed.Select(i => i.LineIndex));
+    }
 }

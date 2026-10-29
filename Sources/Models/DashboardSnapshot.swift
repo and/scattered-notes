@@ -9,6 +9,8 @@ public struct DashboardSnapshot: Sendable {
     public let upcomingByDay: [(day: Date, items: [AgendaItem])]
     public let undatedTodosByNote: [(note: Note, items: [AgendaItem])]
     public let openTodoCount: Int
+    /// Ticked items the sections above do not show, newest tick first; ones with no `✅` day come last
+    public let completed: [AgendaItem]
     /// Items ticked today, including ones hidden by `showCompleted`
     public let completedTodayCount: Int
     /// Items planned for today that are ticked, including hidden ones
@@ -52,6 +54,19 @@ public struct DashboardSnapshot: Sendable {
             .compactMap { id, items in lookup[id].map { (note: $0, items: items.sorted { $0.lineIndex < $1.lineIndex }) } }
             .sorted { $0.note.updatedAt > $1.note.updatedAt }
         openTodoCount = items.filter { $0.isTodo && !$0.isDone }.count
+        let inPlace = Set((overdue + dueToday + undated).map(\.id))
+        completed = items
+            .filter { $0.isDone && !inPlace.contains($0.id) }
+            .sorted { a, b in
+                switch (a.doneOn, b.doneOn) {
+                case let (x?, y?) where x != y: return x > y
+                case (_?, nil): return true
+                case (nil, _?): return false
+                default:
+                    let (ua, ub) = (lookup[a.noteID]?.updatedAt ?? .distantPast, lookup[b.noteID]?.updatedAt ?? .distantPast)
+                    return ua != ub ? ua > ub : (a.noteID == b.noteID ? a.lineIndex < b.lineIndex : a.noteID.uuidString < b.noteID.uuidString)
+                }
+            }
         doneForTodayCount = datedToday.filter(\.isDone).count
         completedTodayCount = doneToday.union(datedToday.filter(\.isDone).map(\.id)).count
     }

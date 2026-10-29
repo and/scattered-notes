@@ -13,6 +13,8 @@ public struct DashboardView: View {
     @ObservedObject private var highlight = NoteHighlight.shared
     /// Whether items ticked today stay on the dashboard, struck through
     @AppStorage("dashboard.showCompleted") private var showCompleted = true
+    /// The list of everything ticked earlier starts folded away
+    @AppStorage("dashboard.completedExpanded") private var completedExpanded = false
 
     /// `.dashboard` for every note, or a project or area for only its notes
     var scope: SidebarSelection
@@ -111,6 +113,8 @@ public struct DashboardView: View {
                         }
                     }
 
+                    completedSection(snapshot)
+
                     if scope.hasOwnDashboard {
                         notesLog(snapshot.notesByID.values)
                     }
@@ -126,7 +130,7 @@ public struct DashboardView: View {
     }
 
     /// The sections the summary chips scroll to
-    private enum Section { case overdue, today, upcoming, todos }
+    private enum Section { case overdue, today, upcoming, todos, completed }
 
     private func scopedSnapshot() -> DashboardSnapshot {
         var notes = storageManager.notes
@@ -229,6 +233,65 @@ public struct DashboardView: View {
             }
             .onDisappear { highlight.noteID = nil }
         }
+    }
+
+    /// Everything ticked that the sections above do not show, folded away until asked for
+    @ViewBuilder
+    private func completedSection(_ snapshot: DashboardSnapshot) -> some View {
+        if !snapshot.completed.isEmpty {
+            let groups = completedGroups(snapshot.completed)
+            VStack(alignment: .leading, spacing: 4) {
+                Button(action: { withAnimation { completedExpanded.toggle() } }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: completedExpanded ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .frame(width: 12)
+                        Image(systemName: "checkmark.circle.fill")
+                            .prominenceAwareColor(.wcagGreen)
+                        Text("Completed")
+                            .font(.title3.weight(.semibold))
+                        Text("\(snapshot.completed.count)")
+                            .font(.callout)
+                            .foregroundColor(.wcagSecondaryText)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Completed, \(snapshot.completed.count)")
+                .accessibilityValue(completedExpanded ? "expanded" : "collapsed")
+                .help(completedExpanded ? "Hide completed items" : "Show completed items")
+
+                if completedExpanded {
+                    ForEach(groups, id: \.label) { group in
+                        Text(group.label)
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.wcagSecondaryText)
+                            .padding(.horizontal, 10)
+                            .padding(.top, 10)
+                            .padding(.bottom, 2)
+                        ForEach(group.items) { item in
+                            row(item, note: snapshot.notesByID[item.noteID], showDate: false)
+                        }
+                    }
+                }
+            }
+            .id(Section.completed)
+        }
+    }
+
+    /// Completed items under the day they were ticked; ones without a day under "Earlier"
+    private func completedGroups(_ items: [AgendaItem]) -> [(label: String, items: [AgendaItem])] {
+        var groups: [(label: String, items: [AgendaItem])] = []
+        for item in items {
+            let label = item.doneOn.map(dayLabel) ?? "Earlier"
+            if let last = groups.indices.last, groups[last].label == label {
+                groups[last].items.append(item)
+            } else {
+                groups.append((label, [item]))
+            }
+        }
+        return groups
     }
 
     private func row(_ item: AgendaItem, note: Note?, showDate: Bool) -> some View {

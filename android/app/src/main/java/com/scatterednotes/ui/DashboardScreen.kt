@@ -24,11 +24,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -49,6 +55,8 @@ fun DashboardScreen(
 ) {
     val today = LocalDate.now()
     val dashboard = Dashboard.build(state.notes, state.agenda, today)
+    // Everything ticked earlier starts folded away
+    var completedExpanded by rememberSaveable { mutableStateOf(false) }
 
     Box(modifier.fillMaxSize()) {
         PullToRefreshBox(isRefreshing = false, onRefresh = model::reload) {
@@ -73,6 +81,29 @@ fun DashboardScreen(
                 }
                 dashboard.undatedTodos.forEach { (note, items) ->
                     section(note.displayTitle, items, dashboard, model, onOpenNote, showNote = false)
+                }
+                if (dashboard.completed.isNotEmpty()) {
+                    item(key = "completed-header") {
+                        Text(
+                            (if (completedExpanded) "▾ " else "▸ ") + "Completed (${dashboard.completed.size})",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { completedExpanded = !completedExpanded }
+                                .semantics { stateDescription = if (completedExpanded) "expanded" else "collapsed" }
+                                .padding(top = 12.dp, start = 4.dp, bottom = 4.dp),
+                        )
+                    }
+                    if (completedExpanded) {
+                        items(dashboard.completed, key = { "completed-${it.id}" }) { item ->
+                            val caption = listOfNotNull(
+                                item.doneOn?.let { Dashboard.dayLabel(it, dashboard.today) } ?: "Earlier",
+                                dashboard.notesById[item.noteId]?.displayTitle,
+                            ).joinToString(" · ")
+                            AgendaRow(item, caption, onToggle = { model.toggle(item) }, onOpen = { onOpenNote(item.noteId) })
+                        }
+                    }
                 }
             }
         }

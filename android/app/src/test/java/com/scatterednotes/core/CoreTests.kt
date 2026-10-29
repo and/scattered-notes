@@ -94,6 +94,17 @@ class AgendaTests {
     }
 
     @Test
+    fun completedListsEveryTickedItemNotShownInPlaceNewestFirst() {
+        val note = Note(content = "x", createdAt = monday, updatedAt = monday)
+        val today = day(10, 26)
+        fun item(line: Int, date: LocalDate?, doneOn: LocalDate?) =
+            AgendaItem(note.id, line, "line $line", true, true, date, today, doneOn)
+        val items = listOf(item(0, null, day(10, 20)), item(1, null, null), item(2, null, day(10, 25)), item(3, today, today))
+        val dashboard = Dashboard.build(listOf(note), items, today)
+        assertEquals(listOf(2, 0, 1), dashboard.completed.map { it.lineIndex })
+    }
+
+    @Test
     fun tickingAPlainLineMakesItAChecklistItem() {
         assertEquals("a\n- [x] fix the screen bug\r\nb", Checklist.toggleLine(1, "a\nfix the screen bug\r\nb"))
         assertEquals("  - [ ] Pay rent", Checklist.toggleLine(0, "  - [x] Pay rent"))
