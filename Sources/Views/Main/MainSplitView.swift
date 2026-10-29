@@ -7,6 +7,7 @@ public struct MainSplitView: View {
     @State private var sidebarSelection: SidebarSelection = .dashboard
     @State private var selectedNote: Note? = nil
     @State private var showingSearch = false
+    @State private var focusRequest: MainPane?
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     
     public init() {}
@@ -90,7 +91,8 @@ public struct MainSplitView: View {
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 sidebar
             } content: {
-                NoteListView(selectedCategory: sidebarSelection, selectedNote: $selectedNote)
+                NoteListView(selectedCategory: sidebarSelection, selectedNote: $selectedNote,
+                             focusRequest: $focusRequest, onMoveLeft: moveToSidebar)
                     .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 400)
             } detail: {
                 detailView
@@ -99,8 +101,16 @@ public struct MainSplitView: View {
     }
 
     private var sidebar: some View {
-        SidebarView(selection: $sidebarSelection)
+        SidebarView(selection: $sidebarSelection, focusRequest: $focusRequest, onMoveRight: { focusRequest = .list })
             .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
+    }
+
+    /// Left arrow from the notes: to the project list, on the note's own project when All Notes is open
+    private func moveToSidebar() {
+        if sidebarSelection == .all, let note = selectedNote, note.categoryType == .project, let name = note.targetName {
+            sidebarSelection = .project(name: name)
+        }
+        focusRequest = .sidebar
     }
 
     @ViewBuilder

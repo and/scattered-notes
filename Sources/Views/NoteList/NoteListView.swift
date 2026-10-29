@@ -12,15 +12,26 @@ public struct NoteListView: View {
     
     var selectedCategory: SidebarSelection
     @Binding var selectedNote: Note?
+    /// Set to `.list` to move keyboard focus here; cleared once it has
+    @Binding var focusRequest: MainPane?
+    /// Left arrow: back to the project list
+    var onMoveLeft: () -> Void = {}
     
     @State private var searchText: String = ""
     @State private var sortOption: NoteSortOption = .dateUpdated
     @FocusState private var listFocused: Bool
     @FocusState private var searchFocused: Bool
     
-    public init(selectedCategory: SidebarSelection, selectedNote: Binding<Note?>) {
+    public init(
+        selectedCategory: SidebarSelection,
+        selectedNote: Binding<Note?>,
+        focusRequest: Binding<MainPane?> = .constant(nil),
+        onMoveLeft: @escaping () -> Void = {}
+    ) {
         self.selectedCategory = selectedCategory
         self._selectedNote = selectedNote
+        self._focusRequest = focusRequest
+        self.onMoveLeft = onMoveLeft
     }
     
     private var isProject: Bool {
@@ -179,6 +190,12 @@ public struct NoteListView: View {
                     .focused($listFocused)
                     .onKeyPress(.downArrow) { moveSelection(by: 1, proxy: proxy); return .handled }
                     .onKeyPress(.upArrow) { moveSelection(by: -1, proxy: proxy); return .handled }
+                    .onKeyPress(.leftArrow) { onMoveLeft(); return .handled }
+                    .onChange(of: focusRequest) { _, request in
+                        guard request == .list else { return }
+                        listFocused = true
+                        focusRequest = nil
+                    }
                     .onKeyPress(.return) {
                         guard let note = selectedNote else { return .ignored }
                         EditorFocus.request(noteID: note.id, terms: NoteSearch.terms(in: searchText))
@@ -192,7 +209,8 @@ public struct NoteListView: View {
     
     /// Opens the project's or area's dashboard, which shows whenever no note is selected
     private var dashboardRow: some View {
-        let isSelected = selectedNote == nil
+        // Not drawn as selected while the cursor is in the search box, so it does not look like it has the focus
+        let isSelected = selectedNote == nil && !searchFocused
         return Button(action: { selectedNote = nil }) {
             Label("\(selectedCategory.title) Dashboard", systemImage: "square.grid.2x2")
                 .font(.callout.weight(.medium))

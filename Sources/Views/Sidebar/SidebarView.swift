@@ -39,16 +39,28 @@ public enum SidebarSelection: Hashable {
     }
 }
 
+/// A pane the keyboard can move to, so the arrow keys walk between the project list, the notes and back
+public enum MainPane: Hashable {
+    case sidebar, list
+}
+
 public struct SidebarView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
     
     @Binding var selection: SidebarSelection
+    /// Set to `.sidebar` to move keyboard focus here; cleared once it has
+    @Binding var focusRequest: MainPane?
+    /// Right arrow: carry on into the notes of the selected project
+    var onMoveRight: () -> Void = {}
+    @FocusState private var sidebarFocused: Bool
     @State private var showingNewProjectDialog: Bool = false
     @State private var itemToDelete: ProjectArea? = nil
     @State private var showingDeleteAlert: Bool = false
     
-    public init(selection: Binding<SidebarSelection>) {
+    public init(selection: Binding<SidebarSelection>, focusRequest: Binding<MainPane?> = .constant(nil), onMoveRight: @escaping () -> Void = {}) {
         self._selection = selection
+        self._focusRequest = focusRequest
+        self.onMoveRight = onMoveRight
     }
 
     /// Each name used for one kind of mark across all notes, with how many notes use it, sorted by
@@ -191,6 +203,13 @@ public struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .focused($sidebarFocused)
+        .onKeyPress(.rightArrow) { onMoveRight(); return .handled }
+        .onChange(of: focusRequest) { _, request in
+            guard request == .sidebar else { return }
+            sidebarFocused = true
+            focusRequest = nil
+        }
         .safeAreaInset(edge: .bottom) {
             HStack {
                 SettingsLink {
