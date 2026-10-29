@@ -16,6 +16,7 @@ public struct NoteListView: View {
     @State private var searchText: String = ""
     @State private var sortOption: NoteSortOption = .dateUpdated
     @FocusState private var listFocused: Bool
+    @FocusState private var searchFocused: Bool
     
     public init(selectedCategory: SidebarSelection, selectedNote: Binding<Note?>) {
         self.selectedCategory = selectedCategory
@@ -70,6 +71,13 @@ public struct NoteListView: View {
                             .foregroundColor(.wcagSecondaryText)
                         TextField("Search notes or #tags...", text: $searchText)
                             .onSubmit { openFirstMatch() }
+                            .focused($searchFocused)
+                            .onKeyPress(.downArrow) {
+                                // Back into the list: the dashboard row when there is one, else the first note
+                                listFocused = true
+                                if !selectedCategory.hasOwnDashboard, selectedNote == nil { selectedNote = filteredNotes.first }
+                                return .handled
+                            }
                             .textFieldStyle(.plain)
                         if !searchText.isEmpty {
                             Button(action: { searchText = "" }) {
@@ -251,9 +259,13 @@ public struct NoteListView: View {
         let notes = filteredNotes
         guard !notes.isEmpty else { return }
         let current = notes.firstIndex { $0.id == selectedNote?.id } ?? (step > 0 || selectedCategory.hasOwnDashboard ? -1 : notes.count)
-        // Up from the first note goes to the dashboard row above the list, and stays there
-        if step < 0, current <= 0, selectedCategory.hasOwnDashboard {
-            selectedNote = nil
+        // Up from the first note goes to the dashboard row above the list, and up again to the search box
+        if step < 0, current <= 0 {
+            if selectedCategory.hasOwnDashboard, selectedNote != nil {
+                selectedNote = nil
+            } else {
+                searchFocused = true
+            }
             return
         }
         let next = notes[min(max(current + step, 0), notes.count - 1)]

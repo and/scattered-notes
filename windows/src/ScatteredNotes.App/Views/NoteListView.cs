@@ -36,6 +36,14 @@ internal sealed class NoteListView : UserControl
         _search.TextChanged += (_, _) => Refresh();
         _search.KeyDown += (_, e) =>
         {
+            if (e.Key == Key.Down && _list!.ItemCount > 0)
+            {
+                // Back into the list
+                _list.Focus();
+                if (_list.SelectedItem is null) _list.SelectedIndex = 0;
+                e.Handled = true;
+                return;
+            }
             if (e.Key != Key.Enter) return;
             OpenFirstMatch();
             e.Handled = true;
@@ -63,6 +71,13 @@ internal sealed class NoteListView : UserControl
         };
         _list.KeyDown += (_, e) =>
         {
+            if (e.Key == Key.Up && _list.SelectedIndex <= 0)
+            {
+                // Up from the first note goes to the search box
+                _search.Focus();
+                e.Handled = true;
+                return;
+            }
             if (e.Key != Key.Enter || _state.SelectedNote is not { } note) return;
             _state.OpenNote(note, NoteSearch.Terms(_search.Text ?? ""));
             e.Handled = true;
