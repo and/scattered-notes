@@ -258,4 +258,21 @@ public class AgendaTests
         Assert.Equal([true, false], after.Select(i => i.IsDone));
         Assert.Equal(before.Select(i => i.Date), after.Select(i => i.Date)); // completing must not move the date
     }
+
+    [Fact]
+    public void FrontmatterFromOtherAppsSurvivesASave()
+    {
+        const string raw = "---\nid: 7C1F3A52-1111-4B5B-9C8E-1234567890AB\ntitle: \"Trip\"\naliases:\n  - Holiday\n  - \"Trip 2026\"\ncssclasses: wide\ntags:\n  - travel\n  - \"#plans\"\nrating: 4\n---\n\nbody";
+        var note = NoteFormat.Parse(raw);
+        Assert.Equal(["travel", "plans"], note.Tags);
+        Assert.Equal("aliases:\n  - Holiday\n  - \"Trip 2026\"\ncssclasses: wide\nrating: 4", note.ExtraFrontmatter);
+
+        var saved = NoteFormat.Serialize(note);
+        Assert.Contains("\naliases:\n  - Holiday\n  - \"Trip 2026\"\ncssclasses: wide\nrating: 4\n---\n\nbody", saved);
+        Assert.Equal(2, saved.Split("\ntags:").Length);
+        var again = NoteFormat.Parse(saved);
+        Assert.Equal(note.ExtraFrontmatter, again.ExtraFrontmatter);
+        Assert.Equal(note.Tags, again.Tags);
+        Assert.Equal(saved, NoteFormat.Serialize(again));
+    }
 }

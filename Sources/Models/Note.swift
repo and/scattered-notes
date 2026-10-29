@@ -11,6 +11,8 @@ public struct Note: Identifiable, Hashable, Sendable {
     public var tags: [String]
     public var filePath: URL?
     public var isPinned: Bool
+    /// Frontmatter lines the app does not use, e.g. Obsidian properties, kept as written and saved back unchanged
+    public var extraFrontmatter: String
     
     public init(
         id: UUID = UUID(),
@@ -22,7 +24,8 @@ public struct Note: Identifiable, Hashable, Sendable {
         updatedAt: Date = Date(),
         tags: [String] = [],
         filePath: URL? = nil,
-        isPinned: Bool = false
+        isPinned: Bool = false,
+        extraFrontmatter: String = ""
     ) {
         self.id = id
         self.title = title
@@ -34,6 +37,7 @@ public struct Note: Identifiable, Hashable, Sendable {
         self.tags = tags
         self.filePath = filePath
         self.isPinned = isPinned
+        self.extraFrontmatter = extraFrontmatter
     }
     
     public var displayTitle: String {
@@ -182,6 +186,9 @@ extension Note {
             let tagsJoined = tags.map { "\"\($0)\"" }.joined(separator: ", ")
             fm += "tags: [\(tagsJoined)]\n"
         }
+        if !extraFrontmatter.isEmpty {
+            fm += extraFrontmatter + "\n"
+        }
         fm += "---\n\n"
         return fm + content
     }
@@ -220,6 +227,14 @@ extension Note {
         return nil
     }
     
+    private static let appKeys: Set<String> = ["id", "title", "type", "target", "created_at", "updated_at", "pinned", "tags"]
+
+    /// Whether a frontmatter line begins a property: a key at the start of the line followed by ":".
+    private static func startsProperty(_ line: String) -> Bool {
+        guard let first = line.first, first.isLetter || first == "_", let colon = line.firstIndex(of: ":") else { return false }
+        return line[..<colon].allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" || $0 == " " }
+    }
+
     static func escapeYAML(_ value: String) -> String {
         value
             .replacingOccurrences(of: "\\", with: "\\\\")
@@ -258,18 +273,46 @@ extension Note {
         var updatedAt = Date()
         var tags: [String] = []
         var isPinned = false
+        var extraFrontmatter = ""
         var markdownBody = rawContent
         
         if let (yaml, body) = Self.splitFrontmatter(rawContent) {
             markdownBody = body
             
             // Split on "\n" only: titles may hold other Unicode line separators that `.newlines` would cut at
-            let lines = yaml.components(separatedBy: "\n")
-            for line in lines {
+            var lines = yaml.components(separatedBy: "\n")
+            if lines.last == "" { lines.removeLast() }
+            var extra: [String] = []
+            var index = 0
+            while index < lines.count {
+                let line = lines[index]
+                index += 1
+                // A property is its "key:" line plus the indented or "- item" lines under it
+                var block: [String] = []
+                while index < lines.count, !Self.startsProperty(lines[index]) {
+                    block.append(lines[index])
+                    index += 1
+                }
                 let parts = line.split(separator: ":", maxSplits: 1).map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-                guard parts.count == 2 else { continue }
+                guard Self.startsProperty(line), parts.count >= 1, Self.appKeys.contains(parts[0]) else {
+                    extra.append(line)
+                    extra.append(contentsOf: block)
+                    continue
+                }
                 let key = parts[0]
-                var val = parts[1]
+                var val = parts.count == 2 ? parts[1] : ""
+                if key == "tags", val.isEmpty {
+                    // Obsidian writes tags as a block list
+                    tags = block.compactMap { item -> String? in
+                        let trimmed = item.trimmingCharacters(in: .whitespaces)
+                        guard trimmed.hasPrefix("-") else { return nil }
+                        let tag = trimmed.dropFirst().trimmingCharacters(in: .whitespaces)
+                            .trimmingCharacters(in: CharacterSet(charactersIn: "\"'#"))
+                        return tag.isEmpty ? nil : tag
+                    }
+                    continue
+                }
+                guard parts.count == 2 else { continue }
                 if val.hasPrefix("\"") && val.hasSuffix("\"") && val.count >= 2 {
                     val = Self.unescapeYAML(String(val.dropFirst().dropLast()))
                 }
@@ -303,6 +346,7 @@ extension Note {
                     break
                 }
             }
+            extraFrontmatter = extra.joined(separator: "\n")
         }
         
         // If fileURL is provided and dates weren't in frontmatter, infer from file attributes
@@ -334,7 +378,8 @@ extension Note {
             updatedAt: updatedAt,
             tags: tags,
             filePath: fileURL,
-            isPinned: isPinned
+            isPinned: isPinned,
+            extraFrontmatter: extraFrontmatter
         )
         
         // Ensure note title is populated if blank

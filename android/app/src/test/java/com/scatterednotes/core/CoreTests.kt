@@ -214,6 +214,24 @@ class AgendaMarkerTests {
     }
 }
 
+class ForeignFrontmatterTests {
+    @Test
+    fun propertiesFromOtherAppsSurviveASave() {
+        val raw = "---\nid: 7C1F3A52-1111-4B5B-9C8E-1234567890AB\ntitle: \"Trip\"\naliases:\n  - Holiday\n  - \"Trip 2026\"\ncssclasses: wide\ntags:\n  - travel\n  - \"#plans\"\nrating: 4\n---\n\nbody"
+        val note = NoteFormat.parse(raw)
+        assertEquals(listOf("travel", "plans"), note.tags)
+        assertEquals("aliases:\n  - Holiday\n  - \"Trip 2026\"\ncssclasses: wide\nrating: 4", note.extraFrontmatter)
+
+        val saved = NoteFormat.serialize(note)
+        assertTrue(saved, saved.contains("\naliases:\n  - Holiday\n  - \"Trip 2026\"\ncssclasses: wide\nrating: 4\n---\n\nbody"))
+        assertEquals(2, saved.split("\ntags:").size)
+        val again = NoteFormat.parse(saved)
+        assertEquals(note.extraFrontmatter, again.extraFrontmatter)
+        assertEquals(note.tags, again.tags)
+        assertEquals(saved, NoteFormat.serialize(again))
+    }
+}
+
 class SearchAndFileNameTests {
     @Test
     fun searchIgnoresCaseAndAccents() {

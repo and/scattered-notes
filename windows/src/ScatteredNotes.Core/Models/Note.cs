@@ -19,6 +19,9 @@ public sealed record Note
     public string? FilePath { get; init; }
     public bool IsPinned { get; init; }
 
+    /// <summary>Frontmatter lines the app does not use, e.g. Obsidian properties, kept as written and saved back unchanged.</summary>
+    public string ExtraFrontmatter { get; init; } = "";
+
     /// <summary>The ID as the Mac app writes it: an uppercase UUID.</summary>
     public string IdString => FormatId(Id);
 

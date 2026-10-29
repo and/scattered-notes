@@ -289,4 +289,19 @@ final class AgendaTests: XCTestCase {
         XCTAssertEqual(after.map(\.isDone), [true, false])
         XCTAssertEqual(after.map(\.date), before.map(\.date), "completing must not move the date")
     }
+
+    func testFrontmatterFromOtherAppsSurvivesASave() throws {
+        let raw = "---\nid: 7C1F3A52-1111-4B5B-9C8E-1234567890AB\ntitle: \"Trip\"\naliases:\n  - Holiday\n  - \"Trip 2026\"\ncssclasses: wide\ntags:\n  - travel\n  - \"#plans\"\nrating: 4\n---\n\nbody"
+        let note = Note.parse(from: raw)
+        XCTAssertEqual(note.tags, ["travel", "plans"])
+        XCTAssertEqual(note.extraFrontmatter, "aliases:\n  - Holiday\n  - \"Trip 2026\"\ncssclasses: wide\nrating: 4")
+
+        let saved = note.serializeToMarkdown()
+        XCTAssertTrue(saved.contains("\naliases:\n  - Holiday\n  - \"Trip 2026\"\ncssclasses: wide\nrating: 4\n---\n\nbody"), saved)
+        XCTAssertEqual(saved.components(separatedBy: "\ntags:").count, 2, "tags written twice")
+        let again = Note.parse(from: saved)
+        XCTAssertEqual(again.extraFrontmatter, note.extraFrontmatter)
+        XCTAssertEqual(again.tags, note.tags)
+        XCTAssertEqual(again.serializeToMarkdown(), saved)
+    }
 }

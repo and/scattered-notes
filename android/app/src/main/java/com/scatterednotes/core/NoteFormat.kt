@@ -21,6 +21,15 @@ object NoteFormat {
         null
     }
 
+    private val appKeys = setOf("id", "title", "type", "target", "created_at", "updated_at", "pinned", "tags")
+
+    /** Whether a frontmatter line begins a property: a key at the start of the line followed by ":". */
+    private fun startsProperty(line: String): Boolean {
+        val colon = line.indexOf(':')
+        return colon > 0 && (line[0].isLetter() || line[0] == '_') &&
+            line.substring(0, colon).all { it.isLetterOrDigit() || it == '_' || it == '-' || it == ' ' }
+    }
+
     fun serialize(note: Note): String {
         val fm = StringBuilder("---\n")
         fm.append("id: ").append(note.idString).append('\n')
@@ -31,6 +40,7 @@ object NoteFormat {
         fm.append("updated_at: ").append(formatDate(note.updatedAt)).append('\n')
         if (note.isPinned) fm.append("pinned: true\n")
         if (note.tags.isNotEmpty()) fm.append("tags: [").append(note.tags.joinToString(", ") { "\"$it\"" }).append("]\n")
+        if (note.extraFrontmatter.isNotEmpty()) fm.append(note.extraFrontmatter).append('\n')
         fm.append("---\n\n")
         return fm.toString() + note.content
     }
@@ -106,17 +116,35 @@ object NoteFormat {
         var updated: Instant? = null
         var tags = emptyList<String>()
         var pinned = false
+        val extra = mutableListOf<String>()
         var body = raw
 
         splitFrontmatter(raw)?.let { (yaml, rest) ->
             body = rest
             // Split on "\n" only: titles may hold other Unicode line separators
-            for (line in yaml.split('\n')) {
+            val lines = yaml.split('\n').toMutableList()
+            if (lines.isNotEmpty() && lines.last().isEmpty()) lines.removeAt(lines.lastIndex)
+            var i = 0
+            while (i < lines.size) {
+                val line = lines[i++]
+                // A property is its "key:" line plus the indented or "- item" lines under it
+                val block = mutableListOf<String>()
+                while (i < lines.size && !startsProperty(lines[i])) block.add(lines[i++])
                 val colon = line.indexOf(':')
-                if (colon < 0) continue
-                val key = line.substring(0, colon).trim()
+                val key = if (colon > 0 && startsProperty(line)) line.substring(0, colon).trim() else ""
+                if (key !in appKeys) {
+                    extra.add(line)
+                    extra.addAll(block)
+                    continue
+                }
                 var value = line.substring(colon + 1).trim()
-                if (key.isEmpty()) continue
+                if (key == "tags" && value.isEmpty()) {
+                    // Obsidian writes tags as a block list
+                    tags = block.map { it.trim() }.filter { it.startsWith("-") }
+                        .map { it.substring(1).trim().trim('"', '\'', '#') }
+                        .filter { it.isNotEmpty() }
+                    continue
+                }
                 if (value.length >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
                     value = unescapeYaml(value.substring(1, value.length - 1))
                 }
@@ -151,6 +179,7 @@ object NoteFormat {
             tags = tags,
             filePath = filePath,
             isPinned = pinned,
+            extraFrontmatter = extra.joinToString("\n"),
         )
         return if (note.title.isEmpty()) note.copy(title = note.displayTitle) else note
     }

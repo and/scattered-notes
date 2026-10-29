@@ -31,6 +31,8 @@ data class Note(
     val tags: List<String> = emptyList(),
     val filePath: String? = null,
     val isPinned: Boolean = false,
+    /** Frontmatter lines the app does not use, e.g. Obsidian properties, kept as written and saved back unchanged. */
+    val extraFrontmatter: String = "",
 ) {
     /** The ID as the Mac app writes it: an uppercase UUID. */
     val idString: String get() = formatId(id)

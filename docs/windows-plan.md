@@ -58,6 +58,7 @@ change:
 - The body after the frontmatter is preserved byte for byte.
 - File names are `yyyy-MM-dd_<title>.md`, with a 6-character ID suffix on a clash.
 - `.metadata.json` in each project and area folder holds its icon.
+- Frontmatter the app does not use, such as Obsidian properties (`aliases`, `cssclasses`, custom fields), is kept as written and saved back after the app's own fields. Tags written as a block list (`tags:` then `- name` lines) are read, and saved as the app's one-line `tags: [...]`.
 - Agenda markers live in the line: `📅 2026-10-27` after a line whose date comes from a relative word, and
   `✅ 2026-10-27` after a ticked checklist line, e.g. `- [x] call the bank tomorrow 📅 2026-10-27 ✅ 2026-10-28`
   (the Obsidian Tasks format). They are written when the note is saved, never when it is loaded, and the

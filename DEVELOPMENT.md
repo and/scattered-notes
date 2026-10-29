@@ -128,6 +128,7 @@ Notes are the user's data, so these hold for any change to storage:
 
 - Note files are written atomically, and a moved note's new file is written before the old one is removed.
 - Loading never rewrites a note file.
+- Frontmatter properties the app does not know must survive a save unchanged (`extraFrontmatter` / `ExtraFrontmatter`), so notes edited in Obsidian lose nothing. All four ports keep them in the same order, after the app's own fields.
 - The agenda markers (`📅 2026-10-28` for the day a line refers to, `✅ 2026-10-28` for the day it was ticked, the Obsidian Tasks format) live in the line itself. `AgendaExtractor.resolvingDates` / `ResolvingDates` / `resolvingDates` writes them, only when a note is saved, never when it is loaded, and only on lines whose date comes from a relative word or that are ticked. A marker always wins over the words next to it. The three ports must write the same text for the same input.
 
 ## Releasing

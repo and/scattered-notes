@@ -28,6 +28,16 @@ public static class NoteFormat
             : null;
     }
 
+    private static readonly HashSet<string> AppKeys = ["id", "title", "type", "target", "created_at", "updated_at", "pinned", "tags"];
+
+    /// <summary>Whether a frontmatter line begins a property: a key at the start of the line followed by ":".</summary>
+    private static bool StartsProperty(string line)
+    {
+        var colon = line.IndexOf(':');
+        return colon > 0 && (char.IsLetter(line[0]) || line[0] == '_') &&
+               line[..colon].All(c => char.IsLetterOrDigit(c) || c is '_' or '-' or ' ');
+    }
+
     public static string Serialize(Note note)
     {
         var fm = new StringBuilder("---\n");
@@ -41,6 +51,7 @@ public static class NoteFormat
         if (note.IsPinned) fm.Append("pinned: true\n");
         if (note.Tags.Count > 0)
             fm.Append("tags: [").Append(string.Join(", ", note.Tags.Select(t => $"\"{t}\""))).Append("]\n");
+        if (note.ExtraFrontmatter.Length > 0) fm.Append(note.ExtraFrontmatter).Append('\n');
         fm.Append("---\n\n");
         return fm + note.Content;
     }
@@ -127,19 +138,40 @@ public static class NoteFormat
         DateTimeOffset? updated = null;
         var tags = new List<string>();
         var pinned = false;
+        var extra = new List<string>();
         var body = raw;
 
         if (SplitFrontmatter(raw) is { } split)
         {
             body = split.Body;
             // Split on "\n" only: titles may hold other Unicode line separators
-            foreach (var line in split.Yaml.Split('\n'))
+            var lines = split.Yaml.Split('\n').ToList();
+            if (lines.Count > 0 && lines[^1].Length == 0) lines.RemoveAt(lines.Count - 1);
+            for (var i = 0; i < lines.Count; i++)
             {
+                var line = lines[i];
+                // A property is its "key:" line plus the indented or "- item" lines under it
+                var block = new List<string>();
+                while (i + 1 < lines.Count && !StartsProperty(lines[i + 1])) block.Add(lines[++i]);
                 var colon = line.IndexOf(':');
-                if (colon < 0) continue;
-                var key = line[..colon].Trim();
+                var key = colon > 0 && StartsProperty(line) ? line[..colon].Trim() : "";
+                if (!AppKeys.Contains(key))
+                {
+                    extra.Add(line);
+                    extra.AddRange(block);
+                    continue;
+                }
                 var val = line[(colon + 1)..].Trim();
-                if (key.Length == 0) continue;
+                if (key == "tags" && val.Length == 0)
+                {
+                    // Obsidian writes tags as a block list
+                    tags = block.Select(b => b.Trim())
+                        .Where(b => b.StartsWith('-'))
+                        .Select(b => b[1..].Trim().Trim('"', '\'', '#'))
+                        .Where(t => t.Length > 0)
+                        .ToList();
+                    continue;
+                }
                 if (val.Length >= 2 && val.StartsWith('"') && val.EndsWith('"'))
                     val = UnescapeYaml(val[1..^1]);
 
@@ -200,6 +232,7 @@ public static class NoteFormat
             Tags = tags,
             FilePath = filePath,
             IsPinned = pinned,
+            ExtraFrontmatter = string.Join("\n", extra),
         };
         return note.Title.Length == 0 ? note with { Title = note.DisplayTitle } : note;
     }
