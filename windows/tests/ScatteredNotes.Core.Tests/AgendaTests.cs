@@ -304,4 +304,12 @@ public class AgendaTests
         Assert.Equal("a tomorrow 📅 2026-10-30".Length, AgendaExtractor.MappedOffset("a tomorrow 📅 2026-10-30".Length, marked, marked + "!")); // right after a marker stays after it
         Assert.True(AgendaExtractor.SameIgnoringMarkers(old, updated));
     }
+
+    [Fact]
+    public void MarkersStayOutOfTitlesAndPreviews()
+    {
+        var note = new Note { Content = "do this tomorrow 📅 2026-10-30\n- [x] check linkedin today 📅 2026-10-29 ✅ 2026-10-29" };
+        Assert.Equal("do this tomorrow", note.DisplayTitle);
+        Assert.Equal("do this tomorrow - [x] check linkedin today", note.PreviewExcerpt);
+    }
 }

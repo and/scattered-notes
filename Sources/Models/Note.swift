@@ -47,7 +47,8 @@ public struct Note: Identifiable, Hashable, Sendable {
         // Fallback to first line of content
         let lines = content.components(separatedBy: .newlines)
         for line in lines {
-            var trimmed = line.trimmingCharacters(in: .whitespaces)
+            // The dates the app writes into lines are for the dashboard, not for a title
+            var trimmed = AgendaExtractor.withoutMarkers(line).trimmingCharacters(in: .whitespaces)
             if trimmed.hasPrefix("#") {
                 trimmed = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "# " ))
             }
@@ -62,7 +63,7 @@ public struct Note: Identifiable, Hashable, Sendable {
         let lines = content.components(separatedBy: .newlines)
         var previewLines: [String] = []
         for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let trimmed = AgendaExtractor.withoutMarkers(line).trimmingCharacters(in: .whitespaces)
             // Skip heading if it matches the title
             if trimmed.hasPrefix("#") && trimmed.contains(displayTitle) {
                 continue

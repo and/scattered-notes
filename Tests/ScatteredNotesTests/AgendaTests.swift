@@ -114,6 +114,19 @@ final class AgendaTests: XCTestCase {
         XCTAssertEqual(manager.agendaItems.filter(\.isDone).map(\.text), ["Post letter"])
     }
 
+    func testParsesDaysOfTheMonth() {
+        XCTAssertEqual(parse("there is a driving class on 22nd of the next month"), day(11, 22))
+        XCTAssertEqual(parse("Rent due 1 of next month"), day(11, 1))
+        XCTAssertEqual(parse("Report on the 28th of this month"), day(10, 28))
+        XCTAssertEqual(parse("Pay it by the end of the month"), day(10, 31))
+        XCTAssertEqual(parse("Plan ready end of next month"), day(11, 30))
+        XCTAssertEqual(parse("Class on the 28th"), day(10, 28))
+        XCTAssertEqual(parse("Class on the 22nd"), day(11, 22), "already past this month")
+        XCTAssertEqual(parse("Class on the 26th"), day(10, 26), "today counts")
+        XCTAssertNil(parse("Class on 31st of next month"), "November has no 31st")
+        XCTAssertNil(parse("Buy the 3 apples"))
+    }
+
     func testParsesDayAfterAndIntervals() {
         XCTAssertEqual(parse("Party the day after tomorrow"), day(10, 28))
         XCTAssertEqual(parse("Laundry the day after"), day(10, 27))
@@ -320,5 +333,11 @@ final class AgendaTests: XCTestCase {
                        ("a tomorrow 📅 2026-10-30" as NSString).length, "right after a marker stays after it")
         XCTAssertTrue(AgendaExtractor.sameIgnoringMarkers(old, new))
         XCTAssertFalse(AgendaExtractor.sameIgnoringMarkers(old, new + "x"))
+    }
+
+    func testMarkersStayOutOfTitlesAndPreviews() {
+        let note = Note(content: "do this tomorrow 📅 2026-10-30\n- [x] check linkedin today 📅 2026-10-29 ✅ 2026-10-29")
+        XCTAssertEqual(note.displayTitle, "do this tomorrow")
+        XCTAssertEqual(note.previewExcerpt, "do this tomorrow - [x] check linkedin today")
     }
 }

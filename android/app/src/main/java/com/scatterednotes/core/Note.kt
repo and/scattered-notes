@@ -43,7 +43,8 @@ data class Note(
             if (trimmedTitle.isNotEmpty()) return trimmedTitle
             // Fall back to the first non-blank line of the content
             for (line in LineText.split(content)) {
-                var trimmed = LineText.trimWhitespace(line.text)
+                // The dates the app writes into lines are for the dashboard, not for a title
+                var trimmed = LineText.trimWhitespace(AgendaExtractor.withoutMarkers(line.text))
                 if (trimmed.startsWith("#")) trimmed = trimmed.trim('#', ' ')
                 if (trimmed.isNotEmpty()) return trimmed
             }
@@ -55,7 +56,7 @@ data class Note(
             val heading = displayTitle
             val preview = mutableListOf<String>()
             for (line in LineText.split(content)) {
-                val trimmed = LineText.trimWhitespace(line.text)
+                val trimmed = LineText.trimWhitespace(AgendaExtractor.withoutMarkers(line.text))
                 // Skip a heading that repeats the title
                 if (trimmed.startsWith("#") && trimmed.contains(heading)) continue
                 if (trimmed.isEmpty()) continue

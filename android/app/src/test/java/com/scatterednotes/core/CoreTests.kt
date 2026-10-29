@@ -224,6 +224,13 @@ class AgendaMarkerTests {
     }
 
     @Test
+    fun markersStayOutOfTitlesAndPreviews() {
+        val note = Note(content = "do this tomorrow 📅 2026-10-30\n- [x] check linkedin today 📅 2026-10-29 ✅ 2026-10-29")
+        assertEquals("do this tomorrow", note.displayTitle)
+        assertEquals("do this tomorrow - [x] check linkedin today", note.previewExcerpt)
+    }
+
+    @Test
     fun markersAreInvisibleToTheLineText() {
         assertEquals("call bank tomorrow", AgendaExtractor.displayText("- [x] call bank tomorrow 📅 2026-10-27 ✅ 2026-10-28"))
         assertTrue(AgendaExtractor.isPlannedAction(AgendaExtractor.displayText("call bank 📅 2026-10-27")))

@@ -1,3 +1,4 @@
+using ScatteredNotes.Core.Agenda;
 using ScatteredNotes.Core.Text;
 
 namespace ScatteredNotes.Core.Models;
@@ -36,7 +37,8 @@ public sealed record Note
             // Fall back to the first non-blank line of the content
             foreach (var line in LineText.Split(Content))
             {
-                var trimmed = LineText.TrimWhitespace(line.Text);
+                // The dates the app writes into lines are for the dashboard, not for a title
+                var trimmed = LineText.TrimWhitespace(AgendaExtractor.WithoutMarkers(line.Text));
                 if (trimmed.StartsWith('#')) trimmed = trimmed.Trim('#', ' ');
                 if (trimmed.Length > 0) return trimmed;
             }
@@ -52,7 +54,7 @@ public sealed record Note
             var preview = new List<string>();
             foreach (var line in LineText.Split(Content))
             {
-                var trimmed = LineText.TrimWhitespace(line.Text);
+                var trimmed = LineText.TrimWhitespace(AgendaExtractor.WithoutMarkers(line.Text));
                 // Skip a heading that repeats the title
                 if (trimmed.StartsWith('#') && trimmed.Contains(title, StringComparison.Ordinal)) continue;
                 if (trimmed.Length == 0) continue;
