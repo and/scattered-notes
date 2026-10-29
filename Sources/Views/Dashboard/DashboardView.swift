@@ -162,20 +162,25 @@ public struct DashboardView: View {
                         .font(.system(size: 34, weight: .bold))
                 }
             }
-            HStack(spacing: 8) {
-                StatChip(value: snapshot.overdueCount, label: "overdue", tint: .wcagOrange) { show(.overdue) }
-                StatChip(value: snapshot.openTodayCount, label: "today", tint: .wcagBlue,
-                         isAllDone: snapshot.isTodayDone) { show(.today) }
-                StatChip(value: snapshot.upcomingCount, label: "upcoming", tint: .wcagPurple) { show(.upcoming) }
-                StatChip(value: snapshot.openTodoCount, label: "open to-dos", tint: .wcagGreen) { show(.todos) }
-                Spacer()
-                Button(showCompleted ? "Hide Completed" : "Show Completed",
-                       systemImage: showCompleted ? "eye.slash" : "eye") {
-                    withAnimation { showCompleted.toggle() }
+            // With nothing to show there is nothing to count; ticked items stay reachable through the toggle
+            if !snapshot.isEmpty || snapshot.completedTodayCount > 0 {
+                HStack(spacing: 8) {
+                    if !snapshot.isEmpty {
+                        StatChip(value: snapshot.overdueCount, label: "overdue", tint: .wcagOrange) { show(.overdue) }
+                        StatChip(value: snapshot.openTodayCount, label: "today", tint: .wcagBlue,
+                                 isAllDone: snapshot.isTodayDone) { show(.today) }
+                        StatChip(value: snapshot.upcomingCount, label: "upcoming", tint: .wcagPurple) { show(.upcoming) }
+                        StatChip(value: snapshot.openTodoCount, label: "open to-dos", tint: .wcagGreen) { show(.todos) }
+                    }
+                    Spacer()
+                    Button(showCompleted ? "Hide Completed" : "Show Completed",
+                           systemImage: showCompleted ? "eye.slash" : "eye") {
+                        withAnimation { showCompleted.toggle() }
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundColor(.wcagSecondaryText)
+                    .help(showCompleted ? "Hide items ticked today" : "Show items ticked today")
                 }
-                .buttonStyle(.borderless)
-                .foregroundColor(.wcagSecondaryText)
-                .help(showCompleted ? "Hide items ticked today" : "Show items ticked today")
             }
             if snapshot.completedTodayCount > 0 {
                 Text(snapshot.isTodayDone

@@ -100,6 +100,9 @@ internal sealed class DashboardView : UserControl
         dates.Children.Add(Ui.Text($"{now.ToString("M", CultureInfo.CurrentCulture)} {now.Year}", 32, FontWeight.Bold));
         stack.Children.Add(dates);
 
+        // With nothing to show there is nothing to count
+        if (dashboard.IsEmpty) return stack;
+
         var chips = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
         chips.Children.Add(Chip(dashboard.Overdue.Count, "overdue", "WcagOrange"));
         chips.Children.Add(Chip(dashboard.DueTodayOpenCount, "today", "WcagBlue"));
