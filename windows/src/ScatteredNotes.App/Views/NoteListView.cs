@@ -207,7 +207,9 @@ internal sealed class NoteListView : UserControl
             meta.Children.Add(tag);
         }
         var badges = Ui.Row(6);
-        if (_state.Selection.Kind == SidebarKind.All || note.CategoryType != CategoryType.Inbox)
+        // Under a project every note is in it, so naming it on each row only adds noise
+        if (_state.Selection.Kind == SidebarKind.All ||
+            (_state.Selection.Kind != SidebarKind.Project && note.CategoryType != CategoryType.Inbox))
         {
             var brush = Ui.DestinationBrush(note.CategoryType);
             var badge = new Border

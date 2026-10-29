@@ -22,6 +22,11 @@ public struct NoteListView: View {
         self._selectedNote = selectedNote
     }
     
+    private var isProject: Bool {
+        if case .project = selectedCategory { return true }
+        return false
+    }
+
     public var filteredNotes: [Note] {
         // 1. Filter by category/project
         var result = storageManager.notes.filter(selectedCategory.contains)
@@ -145,7 +150,7 @@ public struct NoteListView: View {
                     List {
                         ForEach(filteredNotes) { note in
                             let isSelected = note.id == selectedNote?.id
-                            NoteCardRow(note: note, showDestination: selectedCategory == .all, isSelected: isSelected,
+                            NoteCardRow(note: note, showDestination: selectedCategory == .all, showProject: !isProject, isSelected: isSelected,
                                         isHighlighted: note.id == highlight.noteID)
                                 .id(note.id)
                                 .contentShape(Rectangle())
@@ -290,6 +295,8 @@ public struct NoteListView: View {
 public struct NoteCardRow: View {
     let note: Note
     let showDestination: Bool
+    /// False under a project, where every note is in that project and naming it on each row only adds noise
+    var showProject: Bool = true
     /// A selected row sits on `wcagSelection`, so every color in it switches to white
     var isSelected: Bool = false
     /// Marks the note whose text the pointer is over in a dashboard's notes log
@@ -327,7 +334,7 @@ public struct NoteCardRow: View {
             }
             
             HStack(spacing: 6) {
-                if showDestination || note.categoryType != .inbox {
+                if showDestination || (showProject && note.categoryType != .inbox) {
                     HStack(spacing: 3) {
                         Image(systemName: destinationIcon)
                         Text(note.destinationDisplay)
