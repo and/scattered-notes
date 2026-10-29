@@ -17,5 +17,6 @@ enum UITesting {
         settings.notesDirectoryURL = folder
         settings.quickNoteAutoSave = !ProcessInfo.processInfo.arguments.contains("-manualQuickNote")
         UserDefaults.standard.removeObject(forKey: "dashboard.showCompleted")
+        UserDefaults.standard.removeObject(forKey: "dashboard.completedExpanded")
     }
 }
