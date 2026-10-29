@@ -248,9 +248,11 @@ internal sealed class EditorView : UserControl
         // Take changes made elsewhere (another app, sync) only when there are no unsaved edits here
         if (changedOnDisk && !_saveTimer.IsEnabled && (current.Content != _text.Text || current.Title != _title.Text))
         {
+            // The app may have written date markers into the text being typed; the caret stays in the same words
             var caret = _text.CaretIndex;
+            var before = _text.Text ?? "";
             LoadNote(current);
-            _text.CaretIndex = Math.Min(caret, _text.Text?.Length ?? 0);
+            _text.CaretIndex = Math.Min(AgendaExtractor.MappedOffset(caret, before, _text.Text ?? ""), _text.Text?.Length ?? 0);
         }
         else
         {

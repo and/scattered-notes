@@ -81,6 +81,36 @@ public static class AgendaExtractor
     /// <summary>The days written into a line by <c>📅</c> and <c>✅</c>.</summary>
     public static (DateOnly? Due, DateOnly? Done) Markers(string line) => (MarkedDay(DueMarker, line), MarkedDay(DoneMarker, line));
 
+    /// <summary>Whether two texts are the same apart from the markers the app writes into lines.</summary>
+    public static bool SameIgnoringMarkers(string a, string b) => a == b || WithoutMarkers(a) == WithoutMarkers(b);
+
+    /// <summary>
+    /// Where a position in <paramref name="old"/> lands in <paramref name="updated"/> when the latter is the
+    /// former with date markers written into its lines: the same place in the words, so a caret typing at the
+    /// end of a line stays before the marker written there, and one right after a marker stays after it.
+    /// </summary>
+    public static int MappedOffset(int offset, string old, string updated)
+    {
+        var oldMarkers = DueMarker.Matches(old).Concat(DoneMarker.Matches(old)).ToList();
+        var newMarkers = DueMarker.Matches(updated).Concat(DoneMarker.Matches(updated)).ToList();
+        static bool InMarker(int index, List<Match> markers) => markers.Any(m => index >= m.Index && index < m.Index + m.Length);
+        var wordsBefore = Enumerable.Range(0, Math.Min(offset, old.Length)).Count(i => !InMarker(i, oldMarkers));
+        var afterMarker = oldMarkers.Any(m => m.Index + m.Length == offset);
+        var words = 0;
+        int? result = null;
+        for (var index = 0; index <= updated.Length; index++)
+        {
+            if (words == wordsBefore)
+            {
+                result = index;
+                if (!afterMarker) break;
+            }
+            if (index < updated.Length && !InMarker(index, newMarkers)) words++;
+            if (words > wordsBefore) break;
+        }
+        return result ?? Math.Min(offset, updated.Length);
+    }
+
     /// <summary>The line without its <c>📅</c> and <c>✅</c> markers.</summary>
     public static string WithoutMarkers(string line) => DoneMarker.Replace(DueMarker.Replace(line, ""), "");
 

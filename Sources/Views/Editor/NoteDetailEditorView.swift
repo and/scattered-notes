@@ -332,6 +332,8 @@ public struct NoteDetailEditorView: View {
             editableTitle = note.title
         }
         if editableContent != note.content {
+            // The app may have written date markers into the text being typed; the cursor stays put
+            EditorFocus.keepCursor(from: editableContent, to: note.content)
             editableContent = note.content
         }
         syncedTitle = note.title

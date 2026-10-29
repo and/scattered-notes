@@ -62,7 +62,10 @@ struct NoteEditorScreen: View {
                 }
                 .onChange(of: [note?.title, note?.content]) { _, _ in
                     // A version saved on another device shows unless something was typed here
-                    if let note, !isEdited { load(note) }
+                    // Date markers the app wrote into the text being typed are not worth moving the cursor for
+                    if let note, !isEdited, note.title != title || !AgendaExtractor.sameIgnoringMarkers(note.content, content) {
+                        load(note)
+                    }
                 }
                 .task(id: [title, content]) {
                     try? await Task.sleep(for: .milliseconds(800))

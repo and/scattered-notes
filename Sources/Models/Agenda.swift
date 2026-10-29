@@ -83,6 +83,19 @@ public enum AgendaExtractor {
         return (day(dueMarkerRegex), day(doneMarkerRegex))
     }
 
+    /// The UTF-16 ranges of the `📅` and `✅` markers in a text, sorted.
+    static func markerRanges(in text: String) -> [NSRange] {
+        let whole = NSRange(text.startIndex..., in: text)
+        return [dueMarkerRegex, doneMarkerRegex]
+            .flatMap { $0.matches(in: text, range: whole).map(\.range) }
+            .sorted { $0.location < $1.location }
+    }
+
+    /// Whether two texts are the same apart from the markers the app writes into lines.
+    public static func sameIgnoringMarkers(_ a: String, _ b: String) -> Bool {
+        a == b || withoutMarkers(a) == withoutMarkers(b)
+    }
+
     /// The line without its `📅` and `✅` markers.
     static func withoutMarkers(_ line: String) -> String {
         var text = line

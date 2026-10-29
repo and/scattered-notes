@@ -275,4 +275,18 @@ public class AgendaTests
         Assert.Equal(note.Tags, again.Tags);
         Assert.Equal(saved, NoteFormat.Serialize(again));
     }
+
+    [Fact]
+    public void CaretStaysInTheSameWordsWhenMarkersAreWritten()
+    {
+        const string old = "do this tomorrow\nand the day after tomorrow do";
+        const string updated = "do this tomorrow 📅 2026-10-30\nand the day after tomorrow do 📅 2026-10-31";
+        Assert.Equal(updated.Length - " 📅 2026-10-31".Length, AgendaExtractor.MappedOffset(old.Length, old, updated)); // typing at a line end stays before its marker
+        Assert.Equal(3, AgendaExtractor.MappedOffset(3, old, updated));
+        const string firstEnd = "do this tomorrow";
+        Assert.Equal(firstEnd.Length + " 📅 2026-10-30".Length + 1, AgendaExtractor.MappedOffset(firstEnd.Length + 1, old, updated));
+        const string marked = "a tomorrow 📅 2026-10-30 b";
+        Assert.Equal("a tomorrow 📅 2026-10-30".Length, AgendaExtractor.MappedOffset("a tomorrow 📅 2026-10-30".Length, marked, marked + "!")); // right after a marker stays after it
+        Assert.True(AgendaExtractor.SameIgnoringMarkers(old, updated));
+    }
 }

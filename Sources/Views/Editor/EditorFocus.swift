@@ -49,6 +49,54 @@ enum EditorFocus {
         }
     }
 
+    /// Where a position in `old` lands in `new` when `new` is `old` with date markers written into its
+    /// lines: the same place in the words, so a cursor typing at the end of a line stays before the marker
+    /// written there, and one right after a marker stays after it.
+    static func mappedOffset(_ offset: Int, from old: String, to new: String) -> Int {
+        let oldMarkers = AgendaExtractor.markerRanges(in: old)
+        let newMarkers = AgendaExtractor.markerRanges(in: new)
+        func isMarker(_ index: Int, _ markers: [NSRange]) -> Bool {
+            markers.contains { index >= $0.location && index < $0.location + $0.length }
+        }
+        let wordsBefore = (0..<min(offset, (old as NSString).length)).filter { !isMarker($0, oldMarkers) }.count
+        let afterMarker = oldMarkers.contains { $0.location + $0.length == offset }
+        var words = 0
+        var result: Int?
+        let length = (new as NSString).length
+        for index in 0...length {
+            if words == wordsBefore {
+                result = index
+                if !afterMarker { break }
+            }
+            if index < length, !isMarker(index, newMarkers) { words += 1 }
+            if words > wordsBefore { break }
+        }
+        return result ?? min(offset, length)
+    }
+
+    /// Keeps the cursor where it was in the same text when the editor's text is about to be replaced
+    /// by `new`, e.g. when the app writes a date marker into the line being typed.
+    static func keepCursor(from old: String, to new: String, attemptsLeft: Int = 10) {
+        guard let window = NSApp.mainWindow ?? NSApp.keyWindow,
+              let textView = editorTextView(in: window.contentView, showing: old),
+              window.firstResponder === textView else { return }
+        let selection = textView.selectedRange()
+        let start = mappedOffset(selection.location, from: old, to: new)
+        let end = mappedOffset(selection.location + selection.length, from: old, to: new)
+        restoreSelection(NSRange(location: start, length: end - start), in: textView, showing: new, attemptsLeft: attemptsLeft)
+    }
+
+    private static func restoreSelection(_ range: NSRange, in textView: NSTextView, showing text: String, attemptsLeft: Int) {
+        if textView.string == text {
+            textView.setSelectedRange(range)
+            return
+        }
+        guard attemptsLeft > 0 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+            restoreSelection(range, in: textView, showing: text, attemptsLeft: attemptsLeft - 1)
+        }
+    }
+
     private static func editorTextView(in view: NSView?, showing text: String) -> NSTextView? {
         guard let view else { return nil }
         if let textView = view as? NSTextView, textView.isEditable, !textView.isFieldEditor, textView.string == text {

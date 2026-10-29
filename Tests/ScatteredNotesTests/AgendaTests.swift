@@ -304,4 +304,21 @@ final class AgendaTests: XCTestCase {
         XCTAssertEqual(again.tags, note.tags)
         XCTAssertEqual(again.serializeToMarkdown(), saved)
     }
+
+    @MainActor
+    func testCursorStaysInTheSameWordsWhenMarkersAreWritten() {
+        let old = "do this tomorrow\nand the day after tomorrow do"
+        let new = "do this tomorrow 📅 2026-10-30\nand the day after tomorrow do 📅 2026-10-31"
+        let end = (old as NSString).length
+        XCTAssertEqual(EditorFocus.mappedOffset(end, from: old, to: new), (new as NSString).length - (" 📅 2026-10-31" as NSString).length,
+                       "typing at the end of a line stays before its marker")
+        XCTAssertEqual(EditorFocus.mappedOffset(3, from: old, to: new), 3)
+        let firstEnd = ("do this tomorrow" as NSString).length
+        XCTAssertEqual(EditorFocus.mappedOffset(firstEnd + 1, from: old, to: new), firstEnd + (" 📅 2026-10-30" as NSString).length + 1)
+        let marked = "a tomorrow 📅 2026-10-30 b"
+        XCTAssertEqual(EditorFocus.mappedOffset(("a tomorrow 📅 2026-10-30" as NSString).length, from: marked, to: marked + "!"),
+                       ("a tomorrow 📅 2026-10-30" as NSString).length, "right after a marker stays after it")
+        XCTAssertTrue(AgendaExtractor.sameIgnoringMarkers(old, new))
+        XCTAssertFalse(AgendaExtractor.sameIgnoringMarkers(old, new + "x"))
+    }
 }
