@@ -57,10 +57,11 @@ public struct SidebarView: View {
         var spelling: [String: String] = [:]
         var counts: [String: Int] = [:]
         for note in storageManager.notes {
-            for name in Set(names(note).map { $0.lowercased() }) {
+            let found = names(note)
+            for name in Set(found.map { $0.lowercased() }) {
                 counts[name, default: 0] += 1
             }
-            for name in names(note) where spelling[name.lowercased()] == nil {
+            for name in found where spelling[name.lowercased()] == nil {
                 spelling[name.lowercased()] = name
             }
         }
@@ -68,8 +69,23 @@ public struct SidebarView: View {
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
     
+    /// Notes in the Inbox and in each project, counted in one pass over the notes
+    private func rowCounts() -> (inbox: Int, projects: [String: Int]) {
+        var inbox = 0
+        var projects: [String: Int] = [:]
+        for note in storageManager.notes {
+            if note.categoryType == .inbox {
+                inbox += 1
+            } else if note.categoryType == .project, let name = note.targetName {
+                projects[name, default: 0] += 1
+            }
+        }
+        return (inbox, projects)
+    }
+    
     public var body: some View {
-        List(selection: $selection) {
+        let counts = rowCounts()
+        return List(selection: $selection) {
             Section("Quick Access") {
                 NavigationLink(value: SidebarSelection.dashboard) {
                     Label {
@@ -97,7 +113,7 @@ public struct SidebarView: View {
                         Image(systemName: "tray.fill")
                             .prominenceAwareColor(.wcagOrange)
                     }
-                    .badge(storageManager.notes.filter { $0.categoryType == .inbox }.count)
+                    .badge(counts.inbox)
                 }
             }
             
@@ -110,7 +126,7 @@ public struct SidebarView: View {
                             Image(systemName: project.iconName)
                                 .prominenceAwareColor(.wcagPurple)
                         }
-                        .badge(storageManager.notes.filter { $0.categoryType == .project && $0.targetName == project.name }.count)
+                        .badge(counts.projects[project.name, default: 0])
                     }
                     .contextMenu {
                         Button("Reveal in Finder") {
@@ -140,7 +156,7 @@ public struct SidebarView: View {
                 }
             }
             
-            let people = counted(\.people)
+            let people = counted { storageManager.people(in: $0) }
             if !people.isEmpty {
                 Section("People") {
                     ForEach(people, id: \.name) { person in

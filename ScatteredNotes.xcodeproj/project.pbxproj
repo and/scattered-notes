@@ -49,7 +49,6 @@
 		E2267CCBBB615C692CE7FBEF /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491DCCFBF499B26B1D779C28 /* SidebarView.swift */; };
 		E479A56499A04DF6CAB8FB39 /* Agenda.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93BD501F2CA7D78018D55F8E /* Agenda.swift */; };
 		F149166311926455470F93BC /* Mentions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E1FFEF5A7BA337A5A309572 /* Mentions.swift */; };
-		F2B36D315B0DFBE79CFD8591 /* AgendaLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0514FEA1FF45CF8457E457A7 /* AgendaLog.swift */; };
 		F372E6C07FB37F89B90A6184 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 97843A3D2B3A3C64BE0C4BE1 /* AppIcon.icns */; };
 		F4B7E4C02AFF52C906342F80 /* ShortcutRecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74769FC31D23B731BD42E8C8 /* ShortcutRecorderView.swift */; };
 		F61790FC542F2A5C0431C5EB /* QuickCapturePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0D3F5A1FB3271FA8E45D6CD /* QuickCapturePanel.swift */; };
@@ -77,7 +76,6 @@
 
 /* Begin PBXFileReference section */
 		03D20E702B0BC2FDE2CFB3E2 /* HotKeyShortcut.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyShortcut.swift; sourceTree = "<group>"; };
-		0514FEA1FF45CF8457E457A7 /* AgendaLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaLog.swift; sourceTree = "<group>"; };
 		06C433EEA1D6AD573F06C1EF /* HotKeyShortcutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyShortcutTests.swift; sourceTree = "<group>"; };
 		08394B74FE573342F4DF80B1 /* Release.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Release.swift; sourceTree = "<group>"; };
 		0AD0995BDF9BB09527A428A5 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
@@ -178,7 +176,6 @@
 		1DCC27EC2029DB8ED0352EB5 /* Storage */ = {
 			isa = PBXGroup;
 			children = (
-				0514FEA1FF45CF8457E457A7 /* AgendaLog.swift */,
 				108AC7B769F802061E8C0FB5 /* AppSettings.swift */,
 				629987ADBA93F4FD3F142AEC /* FolderWatcher.swift */,
 				BF0519FCCC948608D85411EA /* ICloudFolder.swift */,
@@ -474,7 +471,6 @@
 				8A995D411D0797C31E65B645 /* AccessibleTheme.swift in Sources */,
 				E479A56499A04DF6CAB8FB39 /* Agenda.swift in Sources */,
 				4DC4FE4897A1E126802FDC95 /* AgendaInspectorView.swift in Sources */,
-				F2B36D315B0DFBE79CFD8591 /* AgendaLog.swift in Sources */,
 				5FC97106E3EE2A3BB7E88891 /* AppDelegate.swift in Sources */,
 				C3BFBC1ED9C3846C9F7D7459 /* AppRouter.swift in Sources */,
 				5E786F78A383B4B83F13E3A6 /* AppSettings.swift in Sources */,

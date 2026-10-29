@@ -22,7 +22,21 @@ public sealed class NoteStore : IDisposable
     private FileSystemWatcher? _watcher;
     private Timer? _debounce;
     private long _ignoreEventsUntil;
-    private AgendaLog _agendaLog = new();
+
+    /// <summary>
+    /// Parsed notes by file path, reused by <see cref="LoadAll"/> while a file's modification time and size are
+    /// unchanged, so a reload only reads the files that changed.
+    /// </summary>
+    private readonly Dictionary<string, CachedFile> _fileCache = new(StringComparer.OrdinalIgnoreCase);
+    private sealed record CachedFile(DateTime Modified, long Size, Note Note);
+
+    /// <summary>Agenda items per note, valid while the note's text and update time are unchanged, because the update time decides what relative words without a <c>📅</c> marker resolve to.</summary>
+    private readonly Dictionary<Guid, CachedAgenda> _agendaCache = [];
+    /// <summary>The <c>@people</c> of each note, valid while its text is unchanged, so the sidebar does not rescan every note on each save.</summary>
+    private readonly Dictionary<Guid, (string Content, IReadOnlyList<string> Names)> _peopleCache = [];
+
+    private sealed record CachedAgenda(string Content, DateTimeOffset UpdatedAt, List<AgendaItem> Items);
+
     private List<Note> _notes = [];
 
     /// <summary>Notes, pinned first, then most recently updated.</summary>
@@ -68,7 +82,6 @@ public sealed class NoteStore : IDisposable
     public string ProjectsPath => Path.Combine(RootPath, "Projects");
     /// <summary>Where areas were kept before tags replaced them; see <see cref="MoveAreaNotesToInbox"/>.</summary>
     public string AreasPath => Path.Combine(RootPath, "Areas");
-    public string AgendaLogPath => Path.Combine(RootPath, AgendaLog.FileName);
 
     public void SetupDirectories()
     {
@@ -99,21 +112,12 @@ public sealed class NoteStore : IDisposable
         }
         loaded = loaded.Where(n => newest[n.Id].FilePath == n.FilePath).ToList();
 
-        // Pick up lines written outside the app, anchoring them to when the file last changed
-        LoadAgendaLog();
-        var logChanged = false;
-        foreach (var note in loaded)
-        {
-            var fallback = _agendaLog.Notes.ContainsKey(note.IdString) ? note.UpdatedAt : note.CreatedAt;
-            logChanged |= RecordAgenda(note, fallback);
-        }
-        var liveIds = loaded.Select(n => n.IdString).ToHashSet();
-        foreach (var id in _agendaLog.Notes.Keys.Where(id => !liveIds.Contains(id)).ToList())
-        {
-            _agendaLog.Notes.Remove(id);
-            logChanged = true;
-        }
-        if (logChanged) WriteAgendaLog();
+        // Forget files that are gone, so the caches never outgrow the folder
+        var loadedPaths = loaded.Select(n => n.FilePath!).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in _fileCache.Keys.Where(p => !loadedPaths.Contains(p)).ToList()) _fileCache.Remove(path);
+        var liveIds = loaded.Select(n => n.Id).ToHashSet();
+        foreach (var id in _agendaCache.Keys.Where(id => !liveIds.Contains(id)).ToList()) _agendaCache.Remove(id);
+        foreach (var id in _peopleCache.Keys.Where(id => !liveIds.Contains(id)).ToList()) _peopleCache.Remove(id);
 
         _notes = loaded;
         SortNotes();
@@ -179,30 +183,52 @@ public sealed class NoteStore : IDisposable
         }
     }
 
-    private static List<Note> LoadNotes(string directory, CategoryType category, string? targetName)
+    private List<Note> LoadNotes(string directory, CategoryType category, string? targetName)
     {
         if (!Directory.Exists(directory)) return [];
         var result = new List<Note>();
         foreach (var file in Directory.EnumerateFiles(directory))
         {
             if (!file.EndsWith(".md", StringComparison.OrdinalIgnoreCase) || IsHidden(file)) continue;
-            string? raw;
-            try
-            {
-                raw = AtomicFile.ReadUtf8(file);
-            }
-            catch (IOException)
-            {
-                continue;
-            }
-            if (raw is null) continue;
-            var note = NoteFormat.Parse(raw, file);
+            var note = CachedOrParsedNote(file);
+            if (note is null) continue;
             // Frontmatter without a destination takes it from the folder
             if (note.CategoryType == CategoryType.Inbox && category != CategoryType.Inbox)
                 note = note with { CategoryType = category, TargetName = targetName };
             result.Add(note);
         }
         return result;
+    }
+
+    /// <summary>The parsed note at <paramref name="file"/>, read from disk only when the file changed since it was last parsed.</summary>
+    private Note? CachedOrParsedNote(string file)
+    {
+        FileInfo info;
+        try
+        {
+            info = new FileInfo(file);
+            if (_fileCache.TryGetValue(file, out var cached) && cached.Modified == info.LastWriteTimeUtc && cached.Size == info.Length)
+                return cached.Note;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+
+        string? raw;
+        try
+        {
+            raw = AtomicFile.ReadUtf8(file);
+        }
+        catch (IOException)
+        {
+            _fileCache.Remove(file);
+            return null;
+        }
+        if (raw is null) return null;
+        var note = NoteFormat.Parse(raw, file);
+        _fileCache[file] = new CachedFile(info.LastWriteTimeUtc, info.Length, note);
+        return note;
     }
 
     // MARK: Notes
@@ -236,6 +262,10 @@ public sealed class NoteStore : IDisposable
         if (existing is not null && existing.HasSameContent(note) && note.FilePath is not null) return true;
 
         var updated = note with { UpdatedAt = DateTimeOffset.UtcNow, TargetName = NormalizedTarget(note) };
+        updated = updated with
+        {
+            Content = AgendaExtractor.ResolvingDates(updated.Content, existing?.Content, existing?.UpdatedAt, updated.UpdatedAt, _timeZone),
+        };
         var destination = TargetDirectory(updated.CategoryType, updated.TargetName);
 
         string? stale = null;
@@ -281,7 +311,6 @@ public sealed class NoteStore : IDisposable
         if (index >= 0) _notes[index] = updated;
         else _notes.Insert(0, updated);
         SortNotes();
-        if (RecordAgenda(updated, DateTimeOffset.UtcNow)) WriteAgendaLog();
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }
@@ -302,7 +331,8 @@ public sealed class NoteStore : IDisposable
             }
         }
         _notes.RemoveAll(n => n.Id == note.Id);
-        if (_agendaLog.Remove(note.Id)) WriteAgendaLog();
+        _agendaCache.Remove(note.Id);
+        _peopleCache.Remove(note.Id);
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -322,51 +352,24 @@ public sealed class NoteStore : IDisposable
     /// <summary>Checklist items and dated lines from every note, for the dashboard.</summary>
     public List<AgendaItem> AgendaItems() => _notes.SelectMany(AgendaItemsFor).ToList();
 
-    /// <summary>Checklist items and dated lines of one note, dated from when each line was first written.</summary>
-    public List<AgendaItem> AgendaItemsFor(Note note) =>
-        AgendaExtractor.Items(note, _agendaLog.Anchors(note.Id), _timeZone);
-
-    private void LoadAgendaLog()
+    /// <summary>Checklist items and dated lines of one note, dated from when each line was written.</summary>
+    public List<AgendaItem> AgendaItemsFor(Note note)
     {
-        _agendaLog = ReadLog(AgendaLogPath) ?? new AgendaLog();
-        // Sync clients save clashing versions next to the original, e.g. ".agenda-log 2.json"
-        foreach (var copy in Directory.EnumerateFiles(RootPath, ".agenda-log*.json"))
-        {
-            if (SamePath(copy, AgendaLogPath)) continue;
-            if (ReadLog(copy) is { } other) _agendaLog.Merge(other);
-        }
+        if (_agendaCache.TryGetValue(note.Id, out var cached) && cached.UpdatedAt == note.UpdatedAt &&
+            cached.Content == note.Content)
+            return cached.Items;
+        var items = AgendaExtractor.Items(note, _timeZone);
+        _agendaCache[note.Id] = new CachedAgenda(note.Content, note.UpdatedAt, items);
+        return items;
     }
 
-    private static AgendaLog? ReadLog(string path)
+    /// <summary>The people mentioned in a note as <c>@name</c>, in the order they first appear.</summary>
+    public IReadOnlyList<string> PeopleIn(Note note)
     {
-        try
-        {
-            return File.Exists(path) ? AgendaLog.Decode(File.ReadAllBytes(path)) : null;
-        }
-        catch (IOException)
-        {
-            return null;
-        }
-    }
-
-    private void WriteAgendaLog()
-    {
-        IgnoreOwnEvents();
-        try
-        {
-            AtomicFile.WriteAllBytes(AgendaLogPath, _agendaLog.Encode());
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
-            // Derived data: it is rebuilt on the next save
-        }
-    }
-
-    /// <summary>Adds log entries for new lines and drops entries for removed ones. Returns whether anything changed.</summary>
-    private bool RecordAgenda(Note note, DateTimeOffset seenAt)
-    {
-        var lines = AgendaExtractor.Items(note, timeZone: _timeZone).Select(i => (AgendaExtractor.LogKey(i.Text), i.Text));
-        return _agendaLog.Update(note.Id, lines, seenAt);
+        if (_peopleCache.TryGetValue(note.Id, out var cached) && cached.Content == note.Content) return cached.Names;
+        var names = note.People;
+        _peopleCache[note.Id] = (note.Content, names);
+        return names;
     }
 
     // MARK: Projects
@@ -417,16 +420,12 @@ public sealed class NoteStore : IDisposable
         StopWatching();
         IgnoreOwnEvents();
         var moved = 0;
-        var log = ReadLog(Path.Combine(destination, AgendaLog.FileName)) ?? new AgendaLog();
         foreach (var source in sources)
         {
             foreach (var folder in new[] { "Inbox", "Projects", "Areas" })
                 moved += MoveContents(Path.Combine(source, folder), Path.Combine(destination, folder));
-            // Keep when each line was written, so relative dates do not move
-            if (ReadLog(Path.Combine(source, AgendaLog.FileName)) is { } sourceLog) log.Merge(sourceLog);
         }
         Directory.CreateDirectory(destination);
-        AtomicFile.WriteAllBytes(Path.Combine(destination, AgendaLog.FileName), log.Encode());
 
         if (!SamePath(_settings.NotesDirectory, destination))
         {
@@ -519,8 +518,8 @@ public sealed class NoteStore : IDisposable
     {
         if (Environment.TickCount64 < Interlocked.Read(ref _ignoreEventsUntil)) return;
         var name = Path.GetFileName(e.FullPath);
-        // Temporary files from atomic writes and the agenda log are the app's own
-        if (name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase) || name.StartsWith(".agenda-log", StringComparison.Ordinal)) return;
+        // Temporary files from atomic writes are the app's own
+        if (name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase)) return;
         _debounce?.Change(TimeSpan.FromMilliseconds(400), Timeout.InfiniteTimeSpan);
     }
 

@@ -45,9 +45,9 @@ public class AgendaTests
         {
             Title = "Week",
             Content = "# Plans for tomorrow\n- [ ] Renew passport\n- [x] Pay rent\nLunch with Sam tomorrow\nJust a thought\n- [ ] Send invoice @2026-11-02",
-            CreatedAt = Monday,
+            CreatedAt = Monday, UpdatedAt = Monday,
         };
-        var items = AgendaExtractor.Items(note, timeZone: Zone);
+        var items = AgendaExtractor.Items(note, Zone);
 
         Assert.Equal(["Renew passport", "Pay rent", "Lunch with Sam tomorrow", "Send invoice"], items.Select(i => i.Text));
         Assert.Equal([1, 2, 3, 5], items.Select(i => i.LineIndex));
@@ -80,8 +80,8 @@ public class AgendaTests
     [Fact]
     public void ExtractsPlannedLinesAsTodos()
     {
-        var note = new Note { Title = "Mixed", Content = "Sunny today\nfix the screen bug\nWill was here", CreatedAt = Monday };
-        var items = AgendaExtractor.Items(note, timeZone: Zone);
+        var note = new Note { Title = "Mixed", Content = "Sunny today\nfix the screen bug\nWill was here", CreatedAt = Monday, UpdatedAt = Monday };
+        var items = AgendaExtractor.Items(note, Zone);
 
         Assert.Equal(["Sunny today", "fix the screen bug"], items.Select(i => i.Text));
         Assert.Equal([false, true], items.Select(i => i.IsTodo));
@@ -90,8 +90,8 @@ public class AgendaTests
     [Fact]
     public void CrlfLinesKeepTheSameIndexes()
     {
-        var note = new Note { Content = "intro\r\n- [ ] one\r\n\r\ntwo tomorrow", CreatedAt = Monday };
-        var items = AgendaExtractor.Items(note, timeZone: Zone);
+        var note = new Note { Content = "intro\r\n- [ ] one\r\n\r\ntwo tomorrow", CreatedAt = Monday, UpdatedAt = Monday };
+        var items = AgendaExtractor.Items(note, Zone);
         Assert.Equal([1, 3], items.Select(i => i.LineIndex));
     }
 
@@ -104,7 +104,7 @@ public class AgendaTests
         temp.Store.ToggleChecklistItem(note.Id, 2);
 
         var saved = File.ReadAllText(temp.Store.Notes[0].FilePath!);
-        Assert.EndsWith("Intro\n- [ ] Buy stamps\n- [x] Post letter", saved);
+        Assert.Contains("Intro\n- [ ] Buy stamps\n- [x] Post letter ✅ ", saved);
         Assert.Equal(["Post letter"], temp.Store.AgendaItems().Where(i => i.IsDone).Select(i => i.Text));
     }
 
@@ -116,101 +116,95 @@ public class AgendaTests
         Assert.Equal(Day(10, 29), Parse("Renew in 3 days"));
         Assert.Equal(Day(11, 9), Parse("Review in 2 weeks"));
 
-        var note = new Note { Content = "buy tomatoes today\n\nalso do laundry the day after.", CreatedAt = Monday };
-        Assert.Equal([Day(10, 26), Day(10, 27)], AgendaExtractor.Items(note, timeZone: Zone).Select(i => i.Date));
+        var note = new Note { Content = "buy tomatoes today\n\nalso do laundry the day after.", CreatedAt = Monday, UpdatedAt = Monday };
+        Assert.Equal([Day(10, 26), Day(10, 27)], AgendaExtractor.Items(note, Zone).Select(i => i.Date));
     }
 
     [Fact]
-    public void RelativeWordsResolveFromLineAnchorNotCreationDate()
+    public void MarkersFixAWordsDayAndShowTheTickDay()
     {
-        var note = new Note { Content = "Old plan tomorrow\nCall bank tomorrow", CreatedAt = Monday };
-        var friday = new DateTimeOffset(2026, 10, 30, 9, 0, 0, TimeSpan.FromHours(5.5));
-        var anchors = new Dictionary<string, DateTimeOffset> { [AgendaExtractor.LogKey("Call bank tomorrow")] = friday };
-
-        var items = AgendaExtractor.Items(note, anchors, Zone);
-
-        Assert.Equal([Day(10, 27), Day(10, 31)], items.Select(i => i.Date));
-        Assert.Equal([Day(10, 26), Day(10, 30)], items.Select(i => i.WrittenOn));
-    }
-
-    [Fact]
-    public void AgendaLogKeepsFirstSeenAndDropsRemovedLines()
-    {
-        var log = new AgendaLog();
-        var id = Guid.NewGuid();
-        var later = Monday.AddDays(4);
-
-        Assert.True(log.Update(id, [("a tomorrow", "A tomorrow")], Monday));
-        Assert.False(log.Update(id, [("a tomorrow", "A tomorrow")], later));
-        Assert.True(log.Update(id, [("a tomorrow", "A tomorrow"), ("b today", "B today")], later));
-        Assert.Equal(new Dictionary<string, DateTimeOffset> { ["a tomorrow"] = Monday, ["b today"] = later }, log.Anchors(id));
-        Assert.True(log.Update(id, [("b today", "B today")], later));
-        Assert.Equal(["b today"], log.Anchors(id).Keys);
-    }
-
-    [Fact]
-    public void AgendaLogKeepsWhenTheMacSawALineTicked()
-    {
-        var id = Guid.Parse("02eff95a-ff15-4719-990a-0a091abe49f6");
-        const string mac = """
-        { "notes" : { "02EFF95A-FF15-4719-990A-0A091ABE49F6" : { "call bank" : {
-          "doneAt" : "2026-10-28T09:30:00Z", "firstSeen" : "2026-10-26T10:00:00Z", "line" : "- [x] call bank" } } } }
-        """;
-        var log = AgendaLog.Decode(System.Text.Encoding.UTF8.GetBytes(mac));
-        Assert.NotNull(log);
-        log.Update(id, [("call bank", "- [x] call bank"), ("new", "New")], Monday);
-        var json = System.Text.Encoding.UTF8.GetString(log.Encode());
-        Assert.Contains("\"doneAt\": \"2026-10-28T09:30:00Z\"", json);
-        var again = AgendaLog.Decode(log.Encode());
-        Assert.Null(again!.Notes["02EFF95A-FF15-4719-990A-0A091ABE49F6"]["new"].DoneAt);
-    }
-
-    [Fact]
-    public void AgendaLogFileMatchesMacFormat()
-    {
-        var log = new AgendaLog();
-        var id = Guid.Parse("02eff95a-ff15-4719-990a-0a091abe49f6");
-        log.Update(id, [("call bank tomorrow", "Call bank tomorrow")], new DateTimeOffset(2026, 10, 27, 6, 55, 0, 123, TimeSpan.Zero));
-        var json = System.Text.Encoding.UTF8.GetString(log.Encode());
-
-        Assert.Contains("\"02EFF95A-FF15-4719-990A-0A091ABE49F6\"", json);
-        Assert.Contains("\"firstSeen\": \"2026-10-27T06:55:00Z\"", json);
-
-        // As the Mac app writes it, with Swift's pretty printing
-        const string mac = """
+        var note = new Note
         {
-          "notes" : {
-            "02EFF95A-FF15-4719-990A-0A091ABE49F6" : {
-              "call bank tomorrow" : {
-                "firstSeen" : "2026-10-27T06:55:00Z",
-                "line" : "Call bank tomorrow"
-              }
-            }
-          }
-        }
-        """;
-        var decoded = AgendaLog.Decode(System.Text.Encoding.UTF8.GetBytes(mac));
-        Assert.NotNull(decoded);
-        Assert.Equal(new DateTimeOffset(2026, 10, 27, 6, 55, 0, TimeSpan.Zero), decoded.Anchors(id)["call bank tomorrow"]);
+            Content = "Call bank tomorrow 📅 2026-10-30\n- [x] Pay rent ✅ 2026-10-25\n- [x] Send form friday 📅 2026-11-06 ✅ 2026-10-28",
+            CreatedAt = Monday,
+            UpdatedAt = Monday,
+        };
+        var items = AgendaExtractor.Items(note, Zone);
+
+        Assert.Equal(["Call bank tomorrow", "Pay rent", "Send form friday"], items.Select(i => i.Text));
+        Assert.Equal([Day(10, 30), (DateOnly?)null, Day(11, 6)], items.Select(i => i.Date));
+        Assert.Equal([(DateOnly?)null, Day(10, 25), Day(10, 28)], items.Select(i => i.DoneOn));
     }
 
+    private static string Resolve(string content, string? previous = null, DateTimeOffset? previousUpdatedAt = null, DateTimeOffset? now = null) =>
+        AgendaExtractor.ResolvingDates(content, previous, previousUpdatedAt, now ?? Monday, Zone);
+
     [Fact]
-    public void MergeKeepsEarliestFirstSeen()
+    public void ResolvingWritesTheDayOfRelativeWordsOnly()
     {
-        var id = Guid.NewGuid();
-        var mine = new AgendaLog();
-        mine.Update(id, [("a", "A"), ("b", "B")], Monday.AddDays(2));
-        var conflict = new AgendaLog();
-        conflict.Update(id, [("a", "A")], Monday);
-
-        mine.Merge(conflict);
-
-        Assert.Equal(Monday, mine.Anchors(id)["a"]);
-        Assert.Equal(Monday.AddDays(2), mine.Anchors(id)["b"]);
+        const string content = "Call bank tomorrow\nlunch on 2026-11-02\nbuy milk oct 28\n# Heading today\nplain line";
+        var once = Resolve(content);
+        Assert.Equal("Call bank tomorrow 📅 2026-10-27\nlunch on 2026-11-02\nbuy milk oct 28\n# Heading today\nplain line", once);
+        Assert.Equal(once, Resolve(once, once, Monday, Monday.AddDays(5))); // a marked line never moves
     }
 
     [Fact]
-    public void EditingNoteLaterDoesNotMoveEarlierRelativeLines()
+    public void ResolvingKeepsTheMarkerWhenTheEditorsCopyLacksIt()
+    {
+        const string saved = "Call bank tomorrow 📅 2026-10-27";
+        var later = Monday.AddDays(4);
+        Assert.Equal(saved, Resolve("Call bank tomorrow", saved, Monday, later));
+        Assert.Equal("intro\n" + saved, Resolve("intro\nCall bank tomorrow", saved, Monday, later)); // moving a line keeps its day
+        Assert.Equal("Call bank tomorrow 📅 2026-11-02", Resolve("Call bank tomorrow 📅 2026-11-02", saved, Monday, later)); // an edited marker wins
+    }
+
+    [Fact]
+    public void DuplicateLinesKeepTheirOwnDays()
+    {
+        const string saved = "call bank tomorrow 📅 2026-10-27\ncall bank tomorrow 📅 2026-10-31";
+        Assert.Equal(saved, Resolve("call bank tomorrow\ncall bank tomorrow", saved, Monday, Monday.AddDays(9)));
+    }
+
+    [Fact]
+    public void ResolvingDatesNewLinesFromNowAndOldUnmarkedLinesFromTheirNote()
+    {
+        var result = Resolve("old plan tomorrow\nnew plan tomorrow", "old plan tomorrow", Monday, Monday.AddDays(3));
+        Assert.Equal("old plan tomorrow 📅 2026-10-27\nnew plan tomorrow 📅 2026-10-30", result);
+    }
+
+    [Fact]
+    public void ResolvingChainsTheDayAfterFromTheLineAbove()
+    {
+        Assert.Equal("buy tomatoes today 📅 2026-10-26\nbake the day after 📅 2026-10-27", Resolve("buy tomatoes today\nbake the day after"));
+    }
+
+    [Fact]
+    public void ResolvingWritesAndRemovesTheTickDay()
+    {
+        var ticked = Resolve("- [x] call bank");
+        Assert.Equal("- [x] call bank ✅ 2026-10-26", ticked);
+        var later = Monday.AddDays(1);
+        Assert.Equal(ticked, Resolve(ticked, ticked, Monday, later)); // the tick day is kept
+        Assert.Equal(ticked, Resolve("- [x] call bank", ticked, Monday, later)); // so is it when the editor's copy lacks the marker
+        Assert.Equal("- [ ] call bank", Resolve("- [ ] call bank ✅ 2026-10-26", ticked, Monday, later));
+        Assert.Equal("- [x] send form friday 📅 2026-10-30 ✅ 2026-10-26", Resolve("- [x] send form friday"));
+    }
+
+    [Fact]
+    public void ResolvingKeepsWindowsLineEndings()
+    {
+        Assert.Equal("a\r\ncall bank tomorrow 📅 2026-10-27\r\nb", Resolve("a\r\ncall bank tomorrow\r\nb"));
+    }
+
+    [Fact]
+    public void MarkersAreInvisibleToTheLineText()
+    {
+        Assert.Equal("call bank tomorrow", AgendaExtractor.DisplayText("- [x] call bank tomorrow 📅 2026-10-27 ✅ 2026-10-28"));
+        Assert.True(AgendaExtractor.IsPlannedAction(AgendaExtractor.DisplayText("call bank 📅 2026-10-27")));
+    }
+
+    [Fact]
+    public void SavingWritesDaysIntoTheNotesOwnFile()
     {
         using var temp = new TempStore();
         var note = temp.Store.CreateNote("Errands", "Buy tomatoes today");
@@ -218,10 +212,15 @@ public class AgendaTests
 
         temp.Store.Save(note with { Content = note.Content + "\nCall bank tomorrow" });
 
-        var items = temp.Store.AgendaItemsFor(temp.Store.Notes[0]);
+        var stored = temp.Store.Notes[0];
+        var items = temp.Store.AgendaItemsFor(stored);
         Assert.Equal(2, items.Count);
         Assert.Equal(firstDay, items[0].Date);
-        Assert.True(File.Exists(temp.Store.AgendaLogPath));
+        Assert.Equal(firstDay!.Value.AddDays(1), items[1].Date);
+        var file = File.ReadAllText(stored.FilePath!);
+        Assert.Contains("Call bank tomorrow 📅 ", file);
+        Assert.DoesNotContain("seen:", file);
+        Assert.False(File.Exists(Path.Combine(temp.Root, ".agenda-log.json")));
     }
 
     [Fact]
@@ -252,7 +251,9 @@ public class AgendaTests
 
         temp.Store.ToggleChecklistItem(note.Id, 0);
 
-        Assert.EndsWith("- [x] buy tomatoes today\nhiking next week", File.ReadAllText(temp.Store.Notes[0].FilePath!));
+        var saved = File.ReadAllText(temp.Store.Notes[0].FilePath!);
+        Assert.Contains("- [x] buy tomatoes today 📅 ", saved);
+        Assert.Contains(" ✅ ", saved);
         var after = temp.Store.AgendaItemsFor(temp.Store.Notes[0]);
         Assert.Equal([true, false], after.Select(i => i.IsDone));
         Assert.Equal(before.Select(i => i.Date), after.Select(i => i.Date)); // completing must not move the date

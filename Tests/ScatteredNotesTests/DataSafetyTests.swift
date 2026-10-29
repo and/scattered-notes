@@ -273,20 +273,18 @@ final class DataSafetyTests: XCTestCase {
     }
 
     @MainActor
-    func testCorruptAgendaLogNeverAffectsNotes() throws {
+    func testOpeningANoteWithoutMarkersNeverRewritesIt() throws {
         let root = makeRoot()
         let manager = makeManager(root: root)
-        let note = manager.createNote(title: "Plans", content: "buy tomatoes today\n- [ ] call bank tomorrow")
-        let before = try Data(contentsOf: XCTUnwrap(note.filePath))
+        let note = manager.createNote(title: "Plans", content: "x")
+        let file = try XCTUnwrap(note.filePath)
+        let written = "---\nid: \(note.id)\ntitle: Plans\n---\n\nbuy tomatoes today\n- [x] call bank tomorrow\n"
+        try written.write(to: file, atomically: true, encoding: .utf8)
 
-        for garbage in [Data("{ not json".utf8), Data(), Data([0xFF, 0x00]), Data("{\"notes\": 5}".utf8)] {
-            try garbage.write(to: manager.agendaLogURL)
-            let reloaded = makeManager(root: root)
-            XCTAssertEqual(reloaded.notes.count, 1)
-            XCTAssertEqual(reloaded.notes[0].content, note.content)
-            XCTAssertEqual(reloaded.agendaItems(for: reloaded.notes[0]).count, 2, "agenda not rebuilt from corrupt log")
-            XCTAssertEqual(try Data(contentsOf: XCTUnwrap(note.filePath)), before, "note file touched by log recovery")
-        }
+        let reloaded = makeManager(root: root)
+
+        XCTAssertEqual(reloaded.agendaItems(for: reloaded.notes[0]).count, 2)
+        XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), written, "opening a note rewrote its file")
     }
 
     @MainActor

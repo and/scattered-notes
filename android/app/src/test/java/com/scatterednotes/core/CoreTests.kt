@@ -3,6 +3,7 @@ package com.scatterednotes.core
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
@@ -50,6 +51,7 @@ class AgendaTests {
             title = "Week",
             content = "# Plans for tomorrow\n- [ ] Renew passport\n- [x] Pay rent\nLunch with Sam tomorrow\nJust a thought\n- [ ] Send invoice @2026-11-02",
             createdAt = monday,
+            updatedAt = monday,
         )
         val items = AgendaExtractor.items(note, zone = zone)
         assertEquals(listOf("Renew passport", "Pay rent", "Lunch with Sam tomorrow", "Send invoice"), items.map { it.text })
@@ -76,13 +78,6 @@ class AgendaTests {
     }
 
     @Test
-    fun anchorsKeepRelativeDaysWhereTheyWereWritten() {
-        val note = Note(content = "call the bank tomorrow", createdAt = monday)
-        val anchors = mapOf(AgendaExtractor.logKey("call the bank tomorrow") to Instant.parse("2026-10-28T05:00:00Z"))
-        assertEquals(day(10, 29), AgendaExtractor.items(note, anchors, zone).single().date)
-    }
-
-    @Test
     fun tickingAPlainLineMakesItAChecklistItem() {
         assertEquals("a\n- [x] fix the screen bug\r\nb", Checklist.toggleLine(1, "a\nfix the screen bug\r\nb"))
         assertEquals("  - [ ] Pay rent", Checklist.toggleLine(0, "  - [x] Pay rent"))
@@ -91,7 +86,7 @@ class AgendaTests {
 
     @Test
     fun dashboardSortsItemsIntoSections() {
-        val note = Note(content = "overdue thing 2026-10-20\n- [ ] pay rent today\nlunch friday\nfix the bike", createdAt = monday)
+        val note = Note(content = "overdue thing 2026-10-20\n- [ ] pay rent today\nlunch friday\nfix the bike", createdAt = monday, updatedAt = monday)
         val dashboard = Dashboard.build(listOf(note), AgendaExtractor.items(note, zone = zone), day(10, 26))
         assertEquals(emptyList<String>(), dashboard.overdue.map { it.text })
         assertEquals(listOf("pay rent today"), dashboard.dueToday.map { it.text })
@@ -140,38 +135,82 @@ class NoteFormatTests {
     }
 }
 
-class AgendaLogTests {
-    private val id = UUID.fromString("7C1F3A52-1111-4B5B-9C8E-1234567890AB")
+class AgendaMarkerTests {
+    private val zone = ZoneId.of("Asia/Kolkata")
+    private val monday = Instant.parse("2026-10-26T03:30:00Z")
+
+    private fun day(month: Int, day: Int) = LocalDate.of(2026, month, day)
+
+    private fun resolve(content: String, previous: String? = null, previousUpdatedAt: Instant? = null, now: Instant = monday) =
+        AgendaExtractor.resolvingDates(content, previous, previousUpdatedAt, now, zone)
 
     @Test
-    fun keepsFirstSeenAndDropsRemovedLines() {
-        val log = AgendaLog()
-        assertTrue(log.update(id, listOf("a" to "A", "b" to "B"), Instant.parse("2026-10-26T10:00:00.900Z")))
-        assertFalse(log.update(id, listOf("a" to "A", "b" to "B"), Instant.parse("2026-10-27T10:00:00Z")))
-        assertTrue(log.update(id, listOf("a" to "A"), Instant.parse("2026-10-27T10:00:00Z")))
-        assertEquals(mapOf("a" to Instant.parse("2026-10-26T10:00:00Z")), log.anchors(id))
+    fun markersFixAWordsDayAndShowTheTickDay() {
+        val note = Note(
+            content = "Call bank tomorrow 📅 2026-10-30\n- [x] Pay rent ✅ 2026-10-25\n- [x] Send form friday 📅 2026-11-06 ✅ 2026-10-28",
+            createdAt = monday, updatedAt = monday,
+        )
+        val items = AgendaExtractor.items(note, zone)
+
+        assertEquals(listOf("Call bank tomorrow", "Pay rent", "Send form friday"), items.map { it.text })
+        assertEquals(listOf(day(10, 30), null, day(11, 6)), items.map { it.date })
+        assertEquals(listOf(null, day(10, 25), day(10, 28)), items.map { it.doneOn })
     }
 
     @Test
-    fun encodesInTheMacFormatAndDecodesIt() {
-        val log = AgendaLog()
-        log.update(id, listOf("call \"bob\"" to "Call \"Bob\""), Instant.parse("2026-10-26T10:00:00Z"))
-        val text = log.encode()
-        assertTrue(text, text.contains("\"firstSeen\" : \"2026-10-26T10:00:00Z\""))
-        assertEquals(log.notes, AgendaLog.decode(text)!!.notes)
-        assertNull(AgendaLog.decode("not json"))
-        assertEquals(emptyMap<String, Any>(), AgendaLog.decode(AgendaLog().encode())!!.notes)
+    fun writesTheDayOfRelativeWordsOnly() {
+        val content = "Call bank tomorrow\nlunch on 2026-11-02\nbuy milk oct 28\n# Heading today\nplain line"
+        val once = resolve(content)
+        assertEquals("Call bank tomorrow 📅 2026-10-27\nlunch on 2026-11-02\nbuy milk oct 28\n# Heading today\nplain line", once)
+        assertEquals("a marked line never moves", once, resolve(once, once, monday, monday.plusSeconds(5 * 86_400)))
     }
 
     @Test
-    fun keepsWhenTheMacSawALineTicked() {
-        val mac = "{\"notes\":{\"${Note.formatId(id)}\":{\"call bank\":" +
-            "{\"doneAt\":\"2026-10-28T09:30:00Z\",\"firstSeen\":\"2026-10-26T10:00:00Z\",\"line\":\"- [x] call bank\"}}}}"
-        val log = AgendaLog.decode(mac)!!
-        log.update(id, listOf("call bank" to "- [x] call bank", "new" to "New"), Instant.parse("2026-10-28T10:00:00Z"))
-        val again = AgendaLog.decode(log.encode())!!
-        assertEquals(Instant.parse("2026-10-28T09:30:00Z"), again.notes.getValue(Note.formatId(id)).getValue("call bank").doneAt)
-        assertNull(again.notes.getValue(Note.formatId(id)).getValue("new").doneAt)
+    fun keepsTheMarkerWhenTheEditorsCopyLacksIt() {
+        val saved = "Call bank tomorrow 📅 2026-10-27"
+        val later = monday.plusSeconds(4 * 86_400)
+        assertEquals(saved, resolve("Call bank tomorrow", saved, monday, later))
+        assertEquals("intro\n$saved", resolve("intro\nCall bank tomorrow", saved, monday, later))
+        assertEquals("Call bank tomorrow 📅 2026-11-02", resolve("Call bank tomorrow 📅 2026-11-02", saved, monday, later))
+    }
+
+    @Test
+    fun duplicateLinesKeepTheirOwnDays() {
+        val saved = "call bank tomorrow 📅 2026-10-27\ncall bank tomorrow 📅 2026-10-31"
+        assertEquals(saved, resolve("call bank tomorrow\ncall bank tomorrow", saved, monday, monday.plusSeconds(9 * 86_400)))
+    }
+
+    @Test
+    fun datesNewLinesFromNowAndOldUnmarkedLinesFromTheirNote() {
+        val result = resolve("old plan tomorrow\nnew plan tomorrow", "old plan tomorrow", monday, monday.plusSeconds(3 * 86_400))
+        assertEquals("old plan tomorrow 📅 2026-10-27\nnew plan tomorrow 📅 2026-10-30", result)
+    }
+
+    @Test
+    fun chainsTheDayAfterFromTheLineAbove() {
+        assertEquals("buy tomatoes today 📅 2026-10-26\nbake the day after 📅 2026-10-27", resolve("buy tomatoes today\nbake the day after"))
+    }
+
+    @Test
+    fun writesAndRemovesTheTickDay() {
+        val ticked = resolve("- [x] call bank")
+        assertEquals("- [x] call bank ✅ 2026-10-26", ticked)
+        val later = monday.plusSeconds(86_400)
+        assertEquals(ticked, resolve(ticked, ticked, monday, later))
+        assertEquals(ticked, resolve("- [x] call bank", ticked, monday, later))
+        assertEquals("- [ ] call bank", resolve("- [ ] call bank ✅ 2026-10-26", ticked, monday, later))
+        assertEquals("- [x] send form friday 📅 2026-10-30 ✅ 2026-10-26", resolve("- [x] send form friday"))
+    }
+
+    @Test
+    fun keepsWindowsLineEndings() {
+        assertEquals("a\r\ncall bank tomorrow 📅 2026-10-27\r\nb", resolve("a\r\ncall bank tomorrow\r\nb"))
+    }
+
+    @Test
+    fun markersAreInvisibleToTheLineText() {
+        assertEquals("call bank tomorrow", AgendaExtractor.displayText("- [x] call bank tomorrow 📅 2026-10-27 ✅ 2026-10-28"))
+        assertTrue(AgendaExtractor.isPlannedAction(AgendaExtractor.displayText("call bank 📅 2026-10-27")))
     }
 }
 

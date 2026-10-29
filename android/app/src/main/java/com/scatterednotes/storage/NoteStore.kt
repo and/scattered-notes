@@ -2,7 +2,6 @@ package com.scatterednotes.storage
 
 import com.scatterednotes.core.AgendaExtractor
 import com.scatterednotes.core.AgendaItem
-import com.scatterednotes.core.AgendaLog
 import com.scatterednotes.core.CategoryType
 import com.scatterednotes.core.Checklist
 import com.scatterednotes.core.FileNames
@@ -31,11 +30,13 @@ class NoteStore(private val root: NoteFolder, private val zone: ZoneId = ZoneId.
     var projects: List<ProjectArea> = emptyList()
         private set
 
-    private var agendaLog = AgendaLog()
-
     /** Parsed notes by path, reused while a file's modification time and size are unchanged. */
     private data class CachedFile(val modified: Instant?, val size: Long, val note: Note)
     private val fileCache = mutableMapOf<String, CachedFile>()
+
+    /** Agenda items per note, valid while the note's text, creation time and stamps are unchanged. */
+    private data class CachedAgenda(val content: String, val updatedAt: Instant, val items: List<AgendaItem>)
+    private val agendaCache = mutableMapOf<UUID, CachedAgenda>()
 
     private fun folder(path: List<String>, create: Boolean): NoteFolder? =
         path.fold(root as NoteFolder?) { parent, name -> parent?.folder(name, create) }
@@ -72,16 +73,7 @@ class NoteStore(private val root: NoteFolder, private val zone: ZoneId = ZoneId.
         }
         val unique = loaded.filter { newest[it.id]?.filePath == it.filePath }
 
-        // Pick up lines written outside the app, anchoring them to when the file last changed
-        loadAgendaLog()
-        var logChanged = false
-        for (note in unique) {
-            val fallback = if (agendaLog.notes.containsKey(note.idString)) note.updatedAt else note.createdAt
-            logChanged = recordAgenda(note, fallback) || logChanged
-        }
-        val liveIds = unique.map { it.idString }.toSet()
-        if (agendaLog.notes.keys.retainAll(liveIds)) logChanged = true
-        if (logChanged) writeAgendaLog()
+        agendaCache.keys.retainAll(unique.map { it.id }.toSet())
 
         notes = sorted(unique)
         moveAreaNotesToInbox()
@@ -147,6 +139,9 @@ class NoteStore(private val root: NoteFolder, private val zone: ZoneId = ZoneId.
         val target = if (note.categoryType == CategoryType.INBOX || note.targetName.isNullOrBlank()) note.targetName
         else FileNames.sanitizeFolderName(note.targetName).ifEmpty { null }
         var updated = note.copy(updatedAt = Instant.now(), targetName = target)
+        updated = updated.copy(
+            content = AgendaExtractor.resolvingDates(updated.content, existing?.content, existing?.updatedAt, updated.updatedAt, zone),
+        )
         val destination = directory(updated.categoryType, updated.targetName)
         val dir = folder(destination, create = true) ?: return false
 
@@ -176,14 +171,13 @@ class NoteStore(private val root: NoteFolder, private val zone: ZoneId = ZoneId.
         }
 
         notes = sorted(notes.filter { it.id != updated.id } + updated)
-        if (recordAgenda(updated, Instant.now())) writeAgendaLog()
         return true
     }
 
     fun delete(note: Note) {
         note.filePath?.let { path -> folder(path.split('/').dropLast(1), create = false)?.delete(path.substringAfterLast('/')) }
         notes = notes.filter { it.id != note.id }
-        if (agendaLog.remove(note.id)) writeAgendaLog()
+        agendaCache.remove(note.id)
     }
 
     fun togglePin(note: Note): Boolean = save(note.copy(isPinned = !note.isPinned))
@@ -193,28 +187,17 @@ class NoteStore(private val root: NoteFolder, private val zone: ZoneId = ZoneId.
         save(note.copy(content = Checklist.toggleLine(lineIndex, note.content)))
     }
 
-    /** To-dos and dated lines from every note, dated from when each line was first written. */
-    fun agendaItems(): List<AgendaItem> = notes.flatMap { AgendaExtractor.items(it, agendaLog.anchors(it.id), zone) }
+    /** To-dos and dated lines from every note, dated from when each line was written. */
+    fun agendaItems(): List<AgendaItem> = notes.flatMap { agendaItems(it) }
 
-    private fun loadAgendaLog() {
-        agendaLog = root.read(AgendaLog.FILE_NAME)?.let { AgendaLog.decode(it) } ?: AgendaLog()
-        // Sync clients save clashing versions next to the original, e.g. ".agenda-log 2.json"
-        root.files()
-            .filter { it.name != AgendaLog.FILE_NAME && it.name.startsWith(".agenda-log") && it.name.endsWith(".json") }
-            .forEach { copy -> root.read(copy.name)?.let { AgendaLog.decode(it) }?.let { agendaLog.merge(it) } }
-    }
-
-    private fun writeAgendaLog() {
-        try {
-            root.write(AgendaLog.FILE_NAME, agendaLog.encode())
-        } catch (_: Exception) {
-            // Derived data: it is rebuilt on the next save
+    /** To-dos and dated lines of one note, dated from when each line was written. */
+    fun agendaItems(note: Note): List<AgendaItem> {
+        agendaCache[note.id]?.let {
+            if (it.content == note.content && it.updatedAt == note.updatedAt) return it.items
         }
-    }
-
-    private fun recordAgenda(note: Note, seenAt: Instant): Boolean {
-        val lines = AgendaExtractor.items(note, zone = zone).map { AgendaExtractor.logKey(it.text) to it.text }
-        return agendaLog.update(note.id, lines, seenAt)
+        val items = AgendaExtractor.items(note, zone)
+        agendaCache[note.id] = CachedAgenda(note.content, note.updatedAt, items)
+        return items
     }
 
     /** A file name no other note uses: clashing titles get 6 characters of the ID, then the whole ID. */

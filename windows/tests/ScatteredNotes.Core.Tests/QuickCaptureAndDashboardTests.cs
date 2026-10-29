@@ -35,7 +35,7 @@ public class QuickCaptureAndDashboardTests
     {
         var today = new DateOnly(2026, 10, 27);
         var id = Guid.NewGuid();
-        AgendaItem Item(int line, DateOnly? date, bool todo = true, bool done = false) => new(id, line, $"line {line}", todo, done, date, today);
+        AgendaItem Item(int line, DateOnly? date, bool todo = true, bool done = false) => new(id, line, $"line {line}", todo, done, date, today, null);
         var note = new Note { Id = id, Title = "n" };
         var items = new[]
         {

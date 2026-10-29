@@ -275,35 +275,34 @@ public class DataSafetyTests
     }
 
     [Fact]
-    public void CorruptAgendaLogNeverAffectsNotes()
+    public void OpeningANoteWithoutMarkersNeverRewritesIt()
     {
         using var temp = new TempStore();
-        var note = temp.Store.CreateNote("Plans", "buy tomatoes today\n- [ ] call bank tomorrow");
-        var before = File.ReadAllBytes(note.FilePath!);
+        var note = temp.Store.CreateNote("Plans", "x");
+        var written = $"---\nid: {note.IdString}\ntitle: Plans\n---\n\nbuy tomatoes today\n- [x] call bank tomorrow\n";
+        File.WriteAllText(note.FilePath!, written);
 
-        foreach (var garbage in new byte[][] { Encoding.UTF8.GetBytes("{ not json"), [], [0xFF, 0x00], Encoding.UTF8.GetBytes("{\"notes\": 5}") })
-        {
-            File.WriteAllBytes(temp.Store.AgendaLogPath, garbage);
-            var reloaded = temp.Open();
-            Assert.Single(reloaded.Notes);
-            Assert.Equal(note.Content, reloaded.Notes[0].Content);
-            Assert.Equal(2, reloaded.AgendaItemsFor(reloaded.Notes[0]).Count);
-            Assert.Equal(before, File.ReadAllBytes(note.FilePath!));
-        }
+        var reloaded = temp.Open();
+
+        Assert.Equal(2, reloaded.AgendaItemsFor(reloaded.Notes[0]).Count);
+        Assert.Equal(written, File.ReadAllText(note.FilePath!)); // opening a note must not rewrite its file
     }
 
     [Fact]
-    public void ConflictCopyOfAgendaLogIsMerged()
+    public void ReloadingReadsOnlyTheFilesThatChanged()
     {
         using var temp = new TempStore();
-        var note = temp.Store.CreateNote("Plans", "call bank tomorrow");
-        var conflict = new AgendaLog();
-        var written = new DateTimeOffset(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
-        conflict.Update(note.Id, [("call bank tomorrow", "call bank tomorrow")], written);
-        File.WriteAllBytes(Path.Combine(temp.Root, ".agenda-log 2.json"), conflict.Encode());
+        var first = temp.Store.CreateNote("One", "first");
+        temp.Store.CreateNote("Two", "second");
+        temp.Store.LoadAll();
+        var before = temp.Store.Notes.ToDictionary(n => n.Id);
 
-        var reloaded = temp.Open();
-        Assert.Equal(new DateOnly(2026, 10, 2), reloaded.AgendaItemsFor(reloaded.Notes[0])[0].Date);
+        File.AppendAllText(first.FilePath!, " edited outside");
+        temp.Store.LoadAll();
+
+        var after = temp.Store.Notes.ToDictionary(n => n.Id);
+        Assert.Equal("first edited outside", after[first.Id].Content.Trim());
+        foreach (var (id, note) in before.Where(p => p.Key != first.Id)) Assert.Same(note, after[id]);
     }
 
     [Fact]

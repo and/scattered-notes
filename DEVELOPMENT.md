@@ -63,7 +63,7 @@ The screen tests (`UITests`) go through Quick Note, the editor and the dashboard
 | `Sources/HotKey` | Global hot keys (Carbon) and the shortcut model |
 | `Sources/Models` | `Note`, the agenda parser (`Agenda.swift`) and note search |
 | `Sources/QuickCapture` | The floating Quick Capture panel |
-| `Sources/Storage` | Reading and writing notes, settings, the agenda log |
+| `Sources/Storage` | Reading and writing notes and settings |
 | `Sources/Views` | Dashboard, editor, note list, search palette, settings, sidebar, menu bar |
 | `Tests/ScatteredNotesTests` | Unit and end-to-end tests |
 | `scripts` | Release script and app icon generator |
@@ -96,7 +96,7 @@ sips -s format jpeg icon_1024.png --out /tmp/icon.jpg && sips -s format png /tmp
 
 ## Android app
 
-The Android app lives in `android/`: Kotlin and Jetpack Compose. `core/` is a port of the Windows `ScatteredNotes.Core` logic (note format, agenda, agenda log, dashboard, search, file names) and must follow the same rules; when you change the agenda rules on Mac and Windows, change `AgendaExtractor.kt` too. `storage/` reads the notes folder either in the app's private storage or in a folder picked with the system folder picker (Storage Access Framework).
+The Android app lives in `android/`: Kotlin and Jetpack Compose. `core/` is a port of the Windows `ScatteredNotes.Core` logic (note format, agenda,  dashboard, search, file names) and must follow the same rules; when you change the agenda rules on Mac and Windows, change `AgendaExtractor.kt` too. `storage/` reads the notes folder either in the app's private storage or in a folder picked with the system folder picker (Storage Access Framework).
 
 Requirements: JDK 17 or 21 (Gradle 8.14 does not run on newer JDKs) and the Android SDK with platform 36.
 
@@ -128,7 +128,7 @@ Notes are the user's data, so these hold for any change to storage:
 
 - Note files are written atomically, and a moved note's new file is written before the old one is removed.
 - Loading never rewrites a note file.
-- The agenda log (`.agenda-log.json`) is derived data. Losing or corrupting it must never affect notes.
+- The agenda markers (`📅 2026-10-28` for the day a line refers to, `✅ 2026-10-28` for the day it was ticked, the Obsidian Tasks format) live in the line itself. `AgendaExtractor.resolvingDates` / `ResolvingDates` / `resolvingDates` writes them, only when a note is saved, never when it is loaded, and only on lines whose date comes from a relative word or that are ticked. A marker always wins over the words next to it. The three ports must write the same text for the same input.
 
 ## Releasing
 

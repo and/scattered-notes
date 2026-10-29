@@ -25,7 +25,6 @@
 		C0BFFD021AED00CBCCA27134 /* NoteStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7D6F72C7DD2523B55BC6BBC /* NoteStorageManager.swift */; };
 		E41F3496DE069AB93D131075 /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D350724D3BEAAD6AB4DAF94A /* SettingsScreen.swift */; };
 		E56394A6C47BC63F04C8BAF7 /* CaptureSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00607CE09769DEEC38D9E674 /* CaptureSheet.swift */; };
-		E8BBC0358939014BF124D413 /* AgendaLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60281741720D0DB0E2283F99 /* AgendaLog.swift */; };
 		F8D2A94B5FF4FDEED1B9C766 /* NoteSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 030A71887BC59380FF7E288C /* NoteSearchTests.swift */; };
 		F9938A3363EDDD3975A46480 /* NotesFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAAD37990ED2DB755A21061E /* NotesFolder.swift */; };
 /* End PBXBuildFile section */
@@ -59,7 +58,6 @@
 		5327CF0E0274516F4DB4628F /* NoteEditorScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorScreen.swift; sourceTree = "<group>"; };
 		5B3F1CF6D489A827D197852B /* ScatteredNotesiOSTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ScatteredNotesiOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5FEC646301993D8BE35DEF35 /* ScatteredNotesiOSUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ScatteredNotesiOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		60281741720D0DB0E2283F99 /* AgendaLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaLog.swift; sourceTree = "<group>"; };
 		6E81A5377DB18C4501D70848 /* AgendaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaTests.swift; sourceTree = "<group>"; };
 		7125F8351E4EF3DC0D9E3F64 /* NoteSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteSearch.swift; sourceTree = "<group>"; };
 		7EB04D875E7D58997C962F89 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -130,7 +128,6 @@
 		9CE417AB629DC6D51FF961F3 /* Storage */ = {
 			isa = PBXGroup;
 			children = (
-				60281741720D0DB0E2283F99 /* AgendaLog.swift */,
 				9239C823B200641C2208AC33 /* AppSettings.swift */,
 				8285B8BE5487955A2B5E548B /* ICloudFolder.swift */,
 				D7D6F72C7DD2523B55BC6BBC /* NoteStorageManager.swift */,
@@ -312,7 +309,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				50F240A1AF5524E67951EDD0 /* Agenda.swift in Sources */,
-				E8BBC0358939014BF124D413 /* AgendaLog.swift in Sources */,
 				425D856627D328B3A710779B /* AppSettings.swift in Sources */,
 				E56394A6C47BC63F04C8BAF7 /* CaptureSheet.swift in Sources */,
 				3775FA2827C13978F29DF85F /* DashboardScreen.swift in Sources */,

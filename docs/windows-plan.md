@@ -31,7 +31,7 @@ windows/
   src/
     ScatteredNotes.Core/        class library, no UI
       Models/                   Note, Frontmatter, ProjectArea, AgendaItem
-      Agenda/                   AgendaExtractor, AgendaLog
+      Agenda/                   AgendaExtractor
       Search/                   NoteSearch
       Storage/                  NoteStore, AtomicFile, FileNames, AppSettings
     ScatteredNotes.App/         Avalonia app
@@ -58,8 +58,10 @@ change:
 - The body after the frontmatter is preserved byte for byte.
 - File names are `yyyy-MM-dd_<title>.md`, with a 6-character ID suffix on a clash.
 - `.metadata.json` in each project and area folder holds its icon.
-- `.agenda-log.json` at the root: `notes -> <note id> -> <line key> -> { line, firstSeen }`. `firstSeen`
-  is ISO 8601 in UTC without fractional seconds (`2026-10-27T06:55:00Z`).
+- Agenda markers live in the line: `📅 2026-10-27` after a line whose date comes from a relative word, and
+  `✅ 2026-10-27` after a ticked checklist line, e.g. `- [x] call the bank tomorrow 📅 2026-10-27 ✅ 2026-10-28`
+  (the Obsidian Tasks format). They are written when the note is saved, never when it is loaded, and the
+  marker wins over the words. There is no shared agenda file and no extra frontmatter.
 
 Windows-specific rules:
 
@@ -102,8 +104,8 @@ The Mac rules carry over, plus Windows behaviours:
   back-off. If the retries fail, keep the edit in memory and show a warning; never drop it.
 - **Watcher.** `FileSystemWatcher` with debounce. Skip events caused by the app's own writes.
 - **Quit and shutdown.** Flush pending edits on window close, app exit, and Windows shutdown or sign-out.
-- **Sync conflicts.** Both machines can rewrite `.agenda-log.json`. On load, merge the main file with any
-  conflict copies and keep the earliest `firstSeen` for each line. Do the same on the Mac.
+- **Sync conflicts.** Each note carries its own agenda markers, so a conflict is a conflict of one note file,
+  not of a file shared by every note.
 
 Port the Mac `DataSafetyTests` (round-trip fuzz, crash mid-save, duplicate IDs, moved notes) to xUnit,
 and add tests for CRLF files, BOM files, reserved names and locked files.
@@ -120,7 +122,7 @@ Each phase ends with passing tests and a commit.
 
 **1. Core library**
 - Port `Note` with frontmatter split, escaping and serialisation, plus `AgendaExtractor` with every date
-  phrase, `AgendaLog`, `NoteSearch` and the store (load, dedupe, save, move, delete, projects, areas).
+  phrase, agenda markers, `NoteSearch` and the store (load, dedupe, save, move, delete, projects, areas).
 - Port the Mac tests to xUnit, and add the shared fixtures and the Windows-specific tests above.
 - Done when the core reads the real iCloud notes folder (read-only) and produces the same agenda as
   the Mac app.
@@ -169,7 +171,6 @@ Proposal: start with option 3 for early testing, then publish through the Store.
 - Apply the Windows file name rules (trailing dots, reserved names) when creating notes, and sanitise
   project and area folder names. A folder such as `Work: 2026` cannot exist on Windows, so it would
   not sync.
-- Merge `.agenda-log.json` conflict copies on load.
 - Load the shared fixtures in the XCTest suite.
 
 ## Out of scope for the first version
@@ -181,7 +182,7 @@ Proposal: start with option 3 for early testing, then publish through the Store.
 ## Status (27 October 2026)
 
 - Phases 0 to 6 are written. `windows/` builds on the Mac, and `dotnet test` passes 69 tests.
-- Loading a copy of the real iCloud notes folder leaves every note file and `.agenda-log.json` byte for
+- Loading a copy of the real iCloud notes folder leaves every note file byte for
   byte unchanged, so the formats match.
 - The app runs on macOS for development: `dotnet run --project windows/src/ScatteredNotes.App --
   --settings <file> --notes-folder <folder>` uses test data instead of the real notes.

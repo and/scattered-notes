@@ -33,4 +33,31 @@ class NoteStoreTests {
             root.deleteRecursively()
         }
     }
+
+    @Test
+    fun savingWritesDaysIntoTheNotesOwnFileAndOpeningNeverRewritesIt() {
+        val root = Files.createTempDirectory("sn-store").toFile()
+        try {
+            val store = NoteStore(LocalFolder(root))
+            store.loadAll()
+            val note = store.createNote("Errands", "Buy tomatoes today")
+            store.save(note.copy(content = note.content + "\nCall bank tomorrow"))
+            val file = File(root, store.notes.single().filePath!!)
+            val saved = file.readText()
+            assertTrue(saved, saved.contains("Call bank tomorrow 📅 "))
+            assertTrue(saved, !saved.contains("seen:"))
+            assertTrue(!File(root, ".agenda-log.json").exists())
+            val items = store.agendaItems(store.notes.single())
+            assertEquals(items[0].date!!.plusDays(1), items[1].date)
+
+            // A note written elsewhere has no markers; loading leaves it alone
+            val outside = "---\nid: ${note.idString}\ntitle: Errands\n---\n\nbuy tomatoes today\n- [x] call bank tomorrow\n"
+            file.writeText(outside)
+            val reloaded = NoteStore(LocalFolder(root)).also { it.loadAll() }
+            assertEquals(2, reloaded.agendaItems(reloaded.notes.single()).size)
+            assertEquals(outside, file.readText())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
 }

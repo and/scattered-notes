@@ -272,7 +272,7 @@ public struct NoteDetailEditorView: View {
                     }
                 }
                 
-                Text("\(editableContent.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count) words")
+                Text("\(Self.wordCount(in: editableContent)) words")
                     .font(.caption)
                     .foregroundColor(.wcagSecondaryText)
             }
@@ -310,6 +310,21 @@ public struct NoteDetailEditorView: View {
         }
     }
     
+    /// The number of words in `text`, counted by scanning it once, without splitting it into an array of words.
+    static func wordCount(in text: String) -> Int {
+        var count = 0
+        var inWord = false
+        for scalar in text.unicodeScalars {
+            if scalar.properties.isWhitespace {
+                inWord = false
+            } else if !inWord {
+                inWord = true
+                count += 1
+            }
+        }
+        return count
+    }
+
     private func syncFromNote() {
         saveDebounceTimer?.invalidate()
         saveDebounceTimer = nil

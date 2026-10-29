@@ -132,7 +132,7 @@ internal sealed class SidebarView : UserControl
         _syncing = true;
         _main.ItemsSource = new[] { SidebarSelection.Dashboard, SidebarSelection.All, SidebarSelection.Inbox };
         _projects.ItemsSource = _state.Store.Projects.Select(p => new SidebarSelection(SidebarKind.Project, p.Name)).ToList();
-        var people = Counted(n => n.People).Select(p => new SidebarSelection(SidebarKind.Person, p)).ToList();
+        var people = Counted(_state.Store.PeopleIn).Select(p => new SidebarSelection(SidebarKind.Person, p)).ToList();
         var tags = Counted(n => n.Tags).Select(t => new SidebarSelection(SidebarKind.Tag, t)).ToList();
         _people.ItemsSource = people;
         _tags.ItemsSource = tags;

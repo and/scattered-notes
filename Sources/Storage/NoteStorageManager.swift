@@ -19,7 +19,6 @@ public final class NoteStorageManager: ObservableObject {
     private var isPerformingInternalFileOperation: Bool = false
     private var cancellables = Set<AnyCancellable>()
     private let enableFileWatcher: Bool
-    private var agendaLog = AgendaLog()
 
     /// Parsed notes by file path, reused by `loadAll()` while a file's modification date and size are
     /// unchanged, so a reload only reads the files that changed
@@ -30,16 +29,23 @@ public final class NoteStorageManager: ObservableObject {
     }
     private var fileCache: [String: CachedFile] = [:]
 
-    /// Agenda items per note, valid while the note's text and creation date are unchanged. Dropped
-    /// for a note whenever its agenda log entries change, because the log decides what relative words
-    /// resolve to
+    /// Agenda items per note, valid while the note's text and update time are unchanged, because the
+    /// update time decides what relative words without a `📅` marker resolve to
     private struct CachedAgenda {
         let content: String
-        let createdAt: Date
+        let updatedAt: Date
         let items: [AgendaItem]
     }
     private var agendaCache: [UUID: CachedAgenda] = [:]
     private var allAgendaItems: [AgendaItem]?
+
+    /// The `@people` of each note, valid while its text is unchanged, so the sidebar does not rescan
+    /// every note's text each time one note is saved
+    private struct CachedPeople {
+        let content: String
+        let names: [String]
+    }
+    private var peopleCache: [UUID: CachedPeople] = [:]
     
     public init(settings: AppSettings = .shared, enableFileWatcher: Bool = true) {
         self.settings = settings
@@ -93,10 +99,6 @@ public final class NoteStorageManager: ObservableObject {
         rootURL.appendingPathComponent("Areas", isDirectory: true)
     }
     
-    /// Records when each actionable or dated line first appeared; see `AgendaLog`.
-    public var agendaLogURL: URL {
-        rootURL.appendingPathComponent(AgendaLog.fileName)
-    }
     
     public func setupDirectories() {
         let fileManager = FileManager.default
@@ -163,19 +165,9 @@ public final class NoteStorageManager: ObservableObject {
         }
         loadedNotes = loadedNotes.filter { newestByID[$0.id]?.filePath == $0.filePath }
         
-        // Pick up lines written outside the app, anchoring them to when the file last changed
-        loadAgendaLog()
-        var logChanged = false
-        for note in loadedNotes {
-            let fallback = agendaLog.notes[note.id.uuidString] == nil ? note.createdAt : note.updatedAt
-            logChanged = recordAgenda(for: note, seenAt: fallback) || logChanged
-        }
-        let liveIDs = Set(loadedNotes.map { $0.id.uuidString })
-        for id in agendaLog.notes.keys where !liveIDs.contains(id) {
-            agendaLog.notes[id] = nil
-            logChanged = true
-        }
-        if logChanged { writeAgendaLog() }
+        let liveIDs = Set(loadedNotes.map(\.id))
+        agendaCache = agendaCache.filter { liveIDs.contains($0.key) }
+        peopleCache = peopleCache.filter { liveIDs.contains($0.key) }
         
         // Sort notes: pinned first, then newest updated
         self.notes = loadedNotes.sorted {
@@ -256,7 +248,7 @@ public final class NoteStorageManager: ObservableObject {
         note.filePath = fileURL
         
         save(note: note)
-        return note
+        return notes.first { $0.id == note.id } ?? note
     }
     
     public func save(note: Note) {
@@ -304,6 +296,9 @@ public final class NoteStorageManager: ObservableObject {
             }
         }
         
+        let previous = notes.first { $0.id == updatedNote.id }
+        updatedNote.content = AgendaExtractor.resolvingDates(
+            in: updatedNote.content, previous: previous?.content, previousUpdatedAt: previous?.updatedAt, now: updatedNote.updatedAt)
         let markdown = updatedNote.serializeToMarkdown()
         do {
             try coordinate(writingTo: fileURL) { try markdown.write(to: $0, atomically: true, encoding: .utf8) }
@@ -318,7 +313,6 @@ public final class NoteStorageManager: ObservableObject {
                 notes.insert(updatedNote, at: 0)
             }
             sortNotes()
-            if recordAgenda(for: updatedNote, seenAt: Date()) { writeAgendaLog() }
         } catch {
             print("Failed to save note \(updatedNote.id): \(error)")
         }
@@ -336,8 +330,8 @@ public final class NoteStorageManager: ObservableObject {
             try? coordinate(writingTo: fileURL, options: .forDeleting) { try FileManager.default.removeItem(at: $0) }
         }
         notes.removeAll { $0.id == note.id }
-        invalidateAgenda(for: note.id)
-        if agendaLog.notes.removeValue(forKey: note.id.uuidString) != nil { writeAgendaLog() }
+        agendaCache[note.id] = nil
+        peopleCache[note.id] = nil
     }
     
     public func move(note: Note, to category: CategoryType, targetName: String?) {
@@ -361,46 +355,29 @@ public final class NoteStorageManager: ObservableObject {
         return items
     }
     
+    /// The people mentioned in a note as `@name`, in the order they first appear.
+    public func people(in note: Note) -> [String] {
+        if let cached = peopleCache[note.id], cached.content == note.content { return cached.names }
+        let names = note.people
+        peopleCache[note.id] = CachedPeople(content: note.content, names: names)
+        return names
+    }
+
     /// Checklist items and dated lines of one note, dated from when each line was first written.
     public func agendaItems(for note: Note) -> [AgendaItem] {
-        if let cached = agendaCache[note.id], cached.createdAt == note.createdAt, cached.content == note.content {
+        if let cached = agendaCache[note.id], cached.updatedAt == note.updatedAt, cached.content == note.content {
             return cached.items
         }
-        let items = AgendaExtractor.items(from: note, anchors: agendaLog.anchors(for: note.id))
-        agendaCache[note.id] = CachedAgenda(content: note.content, createdAt: note.createdAt, items: items)
+        let items = AgendaExtractor.items(from: note)
+        agendaCache[note.id] = CachedAgenda(content: note.content, updatedAt: note.updatedAt, items: items)
         return items
     }
     
     /// The ticked items among `items` that were ticked on the same day as `day`.
     public func itemsDone(on day: Date, in items: [AgendaItem], calendar: Calendar = .current) -> [AgendaItem] {
-        var doneDates: [UUID: [String: Date]] = [:]
-        return items.filter { item in
-            guard item.isDone else { return false }
-            if doneDates[item.noteID] == nil { doneDates[item.noteID] = agendaLog.doneDates(for: item.noteID) }
-            return doneDates[item.noteID]?[AgendaExtractor.logKey(for: item.text)]
-                .map { calendar.isDate($0, inSameDayAs: day) } ?? false
+        items.filter { item in
+            item.isDone && item.doneOn.map { calendar.isDate($0, inSameDayAs: day) } == true
         }
-    }
-
-    // MARK: - Agenda Log
-    private func loadAgendaLog() {
-        guard let data = try? Data(contentsOf: agendaLogURL),
-              let log = try? AgendaLog.decoder.decode(AgendaLog.self, from: data) else {
-            agendaLog = AgendaLog()
-            invalidateAgenda()
-            return
-        }
-        agendaLog = log
-        invalidateAgenda()
-    }
-    
-    private func writeAgendaLog() {
-        isPerformingInternalFileOperation = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.isPerformingInternalFileOperation = false
-        }
-        guard let data = try? AgendaLog.encoder.encode(agendaLog) else { return }
-        try? coordinate(writingTo: agendaLogURL) { try data.write(to: $0, options: .atomic) }
     }
 
     /// Runs a write through NSFileCoordinator, so iCloud and other sync clients never upload a
@@ -416,23 +393,6 @@ public final class NoteStorageManager: ObservableObject {
             do { try write(url) } catch { writeError = error }
         }
         if let error = coordinationError ?? writeError { throw error }
-    }
-    
-    /// Adds log entries for new lines and drops entries for lines that are gone. Returns whether anything changed.
-    @discardableResult
-    private func recordAgenda(for note: Note, seenAt: Date) -> Bool {
-        let lines = AgendaExtractor.items(from: note).map {
-            (key: AgendaExtractor.logKey(for: $0.text), line: $0.text, isDone: $0.isDone)
-        }
-        let changed = agendaLog.update(noteID: note.id, lines: lines, seenAt: seenAt)
-        if changed { invalidateAgenda(for: note.id) }
-        return changed
-    }
-
-    /// Drops cached agenda items for one note, or for all notes when `noteID` is nil.
-    private func invalidateAgenda(for noteID: UUID? = nil) {
-        if let noteID { agendaCache[noteID] = nil } else { agendaCache.removeAll() }
-        allAgendaItems = nil
     }
     
     public func togglePin(note: Note) {
@@ -635,14 +595,18 @@ public final class NoteStorageManager: ObservableObject {
         }
     }
     
+    private nonisolated(unsafe) static let fileDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
     private func generateUniqueFileName(for note: Note, in directory: URL) -> String {
         let rawTitle = note.displayTitle
         let sanitized = sanitizeFileName(rawTitle)
         let baseName = sanitized.isEmpty ? "note" : sanitized
         
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        let datePrefix = dateFormatter.string(from: note.createdAt)
+        let datePrefix = Self.fileDateFormatter.string(from: note.createdAt)
         
         let candidate = "\(datePrefix)_\(baseName).md"
         let target = directory.appendingPathComponent(candidate)

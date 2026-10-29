@@ -11,7 +11,7 @@ public struct MarkdownRendererView: View {
     
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
+            LazyVStack(alignment: .leading, spacing: 10) {
                 let lines = content.components(separatedBy: .newlines)
                 ForEach(0..<lines.count, id: \.self) { index in
                     renderLine(lines[index], lineIndex: index)
