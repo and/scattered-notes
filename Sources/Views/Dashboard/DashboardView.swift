@@ -46,9 +46,7 @@ public struct DashboardView: View {
                         withAnimation { proxy.scrollTo(section, anchor: .top) }
                     }
 
-                    if isEmpty {
-                        emptyState
-                    } else {
+                    if !isEmpty {
                         if !overdue.isEmpty {
                             DashboardSection(title: "Overdue", systemImage: "exclamationmark.circle.fill", tint: .wcagOrange) {
                                 ForEach(overdue) { item in
@@ -231,31 +229,6 @@ public struct DashboardView: View {
             }
             .onDisappear { highlight.noteID = nil }
         }
-    }
-
-    private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Nothing to show yet")
-                .font(.headline)
-            Text(scope.hasOwnDashboard
-                 ? "This dashboard collects to-dos and dated lines from the notes in \(scope.title). Try writing:"
-                 : "The dashboard collects to-dos and dated lines from all your notes. Try writing:")
-                .font(.callout)
-                .foregroundColor(.wcagSecondaryText)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("- [ ] Renew passport")
-                Text("- [ ] Call the bank tomorrow")
-                Text("Team dinner on friday")
-                Text("Dentist oct 30 at 4pm")
-                Text("- [ ] Send invoice @2026-11-02")
-            }
-            .font(.system(.callout, design: .monospaced))
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.wcagBadgeBackground)
-            .cornerRadius(8)
-        }
-        .padding(.top, 8)
     }
 
     private func row(_ item: AgendaItem, note: Note?, showDate: Bool) -> some View {

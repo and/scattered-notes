@@ -56,7 +56,7 @@ fun DashboardScreen(
                 item {
                     Text("Dashboard", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                 }
-                item { Counters(dashboard) }
+                if (!dashboard.isEmpty) item { Counters(dashboard) }
                 if (state.loaded && dashboard.isEmpty) {
                     item {
                         Text(

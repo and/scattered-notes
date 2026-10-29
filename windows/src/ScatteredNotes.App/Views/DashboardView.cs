@@ -49,11 +49,7 @@ internal sealed class DashboardView : UserControl
         _panel.Children.Clear();
         _panel.Children.Add(Header(dashboard));
 
-        if (dashboard.IsEmpty)
-        {
-            _panel.Children.Add(EmptyState());
-            return;
-        }
+        if (dashboard.IsEmpty) return;
 
         if (dashboard.Overdue.Count > 0)
             _panel.Children.Add(Section("Overdue", Symbol.ErrorCircle, "WcagOrange",
@@ -148,19 +144,4 @@ internal sealed class DashboardView : UserControl
             dateLabel,
             showNote ? notes.GetValueOrDefault(item.NoteId) : null,
             note => _state.OpenNote(note));
-
-    private static Control EmptyState()
-    {
-        var stack = new StackPanel { Spacing = 8 };
-        stack.Children.Add(Ui.Text("Nothing to show yet", 15, FontWeight.SemiBold));
-        stack.Children.Add(new TextBlock { Text = "The dashboard collects checklists and dated lines from all your notes. Try writing:", TextWrapping = TextWrapping.Wrap, Classes = { "WcagSecondaryText" } });
-        var examples = new TextBlock
-        {
-            Text = "- [ ] Renew passport\n- [ ] Call the bank tomorrow\nTeam dinner on friday\nDentist oct 30 at 4pm\n- [ ] Send invoice @2026-11-02",
-            FontFamily = new FontFamily("Cascadia Mono, Consolas, Menlo, monospace"),
-            LineHeight = 22,
-        };
-        stack.Children.Add(new Border { Classes = { "badge" }, CornerRadius = new CornerRadius(8), Padding = new Thickness(12), Child = examples });
-        return stack;
-    }
 }

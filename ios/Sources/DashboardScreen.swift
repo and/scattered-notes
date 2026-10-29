@@ -15,11 +15,13 @@ struct DashboardScreen: View {
 
         NavigationStack {
             List {
-                Section {
-                    Counters(snapshot: snapshot)
+                if !snapshot.isEmpty {
+                    Section {
+                        Counters(snapshot: snapshot)
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
                 }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
 
                 if snapshot.isEmpty {
                     ContentUnavailableView(
