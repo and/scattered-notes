@@ -8,6 +8,7 @@ public struct MainSplitView: View {
     @State private var selectedNote: Note? = nil
     @State private var showingSearch = false
     @State private var focusRequest: MainPane?
+    @State private var sidebarHasFocus = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     
     public init() {}
@@ -92,7 +93,7 @@ public struct MainSplitView: View {
                 sidebar
             } content: {
                 NoteListView(selectedCategory: sidebarSelection, selectedNote: $selectedNote,
-                             focusRequest: $focusRequest, onMoveLeft: moveToSidebar)
+                             focusRequest: $focusRequest, sidebarHasFocus: sidebarHasFocus, onMoveLeft: moveToSidebar)
                     .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 400)
             } detail: {
                 detailView
@@ -101,7 +102,7 @@ public struct MainSplitView: View {
     }
 
     private var sidebar: some View {
-        SidebarView(selection: $sidebarSelection, focusRequest: $focusRequest, onMoveRight: { focusRequest = .list })
+        SidebarView(selection: $sidebarSelection, focusRequest: $focusRequest, hasFocus: $sidebarHasFocus, onMoveRight: { focusRequest = .list })
             .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
     }
 

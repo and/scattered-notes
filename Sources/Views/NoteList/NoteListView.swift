@@ -16,6 +16,8 @@ public struct NoteListView: View {
     @Binding var focusRequest: MainPane?
     /// Left arrow: back to the project list
     var onMoveLeft: () -> Void = {}
+    /// While the project list has the keyboard, the selected note is drawn muted, as the project is when the notes have it
+    var sidebarHasFocus: Bool = false
     
     @State private var searchText: String = ""
     @State private var sortOption: NoteSortOption = .dateUpdated
@@ -26,11 +28,13 @@ public struct NoteListView: View {
         selectedCategory: SidebarSelection,
         selectedNote: Binding<Note?>,
         focusRequest: Binding<MainPane?> = .constant(nil),
+        sidebarHasFocus: Bool = false,
         onMoveLeft: @escaping () -> Void = {}
     ) {
         self.selectedCategory = selectedCategory
         self._selectedNote = selectedNote
         self._focusRequest = focusRequest
+        self.sidebarHasFocus = sidebarHasFocus
         self.onMoveLeft = onMoveLeft
     }
     
@@ -169,7 +173,7 @@ public struct NoteListView: View {
                     List {
                         ForEach(filteredNotes) { note in
                             let isSelected = note.id == selectedNote?.id
-                            NoteCardRow(note: note, showDestination: selectedCategory == .all, showProject: !isProject, isSelected: isSelected,
+                            NoteCardRow(note: note, showDestination: selectedCategory == .all, showProject: !isProject, isSelected: isSelected, isDimmed: sidebarHasFocus,
                                         isHighlighted: note.id == highlight.noteID)
                                 .id(note.id)
                                 .contentShape(Rectangle())
@@ -211,16 +215,17 @@ public struct NoteListView: View {
     private var dashboardRow: some View {
         // Not drawn as selected while the cursor is in the search box, so it does not look like it has the focus
         let isSelected = selectedNote == nil && !searchFocused
+        let isMuted = sidebarHasFocus
         return Button(action: { selectedNote = nil }) {
             Label("\(selectedCategory.title) Dashboard", systemImage: "square.grid.2x2")
                 .font(.callout.weight(.medium))
-                .foregroundColor(isSelected ? .white : .primary)
+                .foregroundColor(isSelected && !isMuted ? .white : .primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(isSelected ? Color.wcagBlue : Color.clear)
+                        .fill(isSelected ? (isMuted ? Color.gray.opacity(0.22) : Color.wcagBlue) : Color.clear)
                 )
                 .contentShape(Rectangle())
         }
@@ -334,11 +339,13 @@ public struct NoteCardRow: View {
     var showProject: Bool = true
     /// A selected row sits on `wcagSelection`, so every color in it switches to white
     var isSelected: Bool = false
+    /// The selection is not where the keyboard is: drawn gray with the normal text colors
+    var isDimmed: Bool = false
     /// Marks the note whose text the pointer is over in a dashboard's notes log
     var isHighlighted: Bool = false
     
-    private var onAccent: Bool { isSelected }
-    private var secondaryColor: Color { isSelected ? .white : .wcagSecondaryText }
+    private var onAccent: Bool { isSelected && !isDimmed }
+    private var secondaryColor: Color { onAccent ? .white : .wcagSecondaryText }
     
     public var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -351,7 +358,7 @@ public struct NoteCardRow: View {
                 
                 Text(note.displayTitle)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(isSelected ? .white : .primary)
+                    .foregroundColor(onAccent ? .white : .primary)
                     .lineLimit(1)
                 
                 Spacer()
@@ -405,7 +412,7 @@ public struct NoteCardRow: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isSelected ? Color.wcagSelection : isHighlighted ? Color.wcagSelection.opacity(0.15) : Color.clear)
+                .fill(isSelected ? (isDimmed ? Color.gray.opacity(0.22) : Color.wcagSelection) : isHighlighted ? Color.wcagSelection.opacity(0.15) : Color.clear)
         )
     }
     

@@ -52,14 +52,17 @@ public struct SidebarView: View {
     @Binding var focusRequest: MainPane?
     /// Right arrow: carry on into the notes of the selected project
     var onMoveRight: () -> Void = {}
+    /// Reports whether the project list has the keyboard, so the notes can draw their selection to match
+    @Binding var hasFocus: Bool
     @FocusState private var sidebarFocused: Bool
     @State private var showingNewProjectDialog: Bool = false
     @State private var itemToDelete: ProjectArea? = nil
     @State private var showingDeleteAlert: Bool = false
     
-    public init(selection: Binding<SidebarSelection>, focusRequest: Binding<MainPane?> = .constant(nil), onMoveRight: @escaping () -> Void = {}) {
+    public init(selection: Binding<SidebarSelection>, focusRequest: Binding<MainPane?> = .constant(nil), hasFocus: Binding<Bool> = .constant(false), onMoveRight: @escaping () -> Void = {}) {
         self._selection = selection
         self._focusRequest = focusRequest
+        self._hasFocus = hasFocus
         self.onMoveRight = onMoveRight
     }
 
@@ -205,6 +208,7 @@ public struct SidebarView: View {
         .listStyle(.sidebar)
         .focused($sidebarFocused)
         .onKeyPress(.rightArrow) { onMoveRight(); return .handled }
+        .onChange(of: sidebarFocused) { _, focused in hasFocus = focused }
         .onChange(of: focusRequest) { _, request in
             guard request == .sidebar else { return }
             sidebarFocused = true
