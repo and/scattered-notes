@@ -199,6 +199,31 @@ final class MacAppUITests: XCTestCase {
         app.buttons.matching(NSPredicate(format: "label CONTAINS 'today'")).firstMatch.click()
     }
 
+    /// ⌘N starts the note in the project that is open now, also after moving between projects
+    func testCommandNCreatesTheNoteInTheOpenProject() throws {
+        try FileManager.default.createDirectory(at: folder.appendingPathComponent("Projects/Garden"), withIntermediateDirectories: true)
+        try writeNote("Kickoff notes", in: "Projects/Work")
+        try writeNote("Seeds to order", in: "Projects/Garden")
+        launch()
+
+        func notes(in project: String) -> Int { noteFiles().filter { $0.folder == "Projects/\(project)" }.count }
+
+        sidebarItem("Work").click()
+        XCTAssertTrue(text("Work Dashboard").waitForExistence(timeout: 5))
+        sidebarItem("Garden").click()
+        XCTAssertTrue(text("Garden Dashboard").waitForExistence(timeout: 5))
+
+        app.typeKey("n", modifierFlags: .command)
+        XCTAssertTrue(waitUntil { notes(in: "Garden") == 2 }, "⌘N in Garden files the note in Garden")
+        XCTAssertEqual(notes(in: "Work"), 1, "and not in the project that was open before")
+
+        sidebarItem("Work").click()
+        XCTAssertTrue(text("Work Dashboard").waitForExistence(timeout: 5))
+        app.typeKey("n", modifierFlags: .command)
+        XCTAssertTrue(waitUntil { notes(in: "Work") == 2 }, "⌘N in Work files the note in Work")
+        XCTAssertEqual(notes(in: "Garden"), 2)
+    }
+
     func testArrowKeysWalkBetweenTheProjectListAndItsNotes() throws {
         try writeNote("Kickoff notes for the project", in: "Projects/Work")
         launch()
