@@ -74,6 +74,7 @@ public enum AgendaExtractor {
 
     /// The days written into a line by `📅` and `✅`, as start of day.
     static func markers(in line: String, calendar: Calendar) -> (due: Date?, done: Date?) {
+        guard hasMarker(line) else { return (nil, nil) }
         func day(_ regex: NSRegularExpression) -> Date? {
             let ns = line as NSString
             guard let m = regex.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)) else { return nil }
@@ -81,6 +82,11 @@ public enum AgendaExtractor {
             return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
         }
         return (day(dueMarkerRegex), day(doneMarkerRegex))
+    }
+
+    /// Whether a text can hold a marker at all; most lines cannot, and this is far cheaper than the patterns.
+    private static func hasMarker(_ text: String) -> Bool {
+        text.unicodeScalars.contains { $0.value == 0x1F4C5 || $0.value == 0x2705 }
     }
 
     /// The UTF-16 ranges of the `📅` and `✅` markers in a text, sorted.
@@ -98,6 +104,7 @@ public enum AgendaExtractor {
 
     /// The line without its `📅` and `✅` markers.
     static func withoutMarkers(_ line: String) -> String {
+        guard hasMarker(line) else { return line }
         var text = line
         for regex in [dueMarkerRegex, doneMarkerRegex] {
             text = regex.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: "")
@@ -203,6 +210,7 @@ public enum AgendaExtractor {
             break
         }
         // An explicit @2026-10-28 marker is metadata; the dashboard shows the date separately
+        guard text.contains("@") else { return text.trimmingCharacters(in: .whitespaces) }
         let range = NSRange(text.startIndex..., in: text)
         if let match = isoDateTokenRegex.firstMatch(in: text, range: range),
            let swiftRange = Range(match.range, in: text),
@@ -252,6 +260,7 @@ public enum AgendaExtractor {
     /// The day a line refers to, and whether it is relative to when the line was written ("tomorrow",
     /// "friday") rather than a fixed date ("2026-10-28", "oct 28").
     static func parseDay(in line: String, reference: Date, previous: Date? = nil, calendar: Calendar) -> (date: Date, isRelative: Bool)? {
+        guard mayMentionADay(line) else { return nil }
         let ns = line as NSString
         let range = NSRange(location: 0, length: ns.length)
         func group(_ match: NSTextCheckingResult, _ index: Int) -> String {
@@ -345,6 +354,38 @@ public enum AgendaExtractor {
         guard let date = calendar.date(from: parts),
               calendar.component(.month, from: date) == calendar.component(.month, from: month) else { return nil }
         return date
+    }
+
+    /// Words a day can hang on besides digits: weekdays and "today" hold "day", then "tomorrow",
+    /// "tonight", "week" and "month", and month names, which are told apart by their first three letters.
+    private static let dayHints: [[UInt8]] = [
+        "day", "tomorrow", "tonight", "week", "month",
+        "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
+    ].map { Array($0.utf8) }
+
+    /// A cheap test that skips the date patterns on lines that cannot hold a day: one pass over the
+    /// bytes looking for a digit, a non-ASCII character or the start of a hint. It may say yes to a
+    /// line with none ("market"); it never says no to one that has one.
+    private static func mayMentionADay(_ line: String) -> Bool {
+        var text = Array(line.utf8)
+        for index in text.indices {
+            let byte = text[index]
+            if byte >= 0x80 || (0x30...0x39).contains(byte) { return true }
+            if (0x41...0x5A).contains(byte) { text[index] = byte + 0x20 }
+        }
+        let count = text.count
+        for start in 0..<count {
+            let first = text[start]
+            for hint in dayHints where hint[0] == first && start + hint.count <= count {
+                var matches = true
+                for offset in 1..<hint.count where text[start + offset] != hint[offset] {
+                    matches = false
+                    break
+                }
+                if matches { return true }
+            }
+        }
+        return false
     }
 
     private static func relative(_ date: Date?) -> (date: Date, isRelative: Bool)? {

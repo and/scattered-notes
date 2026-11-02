@@ -36,6 +36,19 @@ struct SettingsScreen: View {
                 } footer: {
                     Text("iCloud Drive keeps your notes in sync with the Mac app when it also uses iCloud Drive (Settings → Notes Folder → Use iCloud Drive on the Mac). Notes kept on this iPhone move into iCloud Drive when you switch. The folder on this iPhone appears in the Files app under Scattered Notes.")
                 }
+                Section {
+                    let storage = NoteStorageManager.shared
+                    let stats = storage.loadStats
+                    LabeledContent("Notes", value: "\(storage.notes.count)")
+                    LabeledContent("First load", value: "\(Int(stats.firstLoadMilliseconds)) ms")
+                    LabeledContent("Loads since launch", value: "\(stats.loadCount), last \(Int(stats.lastLoadMilliseconds)) ms")
+                    LabeledContent("Dashboard items", value: "\(Int(stats.agendaMilliseconds)) ms")
+                    LabeledContent("Waiting for iCloud", value: "\(ICloudFolder.placeholderCount(in: storage.rootURL)) notes")
+                } header: {
+                    Text("Diagnostics")
+                } footer: {
+                    Text("How long the notes took to load on this iPhone. Notes waiting for iCloud are still downloading; the delay is then the download, not the app.")
+                }
                 Section("About") {
                     LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")
                 }

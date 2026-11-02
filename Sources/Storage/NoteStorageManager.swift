@@ -111,7 +111,26 @@ public final class NoteStorageManager: ObservableObject {
     }
     
     // MARK: - Loading & Discovery
+    /// How long loading took, for the phone's Settings → Diagnostics, so a slow launch can be told
+    /// apart: reading the notes, building the Dashboard's items, or waiting for iCloud.
+    public struct LoadStats: Sendable {
+        /// Times `loadAll()` ran since launch; iCloud arrivals and folder changes each add one
+        public var loadCount = 0
+        public var firstLoadMilliseconds = 0.0
+        public var lastLoadMilliseconds = 0.0
+        /// The last time the Dashboard's items had to be rebuilt from the notes' text
+        public var agendaMilliseconds = 0.0
+    }
+    public private(set) var loadStats = LoadStats()
+
     public func loadAll() {
+        let started = CFAbsoluteTimeGetCurrent()
+        defer {
+            let elapsed = (CFAbsoluteTimeGetCurrent() - started) * 1000
+            loadStats.loadCount += 1
+            if loadStats.loadCount == 1 { loadStats.firstLoadMilliseconds = elapsed }
+            loadStats.lastLoadMilliseconds = elapsed
+        }
         setupDirectories()
         let fileManager = FileManager.default
         
@@ -350,7 +369,9 @@ public final class NoteStorageManager: ObservableObject {
     /// Checklist items and dated lines from every note, for the dashboard.
     public var agendaItems: [AgendaItem] {
         if let allAgendaItems { return allAgendaItems }
+        let started = CFAbsoluteTimeGetCurrent()
         let items = notes.flatMap { agendaItems(for: $0) }
+        loadStats.agendaMilliseconds = (CFAbsoluteTimeGetCurrent() - started) * 1000
         allAgendaItems = items
         return items
     }

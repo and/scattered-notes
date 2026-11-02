@@ -26,6 +26,17 @@ public enum ICloudFolder {
         url.standardizedFileURL.pathComponents.contains(containerID.replacingOccurrences(of: ".", with: "~"))
     }
 
+    /// How many notes iCloud still keeps only as placeholders, so are not readable yet.
+    public static func placeholderCount(in root: URL) -> Int {
+        guard let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil) else { return 0 }
+        var count = 0
+        for case let file as URL in files {
+            let name = file.lastPathComponent
+            if name.hasPrefix("."), name.hasSuffix(".md.icloud") { count += 1 }
+        }
+        return count
+    }
+
     /// Asks iCloud to download notes it keeps only as placeholders ("note.md" appears as
     /// ".note.md.icloud" until downloaded). Returns whether any were found.
     @discardableResult
