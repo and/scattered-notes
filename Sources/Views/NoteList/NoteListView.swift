@@ -133,7 +133,6 @@ public struct NoteListView: View {
                     }
                     .buttonStyle(.plain)
                     .help("New Note (⌘N)")
-                    .keyboardShortcut("n", modifiers: [.command])
                 }
             }
             .padding(.horizontal, 12)
@@ -209,6 +208,7 @@ public struct NoteListView: View {
             }
         }
         .frame(minWidth: 260)
+        .focusedSceneValue(\.newNoteAction, createNewNoteInCurrentCategory)
     }
     
     /// Opens the project's or area's dashboard, which shows whenever no note is selected
@@ -304,29 +304,16 @@ public struct NoteListView: View {
         EditorFocus.request(noteID: note.id, terms: NoteSearch.terms(in: searchText))
     }
     
+    /// The ✎ button and File ▸ New Note (⌘N) both come here, so a note starts in the open
+    /// project, person or tag either way.
     private func createNewNoteInCurrentCategory() {
-        var category = CategoryType.inbox
-        var target: String?
-        // A note made while a person or tag is open starts with its mark, so it is listed there
-        var content = ""
-        switch selectedCategory {
-        case .all, .inbox, .dashboard:
-            break
-        case .project(let name):
-            category = .project
-            target = name
-        case .person(let name):
-            content = "@\(name) "
-        case .tag(let name):
-            content = "#\(name) "
-        }
-        
+        let draft = NewNoteDraft(for: selectedCategory)
         let newNote = storageManager.createNote(
             title: "Untitled Note",
-            content: content,
-            category: category,
-            targetName: target,
-            tags: Note.tags(in: content)
+            content: draft.content,
+            category: draft.category,
+            targetName: draft.targetName,
+            tags: Note.tags(in: draft.content)
         )
         selectedNote = newNote
     }

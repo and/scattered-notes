@@ -5,6 +5,9 @@ struct ScatteredNotesApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var storageManager = NoteStorageManager.shared
     @ObservedObject private var settings = AppSettings.shared
+    /// The open window's New Note action, set by its note list
+    @FocusedValue(\.newNoteAction) private var newNote
+    @Environment(\.openWindow) private var openWindow
 
     init() {
         UITesting.prepare(AppSettings.shared)
@@ -23,6 +26,15 @@ struct ScatteredNotesApp: App {
                 Button("Check for Updates…") {
                     Task { await UpdateChecker.shared.check(userInitiated: true) }
                 }
+            }
+            // SwiftUI's own New Window item takes ⌘N and beats a button's shortcut, so a note
+            // made with ⌘N skipped the open project. New Note takes ⌘N; New Window moves to ⇧⌘N.
+            CommandGroup(replacing: .newItem) {
+                Button("New Note") { newNote?() }
+                    .keyboardShortcut("n", modifiers: [.command])
+                    .disabled(newNote == nil)
+                Button("New Window") { openWindow(id: "main") }
+                    .keyboardShortcut("n", modifiers: [.command, .shift])
             }
             CommandGroup(after: .newItem) {
                 ShortcutMenuButton("Quick Capture...", shortcut: settings.quickCaptureShortcut) {
