@@ -163,6 +163,8 @@ Scattered Notes collects no data. See [PRIVACY.md](PRIVACY.md).
 | `⌥ + N` | Trigger Floating Quick Capture HUD (any app) |
 | `⌥ + F` | Search all notes (any app) |
 | `⌘ + K` | Search all notes (inside the app) |
+| `⌘ + O` | Go to a project, person or tag: type part of its name (`#` for tags, `@` for people), `↵` goes there and leaves the keyboard in its notes |
+| `←` / `→` | In the notes list, `←` goes to the project list (on the open note's project) and `→` comes back; `↑` from the first note reaches the dashboard row, then the search box |
 | `⌘ + ↵` | Save note in Quick Capture |
 | `Esc` | Dismiss Quick Capture; in the main window go back to the Dashboard, then hide the window |
 | `↵` | On a selected note, start editing it (cursor after the searched word when opened from a search) |

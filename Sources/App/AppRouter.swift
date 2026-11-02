@@ -2,6 +2,7 @@ import AppKit
 
 extension Notification.Name {
     static let showGlobalSearch = Notification.Name("ScatteredNotes.showGlobalSearch")
+    static let showGoTo = Notification.Name("ScatteredNotes.showGoTo")
 }
 
 /// Brings the main window forward for actions triggered from outside it, such as a global hot key.
@@ -14,6 +15,11 @@ enum AppRouter {
         pendingSearch = true
         showMainWindow()
         NotificationCenter.default.post(name: .showGlobalSearch, object: nil)
+    }
+
+    static func showGoTo() {
+        showMainWindow()
+        NotificationCenter.default.post(name: .showGoTo, object: nil)
     }
 
     /// Brings only the main window forward. Ordering every window in `NSApp.windows` front also

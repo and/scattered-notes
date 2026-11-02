@@ -270,6 +270,30 @@ final class MacAppUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Mark send the form as not done"].waitForExistence(timeout: 5))
     }
 
+    func testCommandOJumpsToAProjectByName() throws {
+        try FileManager.default.createDirectory(at: folder.appendingPathComponent("Projects/Garden"), withIntermediateDirectories: true)
+        try writeNote("Kickoff notes for the project", in: "Projects/Work")
+        try writeNote("Seeds to order", in: "Projects/Garden")
+        launch()
+
+        // A key pressed the moment the window appears can be lost, so press again like a person would
+        let field = app.textFields["goToField"]
+        for _ in 0..<3 where !field.exists {
+            app.typeKey("o", modifierFlags: .command)
+            _ = field.waitForExistence(timeout: 3)
+        }
+        XCTAssertTrue(field.exists, "⌘O opens the switcher")
+        field.typeText("gar")
+        app.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(text("Garden Dashboard").waitForExistence(timeout: 5), "Return goes to the project")
+        XCTAssertFalse(field.exists, "the switcher closes")
+
+        // The keyboard is in that project's notes, so down opens the first one
+        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+        app.typeKey(.downArrow, modifierFlags: [])
+        XCTAssertTrue(app.textViews["noteText"].waitForExistence(timeout: 5))
+    }
+
     func testTickingTodaysLastTaskShowsTheSunAndCompletedCanBeHidden() throws {
         try writeNote("- [ ] water the plants today\n- [ ] call mum")
         launch()

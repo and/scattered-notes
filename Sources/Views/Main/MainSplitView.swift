@@ -7,6 +7,7 @@ public struct MainSplitView: View {
     @State private var sidebarSelection: SidebarSelection = .dashboard
     @State private var selectedNote: Note? = nil
     @State private var showingSearch = false
+    @State private var showingGoTo = false
     @State private var focusRequest: MainPane?
     @State private var sidebarHasFocus = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -43,6 +44,20 @@ public struct MainSplitView: View {
                 },
                 onClose: { showingSearch = false }
             )
+        }
+        .sheet(isPresented: $showingGoTo) {
+            GoToPaletteView(
+                onGo: { selection in
+                    showingGoTo = false
+                    sidebarSelection = selection
+                    // Carry on with the keyboard in the notes of the place just chosen
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { focusRequest = .list }
+                },
+                onClose: { showingGoTo = false }
+            )
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showGoTo)) { _ in
+            showingGoTo = true
         }
         .onChange(of: sidebarSelection) { old, selection in
             // The Dashboard has two columns and the rest three, so the sidebar is rebuilt when moving

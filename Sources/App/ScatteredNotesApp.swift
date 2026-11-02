@@ -43,6 +43,8 @@ struct ScatteredNotesApp: App {
                 ShortcutMenuButton("Search All Notes...", shortcut: settings.searchShortcut) {
                     AppRouter.showSearch()
                 }
+                Button("Go to Project, Person or Tag…") { AppRouter.showGoTo() }
+                    .keyboardShortcut("o", modifiers: [.command])
             }
         }
         
