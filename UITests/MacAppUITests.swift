@@ -73,6 +73,22 @@ final class MacAppUITests: XCTestCase {
         app.outlines["Sidebar"].buttons[name].firstMatch
     }
 
+    /// A real mouse drag: button down, many small moves so the drag begins and the target is entered, button up
+    private func mouseDrag(from start: CGPoint, to end: CGPoint, steps: Int = 40) {
+        func post(_ type: CGEventType, _ point: CGPoint) {
+            CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+        post(.mouseMoved, start)
+        post(.leftMouseDown, start)
+        for step in 1...steps {
+            let t = CGFloat(step) / CGFloat(steps)
+            post(.leftMouseDragged, CGPoint(x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t))
+        }
+        Thread.sleep(forTimeInterval: 0.4)
+        post(.leftMouseUp, end)
+    }
+
     private func quickNoteStatus() -> String {
         let status = app.descendants(matching: .any)["quickNoteStatus"].firstMatch
         guard status.exists else { return "" }
@@ -292,6 +308,30 @@ final class MacAppUITests: XCTestCase {
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))
         app.typeKey(.downArrow, modifierFlags: [])
         XCTAssertTrue(app.textViews["noteText"].waitForExistence(timeout: 5))
+    }
+
+    func testDraggingANoteOntoAProjectMovesItAndUndoBringsItBack() throws {
+        // Mouse events do nothing while the screen is locked, so there is nothing to check
+        if let session = CGSessionCopyCurrentDictionary() as? [String: Any], session["CGSSessionScreenIsLocked"] as? Bool == true {
+            throw XCTSkip("the screen is locked")
+        }
+        try writeNote("Seeds to order for the garden")
+        launch()
+        let row = text("Seeds to order for the garden")
+        sidebarItem("All Notes").click()
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+
+        let start = CGPoint(x: row.frame.minX + 20, y: row.frame.midY)
+        let end = CGPoint(x: sidebarItem("Work").frame.minX + 40, y: sidebarItem("Work").frame.midY)
+        mouseDrag(from: start, to: end)
+
+        XCTAssertTrue(waitUntil(8) { self.noteFiles().contains { $0.folder == "Projects/Work" && $0.text.contains("Seeds to order") } },
+                      "the note is filed in the project it was dropped on; files are in \(noteFiles().map { $0.folder })")
+        XCTAssertFalse(noteFiles().contains { $0.folder == "Inbox" })
+
+        app.typeKey("z", modifierFlags: .command)
+        XCTAssertTrue(waitUntil(8) { self.noteFiles().contains { $0.folder == "Inbox" && $0.text.contains("Seeds to order") } },
+                      "⌘Z moves it back")
     }
 
     func testTickingTodaysLastTaskShowsTheSunAndCompletedCanBeHidden() throws {

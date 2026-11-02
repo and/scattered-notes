@@ -8,6 +8,7 @@ public struct MainSplitView: View {
     @State private var selectedNote: Note? = nil
     @State private var showingSearch = false
     @State private var showingGoTo = false
+    @Environment(\.undoManager) private var undoManager
     @State private var focusRequest: MainPane?
     @State private var sidebarHasFocus = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -122,8 +123,27 @@ public struct MainSplitView: View {
     }
 
     private var sidebar: some View {
-        SidebarView(selection: $sidebarSelection, focusRequest: $focusRequest, hasFocus: $sidebarHasFocus, onMoveRight: { focusRequest = .list })
+        SidebarView(selection: $sidebarSelection, focusRequest: $focusRequest, hasFocus: $sidebarHasFocus, onMoveRight: { focusRequest = .list },
+                    onDropNote: dropNote)
             .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
+    }
+
+    /// A note dragged from the list onto a project or the Inbox moves there, and ⌘Z moves it back.
+    private func dropNote(_ id: UUID, on selection: SidebarSelection) -> Bool {
+        guard let place = NoteDrag.destination(for: selection),
+              let note = storageManager.notes.first(where: { $0.id == id }),
+              note.categoryType != place.category || note.targetName != place.targetName else { return false }
+        let (oldCategory, oldTarget) = (note.categoryType, note.targetName)
+        storageManager.move(note: note, to: place.category, targetName: place.targetName)
+        undoManager?.registerUndo(withTarget: storageManager) { manager in
+            if let current = manager.notes.first(where: { $0.id == id }) {
+                manager.move(note: current, to: oldCategory, targetName: oldTarget)
+            }
+        }
+        undoManager?.setActionName("Move Note")
+        // The open note is the moved one: show it as it is now, in its new folder
+        if selectedNote?.id == id { selectedNote = storageManager.notes.first { $0.id == id } }
+        return true
     }
 
     /// Left arrow from the notes: to the project list, on the note's own project when All Notes is open

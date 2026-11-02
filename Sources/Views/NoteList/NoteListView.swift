@@ -176,6 +176,7 @@ public struct NoteListView: View {
                                         isHighlighted: note.id == highlight.noteID)
                                 .id(note.id)
                                 .contentShape(Rectangle())
+                                .draggable(NoteDrag.payload(for: note))
                                 .onTapGesture {
                                     selectedNote = note
                                     listFocused = true

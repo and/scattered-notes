@@ -144,6 +144,8 @@ It reads every note and lists the lines that need action:
 
 **Completed items** are listed in a folded **Completed** section at the bottom of every dashboard, newest tick first, each under the day it was ticked (from its `✅` marker). Ticked items from before the markers existed are listed under **Earlier**. Click the heading to open it; unticking an item there puts it back among the open ones.
 
+**Move a note by dragging it** from the list onto a project, or onto the Inbox, in the sidebar. `⌘ + Z` moves it back.
+
 **Project dashboards**: selecting a project or area in the sidebar opens a dashboard with only that project's to-dos and dates. Open a note from the list to edit it; **<Project> Dashboard** at the top of the list brings the dashboard back.
 
 **Completing items**: click the circle next to an item on the dashboard or in the note's agenda column (right margin of the editor, toggled with the sidebar button). Completing a plain dated line turns it into a checked item (`- [x] ...`) in the note.

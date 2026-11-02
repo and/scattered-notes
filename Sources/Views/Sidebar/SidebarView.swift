@@ -54,16 +54,21 @@ public struct SidebarView: View {
     var onMoveRight: () -> Void = {}
     /// Reports whether the project list has the keyboard, so the notes can draw their selection to match
     @Binding var hasFocus: Bool
+    /// Called when a note is dropped on a project or the Inbox; says whether it moved
+    var onDropNote: (UUID, SidebarSelection) -> Bool = { _, _ in false }
+    @State private var dropHighlight: SidebarSelection?
     @FocusState private var sidebarFocused: Bool
     @State private var showingNewProjectDialog: Bool = false
     @State private var itemToDelete: ProjectArea? = nil
     @State private var showingDeleteAlert: Bool = false
     
-    public init(selection: Binding<SidebarSelection>, focusRequest: Binding<MainPane?> = .constant(nil), hasFocus: Binding<Bool> = .constant(false), onMoveRight: @escaping () -> Void = {}) {
+    public init(selection: Binding<SidebarSelection>, focusRequest: Binding<MainPane?> = .constant(nil), hasFocus: Binding<Bool> = .constant(false), onMoveRight: @escaping () -> Void = {},
+                onDropNote: @escaping (UUID, SidebarSelection) -> Bool = { _, _ in false }) {
         self._selection = selection
         self._focusRequest = focusRequest
         self._hasFocus = hasFocus
         self.onMoveRight = onMoveRight
+        self.onDropNote = onDropNote
     }
 
     /// Each name used for one kind of mark across all notes, with how many notes use it, sorted by
@@ -130,6 +135,7 @@ public struct SidebarView: View {
                     }
                     .badge(counts.inbox)
                 }
+                .modifier(NoteDropTarget(selection: .inbox, highlighted: $dropHighlight, onDrop: onDropNote))
             }
             
             Section {
@@ -143,6 +149,7 @@ public struct SidebarView: View {
                         }
                         .badge(counts.projects[project.name, default: 0])
                     }
+                    .modifier(NoteDropTarget(selection: .project(name: project.name), highlighted: $dropHighlight, onDrop: onDropNote))
                     .contextMenu {
                         Button("Reveal in Finder") {
                             let url = storageManager.projectsURL.appendingPathComponent(project.name)
