@@ -60,26 +60,17 @@ public struct MainSplitView: View {
         .onReceive(NotificationCenter.default.publisher(for: .showGoTo)) { _ in
             showingGoTo = true
         }
-        .onChange(of: sidebarSelection) { old, selection in
-            // The Dashboard has two columns and the rest three, so the sidebar is rebuilt when moving
-            // between them and loses the keyboard; give it back so the arrow keys keep working
-            if (old == .dashboard) != (selection == .dashboard), sidebarHasFocus {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focusRequest = .sidebar }
-            }
-            // A project or area opens on its own dashboard
-            if selection.hasOwnDashboard {
+        .onChange(of: sidebarSelection) { _, selection in
+            // A dashboard opens on its own, shown until a note is opened
+            if selection.opensOnDashboard {
                 selectedNote = nil
-            }
-        }
-        .onChange(of: selectedNote?.id) { _, newID in
-            // The dashboard hides the editor, so picking or creating a note must leave it
-            if newID != nil, sidebarSelection == .dashboard {
-                sidebarSelection = .all
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .escapeInMainWindow)) { notification in
             if sidebarSelection != .dashboard {
                 sidebarSelection = .dashboard
+            } else if selectedNote != nil {
+                selectedNote = nil
             } else {
                 // Hide rather than close so the window comes back as it was
                 (notification.object as? NSWindow)?.orderOut(nil)
@@ -94,36 +85,31 @@ public struct MainSplitView: View {
                 AppRouter.pendingSearch = false
                 showingSearch = true
             }
-            if selectedNote == nil, sidebarSelection != .dashboard, let first = storageManager.notes.first {
+            if selectedNote == nil, !sidebarSelection.opensOnDashboard, let first = storageManager.notes.first {
                 selectedNote = first
             }
         }
     }
     
-    /// The dashboard has no note list, so it uses a two-column layout
-    @ViewBuilder
+    /// The Dashboard itself with no note open: the one place the note list is hidden
+    private var showsDashboardOnly: Bool { sidebarSelection == .dashboard && selectedNote == nil }
+
+    /// Always three columns, so opening a note from a dashboard only fills the detail pane and does not
+    /// rebuild the window: swapping between two and three columns took about 200 ms
     private var splitView: some View {
-        if sidebarSelection == .dashboard {
-            NavigationSplitView {
-                sidebar
-            } detail: {
-                detailView
-            }
-        } else {
-            NavigationSplitView(columnVisibility: $columnVisibility) {
-                sidebar
-            } content: {
-                NoteListView(selectedCategory: sidebarSelection, selectedNote: $selectedNote,
-                             focusRequest: $focusRequest, sidebarHasFocus: sidebarHasFocus, onMoveLeft: moveToSidebar)
-                    .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 400)
-            } detail: {
-                detailView
-            }
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            sidebar
+        } content: {
+            NoteListView(selectedCategory: sidebarSelection, selectedNote: $selectedNote,
+                         focusRequest: $focusRequest, sidebarHasFocus: sidebarHasFocus, isCollapsed: showsDashboardOnly, onMoveLeft: moveToSidebar)
+                .navigationSplitViewColumnWidth(min: showsDashboardOnly ? 0 : 260, ideal: showsDashboardOnly ? 0 : 300, max: showsDashboardOnly ? 0 : 400)
+        } detail: {
+            detailView
         }
     }
 
     private var sidebar: some View {
-        SidebarView(selection: $sidebarSelection, focusRequest: $focusRequest, hasFocus: $sidebarHasFocus, onMoveRight: { focusRequest = .list },
+        SidebarView(selection: $sidebarSelection, focusRequest: $focusRequest, hasFocus: $sidebarHasFocus, onMoveRight: { focusRequest = showsDashboardOnly ? .dashboard : .list },
                     onDropNote: dropNote)
             .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
     }
@@ -156,13 +142,8 @@ public struct MainSplitView: View {
 
     @ViewBuilder
     private var detailView: some View {
-        if sidebarSelection == .dashboard {
-            DashboardView { note in
-                selectedNote = note
-                sidebarSelection = .all
-            }
-        } else if sidebarSelection.hasOwnDashboard && selectedNote == nil {
-            DashboardView(scope: sidebarSelection) { note in
+        if selectedNote == nil && sidebarSelection.opensOnDashboard {
+            DashboardView(scope: sidebarSelection, focusRequest: $focusRequest) { note in
                 selectedNote = note
             }
             .id(sidebarSelection)
@@ -186,7 +167,7 @@ public struct MainSplitView: View {
     }
 
     private var windowTitle: String {
-        if sidebarSelection == .dashboard {
+        if sidebarSelection == .dashboard && selectedNote == nil {
             return sidebarSelection.title
         }
         if let selected = selectedNote {

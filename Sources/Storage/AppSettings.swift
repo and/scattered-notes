@@ -65,6 +65,14 @@ public final class AppSettings: ObservableObject {
     }
     #endif
     
+    /// Names this install in the files it writes next to the notes, so two devices never write the same file
+    public var deviceID: String {
+        if let saved = defaults.string(forKey: "deviceID") { return saved }
+        let made = UUID().uuidString.prefix(8).lowercased()
+        defaults.set(String(made), forKey: "deviceID")
+        return String(made)
+    }
+
     public init(notesDirectoryURL: URL? = nil, defaults: UserDefaults = .standard) {
         self.defaults = defaults
         

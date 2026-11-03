@@ -73,6 +73,7 @@ final class AgendaTests: XCTestCase {
             "we're going to repaint the hall",
             "Don't forget the charger",
             "TODO: back up photos",
+            "learn to make muesli in oven. today",
         ]
         for line in plans {
             XCTAssertTrue(AgendaExtractor.isPlannedAction(AgendaExtractor.displayText(for: line)), line)

@@ -15,15 +15,25 @@ public struct DashboardView: View {
     @AppStorage("dashboard.showCompleted") private var showCompleted = true
     /// The list of everything ticked earlier starts folded away
     @AppStorage("dashboard.completedExpanded") private var completedExpanded = false
+    /// Quick search: only items matching every word are shown
+    @State private var query = ""
+    @FocusState private var searchFocused: Bool
 
     /// `.dashboard` for every note, or a project or area for only its notes
     var scope: SidebarSelection
+    /// Set to `.dashboard` to move keyboard focus onto the first item; cleared once it has
+    @Binding var focusRequest: MainPane?
     var onOpenNote: (Note) -> Void
 
     private let upcomingDays = 14
+    /// The item the arrow keys are on, marked in its row
+    @State private var focusedItemID: String?
+    @FocusState private var itemsFocused: Bool
 
-    public init(scope: SidebarSelection = .dashboard, onOpenNote: @escaping (Note) -> Void) {
+    public init(scope: SidebarSelection = .dashboard, focusRequest: Binding<MainPane?> = .constant(nil),
+                onOpenNote: @escaping (Note) -> Void) {
         self.scope = scope
+        self._focusRequest = focusRequest
         self.onOpenNote = onOpenNote
     }
 
@@ -93,19 +103,24 @@ public struct DashboardView: View {
                         if !todos.isEmpty {
                             DashboardSection(title: "To-do", systemImage: "checklist", tint: .wcagGreen) {
                                 ForEach(todos, id: \.note.id) { group in
-                                    Button(action: { onOpenNote(group.note) }) {
-                                        Label(group.note.displayTitle, systemImage: group.note.categoryType.iconName)
-                                            .font(.caption.weight(.semibold))
-                                            .foregroundColor(.wcagSecondaryText)
-                                            .lineLimit(1)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .padding(.horizontal, 10)
-                                    .padding(.top, 10)
-                                    .padding(.bottom, 2)
-                                    .help("Open note")
-                                    ForEach(group.items) { item in
-                                        row(item, note: nil, showDate: false)
+                                    if group.items.count == 1, let item = group.items.first {
+                                        // A lone to-do needs no heading: the note's name sits on the right, as under Overdue
+                                        row(item, note: group.note, showDate: false)
+                                    } else {
+                                        Button(action: { onOpenNote(group.note) }) {
+                                            Label(group.note.displayTitle, systemImage: group.note.categoryType.iconName)
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundColor(.wcagSecondaryText)
+                                                .lineLimit(1)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .padding(.horizontal, 10)
+                                        .padding(.top, 10)
+                                        .padding(.bottom, 2)
+                                        .help("Open note")
+                                        ForEach(group.items) { item in
+                                            row(item, note: nil, showDate: false)
+                                        }
                                     }
                                 }
                             }
@@ -115,8 +130,18 @@ public struct DashboardView: View {
 
                     completedSection(snapshot)
 
+                    if !query.isEmpty && isEmpty && snapshot.completed.isEmpty {
+                        Text("No items match \"\(query)\".")
+                            .font(.callout)
+                            .foregroundColor(.wcagSecondaryText)
+                            .padding(.horizontal, 4)
+                    }
+
                     if scope.hasOwnDashboard {
-                        notesLog(snapshot.notesByID.values)
+                        let terms = DashboardSearch.terms(query)
+                        notesLog(snapshot.notesByID.values.filter {
+                            DashboardSearch.matches(terms, in: [$0.displayTitle, $0.content])
+                        })
                     }
                 }
                 .padding(.horizontal, 32)
@@ -126,7 +151,64 @@ public struct DashboardView: View {
             }
             .background(Color(nsColor: .windowBackgroundColor))
             .scrollContentBackground(.hidden)
+            .focusable()
+            .focusEffectDisabled()
+            .focused($itemsFocused)
+            .onKeyPress(.downArrow) { moveFocus(by: 1, proxy: proxy); return .handled }
+            .onKeyPress(.upArrow) { moveFocus(by: -1, proxy: proxy); return .handled }
+            .onKeyPress(.leftArrow) { focusRequest = .sidebar; return .handled }
+            .onKeyPress(.return) {
+                guard let id = focusedItemID, let item = navigableItems(snapshot).first(where: { $0.id == id }),
+                      let note = lookup[item.noteID] else { return .ignored }
+                onOpenNote(note)
+                return .handled
+            }
+            .onChange(of: focusRequest) { _, request in
+                guard request == .dashboard else { return }
+                focusRequest = nil
+                focusFirstItem(proxy: proxy)
+            }
+            .onChange(of: itemsFocused) { _, focused in
+                if !focused { focusedItemID = nil }
+            }
         }
+    }
+
+    /// The items in the order they are on the page, which is the order the arrow keys walk them
+    private func navigableItems(_ snapshot: DashboardSnapshot) -> [AgendaItem] {
+        var items = snapshot.overdue + snapshot.dueToday
+        items += snapshot.upcomingByDay.flatMap(\.items)
+        items += snapshot.undatedTodosByNote.flatMap(\.items)
+        if completedExpanded { items += snapshot.completed }
+        return items
+    }
+
+    /// Puts the keyboard on the first item, or in the search box when there is none
+    private func focusFirstItem(proxy: ScrollViewProxy) {
+        guard let first = navigableItems(scopedSnapshot()).first else {
+            focusedItemID = nil
+            searchFocused = true
+            return
+        }
+        searchFocused = false
+        itemsFocused = true
+        focusedItemID = first.id
+        proxy.scrollTo(first.id)
+    }
+
+    /// Down goes to the next item, up to the previous one; up from the first goes to the search box
+    private func moveFocus(by step: Int, proxy: ScrollViewProxy) {
+        let items = navigableItems(scopedSnapshot())
+        guard !items.isEmpty else { searchFocused = true; return }
+        let current = items.firstIndex { $0.id == focusedItemID }
+        if step < 0, (current ?? 0) <= 0 {
+            focusedItemID = nil
+            searchFocused = true
+            return
+        }
+        let next = items[min(max((current ?? -1) + step, 0), items.count - 1)]
+        focusedItemID = next.id
+        proxy.scrollTo(next.id)
     }
 
     /// The sections the summary chips scroll to
@@ -139,6 +221,11 @@ public struct DashboardView: View {
             notes = notes.filter(scope.contains)
             let ids = Set(notes.map(\.id))
             items = items.filter { ids.contains($0.noteID) }
+        }
+        let terms = DashboardSearch.terms(query)
+        if !terms.isEmpty {
+            let lookup = Dictionary(uniqueKeysWithValues: notes.map { ($0.id, $0) })
+            items = DashboardSearch.filter(items, terms: terms, notes: lookup)
         }
         let doneToday = Set(storageManager.itemsDone(on: today, in: items, calendar: calendar).map(\.id))
         return DashboardSnapshot(notes: notes, items: items, today: today, upcomingDays: upcomingDays,
@@ -164,6 +251,7 @@ public struct DashboardView: View {
                         .font(.system(size: 34, weight: .bold))
                 }
             }
+            searchField
             // With nothing to show there is nothing to count; ticked items stay reachable through the toggle
             if !snapshot.isEmpty || snapshot.completedTodayCount > 0 {
                 HStack(spacing: 8) {
@@ -193,6 +281,36 @@ public struct DashboardView: View {
                     .padding(.horizontal, 4)
             }
         }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.wcagSecondaryText)
+            TextField("Search the dashboard", text: $query)
+                .textFieldStyle(.plain)
+                .focused($searchFocused)
+                .onKeyPress(.downArrow) {
+                    focusedItemID = navigableItems(scopedSnapshot()).first?.id
+                    guard focusedItemID != nil else { return .handled }
+                    searchFocused = false
+                    itemsFocused = true
+                    return .handled
+                }
+                .onExitCommand { query = ""; searchFocused = false }
+                .accessibilityIdentifier("dashboardSearch")
+            if !query.isEmpty {
+                Button(action: { query = "" }) {
+                    Image(systemName: "xmark.circle.fill").foregroundColor(.wcagSecondaryText)
+                }
+                .buttonStyle(.plain)
+                .help("Clear search")
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
     /// Every note in the scope as one running document, newest first: the day it was written,
@@ -299,9 +417,13 @@ public struct DashboardView: View {
             item: item,
             note: note,
             dateLabel: showDate ? item.date.map(dayLabel) : nil,
+            history: { storageManager.dateHistory(for: item) },
             onToggle: { storageManager.toggleChecklistItem(noteID: item.noteID, lineIndex: item.lineIndex) },
-            onOpenNote: onOpenNote
+            onSetDate: { storageManager.setDate(noteID: item.noteID, lineIndex: item.lineIndex, to: $0) },
+            onOpenNote: onOpenNote,
+            isFocused: focusedItemID == item.id
         )
+        .id(item.id)
     }
 
     private func dayLabel(_ date: Date) -> String {
@@ -384,10 +506,15 @@ private struct AgendaRow: View {
     let item: AgendaItem
     let note: Note?
     let dateLabel: String?
+    let history: () -> [DateChange]
     let onToggle: () -> Void
+    let onSetDate: (Date) -> Void
     let onOpenNote: (Note) -> Void
+    /// The arrow keys are on this row
+    var isFocused = false
 
     @State private var isHovering = false
+    @State private var isEditingDate = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -407,10 +534,26 @@ private struct AgendaRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .textSelection(.enabled)
 
-            if let dateLabel {
-                Text(dateLabel)
-                    .font(.caption.weight(.medium))
-                    .foregroundColor(.wcagOrange)
+            Button(action: { isEditingDate = true }) {
+                if let dateLabel {
+                    Text(dateLabel)
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(.wcagOrange)
+                } else {
+                    Image(systemName: "calendar")
+                        .font(.caption)
+                        .foregroundColor(.wcagSecondaryText)
+                        .opacity(isHovering || isEditingDate ? 1 : 0)
+                }
+            }
+            .buttonStyle(.plain)
+            .help(item.date == nil ? "Set a date" : "Change the date")
+            .accessibilityLabel(item.date == nil ? "Set a date for \(item.text)" : "Change the date of \(item.text)")
+            .popover(isPresented: $isEditingDate, arrowEdge: .bottom) {
+                DateEditor(current: item.date, history: history()) { day in
+                    onSetDate(day)
+                    isEditingDate = false
+                }
             }
 
             if let note {
@@ -430,10 +573,54 @@ private struct AgendaRow: View {
         .padding(.vertical, 7)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isHovering ? Color(nsColor: .quaternaryLabelColor).opacity(0.5) : .clear)
+                .fill(isFocused ? Color.wcagBlue.opacity(0.18) : (isHovering ? Color(nsColor: .quaternaryLabelColor).opacity(0.5) : .clear))
         )
         .onHover { isHovering = $0 }
         .animation(.easeOut(duration: 0.12), value: isHovering)
         .animation(.default, value: item.isDone)
+    }
+}
+
+/// The popover that sets the day of a to-do: quick picks, a calendar, and what was changed before.
+struct DateEditor: View {
+    let current: Date?
+    let history: [DateChange]
+    let onPick: (Date) -> Void
+
+    @State private var picked: Date
+
+    init(current: Date?, history: [DateChange], onPick: @escaping (Date) -> Void) {
+        self.current = current
+        self.history = history
+        self.onPick = onPick
+        _picked = State(initialValue: current ?? Date())
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                ForEach(QuickDates.options(today: Date()), id: \.title) { option in
+                    Button(option.title) { onPick(option.day) }
+                }
+            }
+            DatePicker("Date", selection: $picked, displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .labelsHidden()
+                .onChange(of: picked) { _, day in onPick(day) }
+
+            if !history.isEmpty {
+                Divider()
+                Text("History")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.wcagSecondaryText)
+                ForEach(history.suffix(5).reversed()) { change in
+                    Text(change.summary)
+                        .font(.caption)
+                        .foregroundColor(.wcagSecondaryText)
+                }
+            }
+        }
+        .padding(12)
+        .frame(width: 260)
     }
 }

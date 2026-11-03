@@ -117,6 +117,29 @@ public enum AgendaExtractor {
         return String(format: " %@ %04d-%02d-%02d", symbol, c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 
+    /// The note text with line `lineIndex` set to refer to `day`: its `📅` marker is replaced, or added to a
+    /// line that had none. A `✅` marker stays. Other lines are left untouched. The marker beats any
+    /// date words in the line, so "call the bank tomorrow" with `📅` on Friday means Friday.
+    public static func settingDate(_ day: Date, onLine lineIndex: Int, in content: String, calendar: Calendar = .current) -> String {
+        var lines = content.components(separatedBy: .newlines)
+        guard lines.indices.contains(lineIndex) else { return content }
+        let marks = markers(in: lines[lineIndex], calendar: calendar)
+        var text = withoutMarkers(lines[lineIndex])
+        while let last = text.last, last.isWhitespace { text.removeLast() }
+        text += marker("📅", calendar.startOfDay(for: day), calendar: calendar)
+        if let done = marks.done { text += marker("✅", done, calendar: calendar) }
+        lines[lineIndex] = text
+        return lines.joined(separator: "\n")
+    }
+
+    /// The words of line `lineIndex` without markers, bullets or checkboxes: how a line is recognised
+    /// again after it moves, the key `resolvingDates` and the date-change log both use.
+    public static func lineKey(onLine lineIndex: Int, in content: String) -> String? {
+        let lines = content.components(separatedBy: .newlines)
+        guard lines.indices.contains(lineIndex) else { return nil }
+        return displayText(for: lines[lineIndex].trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
     /// The note text with the days written into it. A line whose date comes from a relative word, such as
     /// "call the bank tomorrow", gets `📅` and the day it resolves to; a ticked checklist line gets `✅` and
     /// the day it was ticked; an unticked one loses its `✅`. Lines are matched with `previous`, the text as
@@ -182,7 +205,8 @@ public enum AgendaExtractor {
         "create", "debug", "delete", "deploy", "draft", "email", "figure", "finish", "fix", "follow",
         "get", "install", "investigate", "look", "make", "move", "pay", "pick", "ping", "prepare",
         "print", "publish", "read", "refactor", "remind", "renew", "reply", "research", "review",
-        "schedule", "send", "share", "ship", "sign", "submit", "try", "update", "upload", "visit", "write"
+        "schedule", "send", "share", "ship", "sign", "study", "submit", "try", "update", "upload", "visit", "write",
+        "find", "learn", "practice"
     ]
     private static let plannedActionRegex = try! NSRegularExpression(
         pattern: "^(?:to-?\\s?do\\b"

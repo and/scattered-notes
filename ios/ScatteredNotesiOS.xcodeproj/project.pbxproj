@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		15B5938F255F711EA78A4736 /* DateChange.swift in Sources */ = {isa = PBXBuildFile; fileRef = D09D0274ECE07446135058B3 /* DateChange.swift */; };
 		1F8C2221B998A9B38F40D536 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 95DDF313900B51DE7EC728C3 /* Assets.xcassets */; };
 		214B8E1787607E8517622DB1 /* ScatteredNotesPhoneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44AF1FE867564CE28B172621 /* ScatteredNotesPhoneApp.swift */; };
 		277CD9443469E13068EEE25A /* NoteEditingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43D1A7CD4D557A7DCAB3AD16 /* NoteEditingUITests.swift */; };
@@ -25,6 +26,7 @@
 		C0BFFD021AED00CBCCA27134 /* NoteStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7D6F72C7DD2523B55BC6BBC /* NoteStorageManager.swift */; };
 		E41F3496DE069AB93D131075 /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D350724D3BEAAD6AB4DAF94A /* SettingsScreen.swift */; };
 		E56394A6C47BC63F04C8BAF7 /* CaptureSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00607CE09769DEEC38D9E674 /* CaptureSheet.swift */; };
+		E961DC0D7C5FB2CF2ED8E560 /* DateChangeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90E5C0AB4E17A0616355D130 /* DateChangeLog.swift */; };
 		F8D2A94B5FF4FDEED1B9C766 /* NoteSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 030A71887BC59380FF7E288C /* NoteSearchTests.swift */; };
 		F9938A3363EDDD3975A46480 /* NotesFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAAD37990ED2DB755A21061E /* NotesFolder.swift */; };
 /* End PBXBuildFile section */
@@ -62,11 +64,13 @@
 		7125F8351E4EF3DC0D9E3F64 /* NoteSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteSearch.swift; sourceTree = "<group>"; };
 		7EB04D875E7D58997C962F89 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8285B8BE5487955A2B5E548B /* ICloudFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICloudFolder.swift; sourceTree = "<group>"; };
+		90E5C0AB4E17A0616355D130 /* DateChangeLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateChangeLog.swift; sourceTree = "<group>"; };
 		9239C823B200641C2208AC33 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		95DDF313900B51DE7EC728C3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A9099280E14BB102C0B47431 /* Note.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Note.swift; sourceTree = "<group>"; };
 		BAA7461B99C41A9306C27AC3 /* ProjectArea.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectArea.swift; sourceTree = "<group>"; };
 		C6EDED702FE0E83543FD93B9 /* ScatteredNotesiOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScatteredNotesiOS.entitlements; sourceTree = "<group>"; };
+		D09D0274ECE07446135058B3 /* DateChange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateChange.swift; sourceTree = "<group>"; };
 		D350724D3BEAAD6AB4DAF94A /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
 		D7D6F72C7DD2523B55BC6BBC /* NoteStorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStorageManager.swift; sourceTree = "<group>"; };
 		EA62809B661394D9C0392F8F /* DashboardSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardSnapshot.swift; sourceTree = "<group>"; };
@@ -116,6 +120,7 @@
 			children = (
 				38D1F8C22FD49142B075ACA2 /* Agenda.swift */,
 				EA62809B661394D9C0392F8F /* DashboardSnapshot.swift */,
+				D09D0274ECE07446135058B3 /* DateChange.swift */,
 				137CF5D5728347FBF63F20E7 /* Mentions.swift */,
 				A9099280E14BB102C0B47431 /* Note.swift */,
 				7125F8351E4EF3DC0D9E3F64 /* NoteSearch.swift */,
@@ -129,6 +134,7 @@
 			isa = PBXGroup;
 			children = (
 				9239C823B200641C2208AC33 /* AppSettings.swift */,
+				90E5C0AB4E17A0616355D130 /* DateChangeLog.swift */,
 				8285B8BE5487955A2B5E548B /* ICloudFolder.swift */,
 				D7D6F72C7DD2523B55BC6BBC /* NoteStorageManager.swift */,
 			);
@@ -255,7 +261,6 @@
 				};
 			};
 			buildConfigurationList = DE1BED830369D0009610FC34 /* Build configuration list for PBXProject "ScatteredNotesiOS" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -265,6 +270,7 @@
 			mainGroup = 55982E1954C15DEC92990C6D;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
+			productRefGroup = EE6360BA7C78BE2207C47555 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -313,6 +319,8 @@
 				E56394A6C47BC63F04C8BAF7 /* CaptureSheet.swift in Sources */,
 				3775FA2827C13978F29DF85F /* DashboardScreen.swift in Sources */,
 				9FEC4AD56952E9CFAA867379 /* DashboardSnapshot.swift in Sources */,
+				15B5938F255F711EA78A4736 /* DateChange.swift in Sources */,
+				E961DC0D7C5FB2CF2ED8E560 /* DateChangeLog.swift in Sources */,
 				8B100A4D2F6665C09BC5DA8C /* ICloudFolder.swift in Sources */,
 				B89E5C8DFAC59A2593D80A4D /* Mentions.swift in Sources */,
 				6D2DFAC4DE2D5C16B4E33D2D /* Note.swift in Sources */,

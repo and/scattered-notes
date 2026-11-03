@@ -122,6 +122,8 @@ Debug builds are signed with the Android debug key, so a release can't be instal
 
 The launcher icon is `generate_icon.swift --android`, scaled into the `mipmap-*` folders.
 
+The data structures and algorithms behind each feature, and what they cost, are listed in [docs/data-structures.md](docs/data-structures.md). Add to it when a feature uses a new one.
+
 ## Data safety rules
 
 Notes are the user's data, so these hold for any change to storage:
@@ -130,6 +132,7 @@ Notes are the user's data, so these hold for any change to storage:
 - Loading never rewrites a note file.
 - Frontmatter properties the app does not know must survive a save unchanged (`extraFrontmatter` / `ExtraFrontmatter`), so notes edited in Obsidian lose nothing. All four ports keep them in the same order, after the app's own fields.
 - The agenda markers (`📅 2026-10-28` for the day a line refers to, `✅ 2026-10-28` for the day it was ticked, the Obsidian Tasks format) live in the line itself. `AgendaExtractor.resolvingDates` / `ResolvingDates` / `resolvingDates` writes them, only when a note is saved, never when it is loaded, and only on lines whose date comes from a relative word or that are ticked. A marker always wins over the words next to it. The three ports must write the same text for the same input.
+- The date-change log (`.date-log-<device>.jsonl` in the notes folder) is append-only, one file per device, so sync never has two devices write one file. Never rewrite or remove lines in it. Setting a day writes only the `📅` marker, which the other ports already read; they do not write the log yet.
 
 ## Releasing
 

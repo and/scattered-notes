@@ -71,3 +71,29 @@ public struct DashboardSnapshot: Sendable {
         completedTodayCount = doneToday.union(datedToday.filter(\.isDone).map(\.id)).count
     }
 }
+
+/// The dashboard's quick search: every word typed must appear somewhere in the item's text or its note's
+/// title, ignoring case and accents. Shared by the Mac and iOS dashboards.
+public enum DashboardSearch {
+    /// The words of a query, folded for comparing; empty when nothing is typed
+    public static func terms(_ query: String) -> [String] {
+        fold(query).split(whereSeparator: \.isWhitespace).map(String.init)
+    }
+
+    /// Whether every term is in at least one of the texts
+    public static func matches(_ terms: [String], in texts: [String]) -> Bool {
+        guard !terms.isEmpty else { return true }
+        let haystack = texts.map(fold)
+        return terms.allSatisfy { term in haystack.contains { $0.contains(term) } }
+    }
+
+    /// The items matching a query, with the title of their note counting as part of the item
+    public static func filter(_ items: [AgendaItem], terms: [String], notes: [UUID: Note]) -> [AgendaItem] {
+        guard !terms.isEmpty else { return items }
+        return items.filter { matches(terms, in: [$0.text, notes[$0.noteID]?.displayTitle ?? ""]) }
+    }
+
+    private static func fold(_ text: String) -> String {
+        text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+    }
+}

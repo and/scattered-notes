@@ -124,6 +124,7 @@ public final class NoteStorageManager: ObservableObject {
     public private(set) var loadStats = LoadStats()
 
     public func loadAll() {
+        dateLogStore?.reload()
         let started = CFAbsoluteTimeGetCurrent()
         defer {
             let elapsed = (CFAbsoluteTimeGetCurrent() - started) * 1000
@@ -366,6 +367,42 @@ public final class NoteStorageManager: ObservableObject {
         save(note: note)
     }
     
+    private var dateLogStore: DateChangeLog?
+
+    private var dateLog: DateChangeLog {
+        if let dateLogStore, dateLogStore.directory == rootURL { return dateLogStore }
+        let made = DateChangeLog(directory: rootURL, device: settings.deviceID)
+        dateLogStore = made
+        return made
+    }
+
+    /// Sets the day the to-do on `lineIndex` refers to, writes it into the note as a `📅` marker and
+    /// records the change in the date log. Does nothing when the line already has that day.
+    public func setDate(noteID: UUID, lineIndex: Int, to day: Date, calendar: Calendar = .current) {
+        guard var note = notes.first(where: { $0.id == noteID }),
+              let key = AgendaExtractor.lineKey(onLine: lineIndex, in: note.content) else { return }
+        let day = calendar.startOfDay(for: day)
+        let old = agendaItems(for: note).first { $0.lineIndex == lineIndex }?.date
+        guard old != day else { return }
+        note.content = AgendaExtractor.settingDate(day, onLine: lineIndex, in: note.content, calendar: calendar)
+        logDateChange(noteID: noteID, lineText: key, from: old, to: day)
+        save(note: note)
+    }
+
+    /// Adds a change of day to the date log. For a caller that writes the `📅` marker itself, such as the
+    /// editor, which changes its own live text.
+    public func logDateChange(noteID: UUID, lineText: String, from: Date?, to day: Date) {
+        let change = DateChange(at: Date(), noteID: noteID, lineText: lineText, from: from, to: day, device: settings.deviceID)
+        try? dateLog.append(change) { url, body in try self.coordinate(writingTo: url, body) }
+    }
+
+    /// The date changes of one agenda item, oldest first
+    public func dateHistory(for item: AgendaItem) -> [DateChange] {
+        guard let note = notes.first(where: { $0.id == item.noteID }),
+              let key = AgendaExtractor.lineKey(onLine: item.lineIndex, in: note.content) else { return [] }
+        return dateLog.history(noteID: item.noteID, lineText: key)
+    }
+
     /// Checklist items and dated lines from every note, for the dashboard.
     public var agendaItems: [AgendaItem] {
         if let allAgendaItems { return allAgendaItems }

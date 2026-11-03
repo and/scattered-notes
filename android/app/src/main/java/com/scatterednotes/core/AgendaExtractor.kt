@@ -154,7 +154,8 @@ object AgendaExtractor {
         "create", "debug", "delete", "deploy", "draft", "email", "figure", "finish", "fix", "follow",
         "get", "install", "investigate", "look", "make", "move", "pay", "pick", "ping", "prepare",
         "print", "publish", "read", "refactor", "remind", "renew", "reply", "research", "review",
-        "schedule", "send", "share", "ship", "sign", "submit", "try", "update", "upload", "visit", "write",
+        "schedule", "send", "share", "ship", "sign", "study", "submit", "try", "update", "upload", "visit", "write",
+        "find", "learn", "practice",
     )
 
     private val options = setOf(RegexOption.IGNORE_CASE)

@@ -18,6 +18,9 @@ public struct NoteListView: View {
     var onMoveLeft: () -> Void = {}
     /// While the project list has the keyboard, the selected note is drawn muted, as the project is when the notes have it
     var sidebarHasFocus: Bool = false
+    /// The Dashboard has no use for the list: it is squeezed to nothing and hidden, but stays in the window,
+    /// so the window's layout does not change when a note is opened
+    var isCollapsed: Bool = false
     
     @State private var searchText: String = ""
     @State private var sortOption: NoteSortOption = .dateUpdated
@@ -29,12 +32,14 @@ public struct NoteListView: View {
         selectedNote: Binding<Note?>,
         focusRequest: Binding<MainPane?> = .constant(nil),
         sidebarHasFocus: Bool = false,
+        isCollapsed: Bool = false,
         onMoveLeft: @escaping () -> Void = {}
     ) {
         self.selectedCategory = selectedCategory
         self._selectedNote = selectedNote
         self._focusRequest = focusRequest
         self.sidebarHasFocus = sidebarHasFocus
+        self.isCollapsed = isCollapsed
         self.onMoveLeft = onMoveLeft
     }
     
@@ -90,7 +95,7 @@ public struct NoteListView: View {
                             .onKeyPress(.downArrow) {
                                 // Back into the list: the dashboard row when there is one, else the first note
                                 listFocused = true
-                                if !selectedCategory.hasOwnDashboard, selectedNote == nil { selectedNote = filteredNotes.first }
+                                if !selectedCategory.opensOnDashboard, selectedNote == nil { selectedNote = filteredNotes.first }
                                 return .handled
                             }
                             .textFieldStyle(.plain)
@@ -139,7 +144,7 @@ public struct NoteListView: View {
             .padding(.top, 10)
             .padding(.bottom, 8)
             
-            if selectedCategory.hasOwnDashboard {
+            if selectedCategory.opensOnDashboard {
                 dashboardRow
             }
             
@@ -199,6 +204,13 @@ public struct NoteListView: View {
                         guard request == .list else { return }
                         listFocused = true
                         focusRequest = nil
+                        // With no dashboard row to land on, the keyboard lands on the first note,
+                        // unless a note of this list is already selected
+                        if !selectedCategory.opensOnDashboard, !filteredNotes.contains(where: { $0.id == selectedNote?.id }),
+                           let first = filteredNotes.first {
+                            selectedNote = first
+                            proxy.scrollTo(first.id)
+                        }
                     }
                     .onKeyPress(.return) {
                         guard let note = selectedNote else { return .ignored }
@@ -208,7 +220,11 @@ public struct NoteListView: View {
                 }
             }
         }
-        .frame(minWidth: 260)
+        .frame(minWidth: isCollapsed ? 0 : 260, maxWidth: isCollapsed ? 0 : .infinity)
+        .clipped()
+        .opacity(isCollapsed ? 0 : 1)
+        .allowsHitTesting(!isCollapsed)
+        .accessibilityHidden(isCollapsed)
         .focusedSceneValue(\.newNoteAction, createNewNoteInCurrentCategory)
     }
     
@@ -218,7 +234,7 @@ public struct NoteListView: View {
         let isSelected = selectedNote == nil && !searchFocused
         let isMuted = sidebarHasFocus
         return Button(action: { selectedNote = nil }) {
-            Label("\(selectedCategory.title) Dashboard", systemImage: "square.grid.2x2")
+            Label(selectedCategory == .dashboard ? "Dashboard" : "\(selectedCategory.title) Dashboard", systemImage: "square.grid.2x2")
                 .font(.callout.weight(.medium))
                 .foregroundColor(isSelected && !isMuted ? .white : .primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -233,7 +249,7 @@ public struct NoteListView: View {
         .buttonStyle(.plain)
         .padding(.horizontal, 8)
         .padding(.bottom, 6)
-        .help("To-dos and dates from the notes in \(selectedCategory.title)")
+        .help(selectedCategory == .dashboard ? "To-dos and dates from every note" : "To-dos and dates from the notes in \(selectedCategory.title)")
     }
     
     @ViewBuilder
@@ -282,10 +298,10 @@ public struct NoteListView: View {
     private func moveSelection(by step: Int, proxy: ScrollViewProxy) {
         let notes = filteredNotes
         guard !notes.isEmpty else { return }
-        let current = notes.firstIndex { $0.id == selectedNote?.id } ?? (step > 0 || selectedCategory.hasOwnDashboard ? -1 : notes.count)
+        let current = notes.firstIndex { $0.id == selectedNote?.id } ?? (step > 0 || selectedCategory.opensOnDashboard ? -1 : notes.count)
         // Up from the first note goes to the dashboard row above the list, and up again to the search box
         if step < 0, current <= 0 {
-            if selectedCategory.hasOwnDashboard, selectedNote != nil {
+            if selectedCategory.opensOnDashboard, selectedNote != nil {
                 selectedNote = nil
             } else {
                 searchFocused = true
@@ -317,6 +333,8 @@ public struct NoteListView: View {
             tags: Note.tags(in: draft.content)
         )
         selectedNote = newNote
+        // The cursor goes into the note so typing can start at once, after any @person or #tag the draft begins with
+        EditorFocus.request(noteID: newNote.id)
     }
 }
 

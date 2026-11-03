@@ -240,6 +240,17 @@ final class MacAppUITests: XCTestCase {
         XCTAssertEqual(notes(in: "Garden"), 2)
     }
 
+    func testTypingStartsAtOnceInANewNote() throws {
+        launch()
+        sidebarItem("Inbox").click()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+        app.typeKey("n", modifierFlags: .command)
+        XCTAssertTrue(app.textViews["noteText"].waitForExistence(timeout: 5))
+        app.typeText("Order seeds")
+        XCTAssertTrue(waitUntil { self.noteFiles().contains { $0.text.contains("Order seeds") } }, "what is typed goes into the new note without a click")
+        XCTAssertTrue(waitUntil { self.noteFiles().contains { $0.text.contains("title: \"Order seeds\"") } }, "the title follows the first line")
+    }
+
     func testArrowKeysWalkBetweenTheProjectListAndItsNotes() throws {
         try writeNote("Kickoff notes for the project", in: "Projects/Work")
         launch()
@@ -267,11 +278,65 @@ final class MacAppUITests: XCTestCase {
             app.typeKey(.upArrow, modifierFlags: [])
             RunLoop.current.run(until: Date().addingTimeInterval(0.3))
         }
-        XCTAssertFalse(app.textFields["Search notes or #tags..."].exists, "the Dashboard has no note list")
+        XCTAssertEqual(app.windows.firstMatch.title, "Dashboard", "three ups from the project reach the Dashboard")
+        XCTAssertFalse(text("Work Dashboard").exists)
 
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))
         app.typeKey(.downArrow, modifierFlags: [])
-        XCTAssertTrue(app.textFields["Search notes or #tags..."].waitForExistence(timeout: 5), "down from the Dashboard reaches All Notes")
+        XCTAssertTrue(waitUntil { self.app.windows.firstMatch.title == "All Notes" }, "down from the Dashboard reaches All Notes")
+    }
+
+    func testTheDashboardHidesTheNoteListAndOpeningANoteBringsItBack() throws {
+        try writeNote("- [ ] water the plants\nGarden notes")
+        launch()
+        let field = app.textFields["Search notes or #tags..."]
+        XCTAssertTrue(text("water the plants").waitForExistence(timeout: 5), "the Dashboard is showing")
+        XCTAssertFalse(field.exists && field.isHittable, "the note list is hidden on the Dashboard")
+
+        sidebarItem("All Notes").click()
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "other places show the note list")
+        sidebarItem("Dashboard").click()
+        XCTAssertTrue(waitUntil { !(field.exists && field.isHittable) }, "back on the Dashboard the list is hidden again")
+    }
+
+    func testRightArrowFromTheInboxSelectsItsFirstNote() throws {
+        try writeNote("Seeds to order for the garden")
+        launch()
+        sidebarItem("Inbox").click()
+        XCTAssertTrue(text("Seeds to order for the garden").waitForExistence(timeout: 5))
+        XCTAssertFalse(app.textViews["noteText"].exists, "no note is open yet")
+
+        // The sidebar has the keyboard after a click; wait for the list to settle
+        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+        app.typeKey(.rightArrow, modifierFlags: [])
+        XCTAssertTrue(app.textViews["noteText"].waitForExistence(timeout: 5), "right selects the first note, as it selects the dashboard row in a project")
+    }
+
+    func testArrowKeysWalkTheDashboardItemsAndTheSearchBox() throws {
+        try writeNote("- [ ] water the plants\nGarden notes")
+        launch()
+        sidebarItem("Dashboard").click()
+        XCTAssertTrue(text("water the plants").waitForExistence(timeout: 5))
+        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+
+        // Right goes to the first item; Return opens its note
+        app.typeKey(.rightArrow, modifierFlags: [])
+        app.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(app.textViews["noteText"].waitForExistence(timeout: 5), "right then Return opens the first item's note")
+        app.typeKey(.escape, modifierFlags: [])
+        XCTAssertTrue(text("water the plants").waitForExistence(timeout: 5), "Escape is back on the Dashboard")
+        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+
+        // Up from the first item goes to the search box, and down from there to the first item again
+        sidebarItem("Dashboard").click()
+        app.typeKey(.rightArrow, modifierFlags: [])
+        app.typeKey(.upArrow, modifierFlags: [])
+        app.typeText("plants")
+        let search = app.textFields["dashboardSearch"]
+        XCTAssertEqual(search.value as? String, "plants", "up from the first item reaches the search box")
+        app.typeKey(.downArrow, modifierFlags: [])
+        app.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(app.textViews["noteText"].waitForExistence(timeout: 5), "down from the search box reaches the first item")
     }
 
     func testCompletedItemsAreFoldedAwayUntilAsked() throws {

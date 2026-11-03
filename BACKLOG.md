@@ -31,6 +31,106 @@ The four counters at the top of the Dashboard (**overdue**, **today**, **upcomin
 - Should "open to-dos" include completed-today items so they can be unticked?
 - Should the filter reset when the user leaves the Dashboard and returns?
 
+### Memory efficiency optimizations
+
+Reduce memory footprint and per-frame allocations across the storage, model, and view layers (see [`docs/memory-efficiency.md`](docs/memory-efficiency.md) for the full audit):
+- [x] Cache `agendaItems` per note and compute `DashboardView` sections from a single `Snapshot` per render instead of re-running `AgendaExtractor` 11× per frame (`bc7e424`).
+- [x] Reload only modified `.md` files on file-watcher events on macOS via `fileCache` and `FolderWatcher` (`bc7e424`).
+- [x] Keep `agendaCache` across `loadAll()` and re-run `AgendaExtractor` only for notes whose text or update time changed.
+- [ ] Cache `displayTitle`, `previewExcerpt`, and `checklistStats` on `Note` at parse/save time instead of splitting `content` on every `NoteCardRow` render.
+- [x] Replace per-keystroke array-allocating word count in `NoteDetailEditorView` with a zero-allocation scalar scan.
+- [x] Replace `.agenda-log.json` (`AgendaLog`) with `📅` / `✅` date markers written into each line (Obsidian Tasks format), eliminating duplicate `"line"` strings, per-call dictionary allocations in `anchors(for:)`, and `.agenda-log.json` sync conflicts.
+- [x] Replace `DateFormatter()` allocation in `NoteStorageManager.generateUniqueFileName` with a `static let` formatter.
+- [x] Use `LazyVStack` in `MarkdownRendererView` and precompute sidebar badge counts without `.filter { ... }.count` array allocations.
+- [x] Give Windows the same `(mtime, size)` file cache and per-note agenda cache as macOS and Android, and cache each note's `@people` on macOS and Windows.
+- [ ] Measure cold start with a generated 10,000-note vault. Only if it takes over about 2 s, add a local derived disk cache keyed by `(relativePath, mtime, fileSize)`.
+
+### iPhone: search bar is hidden until you pull the list down
+- [ ] On the iPhone app's Notes screen the search bar is hidden by default and only appears after dragging the list down. It should always be visible.
+- Commit `1a458fc` already set `.searchable(..., placement: .navigationBarDrawer(displayMode: .always))` in `ios/Sources/NotesScreen.swift`, but the problem was reported again. That change shipped in 1.2.0 (build 11), which was never uploaded to TestFlight, so the phone may be running an older build. First install the 1.3.0 build and check. If the bar is still hidden, `displayMode: .always` is not enough on this iOS version; try placing a search field above the list (as the Mac does) instead of relying on `.searchable`.
+- Add an iPhone screen test (`ios/UITests`) that opens the Notes screen and checks the search field is on screen without scrolling.
+
+### iPhone: the app takes a long time to load
+- [ ] The iPhone app is slow to show the Dashboard and the Notes section. Reported in the Sn project's "Bugs" note.
+- Measure first: on a device, time from launch to the first notes appearing, with the notes in iCloud, and note how many notes there are. Use Instruments (Time Profiler).
+- Likely causes to check:
+  - `NotesFolder` calls `storage.loadAll()` on the main thread, and again after short delays while iCloud catches up. Every note file is read through file coordination, and a file iCloud has not downloaded yet can block the read.
+  - The Dashboard builds its sections from every note's agenda items on each draw.
+- Fix ideas: load on a background task and show notes as they arrive; keep the `(mtime, size)` cache between launches (see the cold-start item under Memory efficiency); build the Dashboard from cached items.
+- Done when the Notes list and the Dashboard show within about a second on a typical vault.
+- **Status (2 Nov):** measured on a generated vault in a Release build (M-series Mac, 5,000 notes): reading every note at launch 1.5 s (files 0.1 s, parsing 0.8 s, the rest is the storage manager), building the Dashboard's items 1.1 s, now 0.4 s after skipping the date patterns on lines that cannot hold a day. A real vault of about 60 notes takes a few milliseconds, so the slowness on the phone is probably iCloud (notes still downloading), not parsing. Added Settings → Diagnostics on the iPhone (note count, first and last load time, Dashboard time, notes waiting for iCloud) to tell which. Next: install 1.3.x on the phone, read the numbers, and fix what they point to. If notes are waiting for iCloud, show a "Downloading n notes" line instead of an empty list. Still open for large vaults: parse frontmatter dates without `ISO8601DateFormatter`, and load off the main thread.
+
+### MCP server and CLI for Claude and ChatGPT
+
+Let local AI tools (Claude Desktop, Claude Code, ChatGPT Desktop) query and update Scattered Notes with full awareness of relative date anchors, Dashboard state, projects, tags, and `@person` mentions—rather than reading raw `.md` files and guessing what `"tomorrow"` means.
+
+**Behavior**
+- Expose a local MCP server (e.g. `ScatteredNotes --mcp` or `scattered-notes-mcp`) and CLI subcommands that read the user's configured notes folder (`AppSettings.shared.notesDirectoryURL`).
+- Provide semantic tools backed by `DashboardSnapshot`, `AgendaExtractor`, `NoteSearch`, and `Mentions`:
+  - `get_dashboard`: returns `overdue`, `dueToday`, `doneToday`, `upcomingByDay` (next 14 days, dates read from the `📅` markers in the notes), and `undatedTodosByNote`.
+  - `search_notes(query)`: runs `NoteSearch.search` and returns matching notes with snippets and match positions.
+  - `list_notes(project?, tag?, person?)`: filters notes by `+project`, `#tag`, or `@person`.
+  - `read_note(id)`: returns full note metadata, body, and resolved agenda items.
+  - `capture_note(content, project?)`: creates a properly formatted `.md` file (supporting inline `+project` and `#tag` tokens) and writes the `📅` marker for relative words.
+  - `toggle_todo(note_id, line_number)`: ticks or unticks a checklist or dated line in the `.md` file and adds or removes the line's `✅` marker.
+- Also provide a one-click **"Copy MCP config for Claude / ChatGPT"** button or instructions in Settings, plus an optional `AGENTS.md` / `CLAUDE.md` file format guide for direct folder access.
+
+### ⌘N doesn't create the note in the open project
+- [ ] The New note button (✎) shows "⌘N" in its tooltip. Clicking it inside a project puts the new note in that project. Pressing ⌘N does not.
+- Likely cause: the app's `WindowGroup` adds File ▸ New Window with ⌘N, and a menu item beats the `.keyboardShortcut("n")` on the button in `NoteListView`. Confirm, then replace the default New Window item with a "New Note" command (`CommandGroup(replacing: .newItem)`) that calls the same `createNewNoteInCurrentCategory()` as the button. Decide where New Window goes (probably ⇧⌘N).
+- Test: ⌘N inside a project, a person and a tag creates the note with the same placement as the button.
+- **Status (2 Nov):** fix written, not yet committed. File ▸ New Note takes ⌘N and calls the same function as the button; New Window moved to ⇧⌘N. The placement rule is now `NewNoteDraft` with unit tests. Still to do: press ⌘N in the running app inside a project, a person and a tag, and confirm. If it still misses the project, the cause is not the menu shortcut and this needs a closer look.
+
+### New note is not visible after creating it
+- [ ] Creating a note doesn't always show it. Needs a repro first: which list is open, which sort, and whether a search or filter is active. Check that the new note is selected, scrolled into view, and not hidden by the current filter, sort or search.
+
+### Navigation: Master Dashboard › Project › Notes › Note
+Structure the app as levels, and make every Esc go up one level:
+- Master Dashboard › Project › (Project dashboard / Notes) › Note.
+- From the editor, Esc (and a visible Back control) returns to the list of notes it was opened from, then to the project, then to the Master Dashboard.
+- Extends the Esc rules in the README. A filter or search clears before Esc navigates up.
+- Same levels on iPhone, using the navigation stack's back button.
+
+### Go to a folder from the keyboard
+- [x] **Done (3 Nov, Mac): ⌘O opens "Go to Project, Person or Tag…".** Type part of a name (accents and case ignored; `#` limits it to tags, `@` to people), ↑↓ pick, ↵ goes there and leaves the keyboard in that place's notes, Esc closes. Also lists Dashboard, All Notes and Inbox. Code: `GoToTargets.swift` (tested) and `GoToPaletteView.swift`. Not built for Windows, Android or iPhone yet.
+- Original request: a shortcut that opens a quick switcher to jump to a project, person or tag by typing part of its name. Return opens it. Related: the existing "Search All Notes…" shortcut.
+
+### Drag a note onto a project
+- **Status (3 Nov, Mac): written, not yet confirmed in the running app.** Notes in the list can be dragged onto a project or the Inbox in the sidebar; the target outlines itself, the note moves, and ⌘Z moves it back. Code: `NoteDrag.swift`, with `NoteDragTests` for the payload and drop rules. The screen test `testDraggingANoteOntoAProjectMovesItAndUndoBringsItBack` skips itself while the screen is locked and has not run yet: run `make ui-test` at the Mac, and drag a note by hand once. Not built for Windows, Android or iPhone.
+- [ ] Dragging a note from the list onto a project in the sidebar moves it into that project. The project highlights as a drop target. Moving is undoable (⌘Z).
+- Dropping onto Inbox moves it out of the project.
+
+### New notes made inside a project belong to it
+- [ ] Covered for the ✎ button. Cover every way to create a note (⌘N, the menu, Quick Capture with a project open) with one shared code path and a test per entry point. See the ⌘N item above.
+
+### iPhone: see projects
+- [ ] The iPhone app has no way to browse projects (Quick Capture can file into one). Add a Projects section on the Notes screen or as a tab, listing each project with its note count; tapping one shows its notes. Same levels as the navigation item above.
+
+### Project kanban view with a work-in-progress limit
+- [ ] Make the Projects section clickable to show a kanban board.
+- Columns by status (for example Next, In progress, Done). In progress is capped (default 3). The person can raise it to 4, 5 or more.
+- At the limit, moving another project in asks "Finish or park one first?" instead of blocking.
+- **Open questions**
+  - How do we find the person's capacity: ask in settings, or learn from how many projects they actually finish per week?
+  - Learning from completion is possible with on-device data (done dates already live in the `✅` markers). Should the app suggest a limit ("You finish about 2 a week; try 2")?
+  - Use an OS-provided intelligence layer for the suggestion, or keep it a simple rule in the app? Start with the rule.
+
+### Quick Capture: pick a project inline
+- [ ] Pressing + in Quick Capture opens an inline list of projects, filtered as you type, so the note is filed without leaving the window. Return picks the highlighted project; Esc closes the list and keeps the text.
+
+### Recent notes under Quick Access
+- [ ] Show the last few notes opened or edited under Quick Access in the sidebar. A Settings switch turns it on or off.
+- Open question: on by default? Proposal: on, because it is the fastest way back to what you were doing.
+
+### Auto-link notes and show linked notes at the right
+- [ ] Detect mentions of other notes' titles in a note's text, and show them as links. A panel at the right of the editor lists notes this note links to and notes that link to it (backlinks).
+- Start with exact title matches and explicit `[[Title]]` links; no fuzzy matching.
+- Linking must not rewrite the `.md` files unless the person accepts a suggestion.
+
+### Dashboard: typing while an item is highlighted goes to the search box
+- [ ] On the Dashboard the arrow keys move keyboard focus off the search box onto the items. Make typing a letter while an item is highlighted jump back to the search box and add the letter there, so the search can be refined while walking through the results without pressing ↑ back to the box.
+- Open question: should Esc in that state clear the search or only return focus to the items?
+
 ## Done
 
 _Nothing yet._

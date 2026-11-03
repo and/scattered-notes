@@ -77,11 +77,24 @@ public struct NoteDetailEditorView: View {
             editorColumn
             if showAgendaInspector, !agendaItems.isEmpty {
                 Divider()
-                AgendaInspectorView(items: agendaItems) { item in
-                    // Edit the live text so the toggle is not overwritten by the next autosave
-                    editableContent = Note.togglingChecklistLine(item.lineIndex, in: editableContent)
-                    scheduleSave()
-                }
+                AgendaInspectorView(
+                    items: agendaItems,
+                    onToggle: { item in
+                        // Edit the live text so the toggle is not overwritten by the next autosave
+                        editableContent = Note.togglingChecklistLine(item.lineIndex, in: editableContent)
+                        scheduleSave()
+                    },
+                    history: { storageManager.dateHistory(for: $0) },
+                    onSetDate: { item, day in
+                        // Same for the day: write it into the live text, then log it
+                        let day = Calendar.current.startOfDay(for: day)
+                        guard item.date != day,
+                              let key = AgendaExtractor.lineKey(onLine: item.lineIndex, in: editableContent) else { return }
+                        editableContent = AgendaExtractor.settingDate(day, onLine: item.lineIndex, in: editableContent)
+                        storageManager.logDateChange(noteID: note.id, lineText: key, from: item.date, to: day)
+                        scheduleSave()
+                    }
+                )
             }
         }
     }
@@ -371,7 +384,22 @@ public struct NoteDetailEditorView: View {
         }
     }
     
+    /// What a note with no title of its own is called: its first line
+    private func firstLineTitle(of content: String) -> String {
+        Note(title: "", content: content, createdAt: Date(), updatedAt: Date()).displayTitle
+    }
+
+    /// A note whose title was never typed by hand, a new "Untitled Note" or one named after its first line,
+    /// keeps being named after its first line as that is edited. A title typed in the header is left alone.
+    private func followFirstLine() {
+        guard editableTitle == note.title,
+              note.title.isEmpty || note.title == "Untitled Note" || note.title == firstLineTitle(of: note.content) else { return }
+        let derived = firstLineTitle(of: editableContent)
+        if derived != editableTitle { editableTitle = derived }
+    }
+
     private func saveNow() {
+        followFirstLine()
         syncedTitle = editableTitle
         syncedContent = editableContent
         guard editableTitle != note.title || editableContent != note.content else { return }

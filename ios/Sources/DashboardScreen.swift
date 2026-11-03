@@ -4,6 +4,7 @@ import SwiftUI
 struct DashboardScreen: View {
     @ObservedObject private var storage = NoteStorageManager.shared
     @State private var isCapturing = false
+    @State private var query = ""
     /// Everything ticked earlier starts folded away
     @AppStorage("dashboard.completedExpanded") private var completedExpanded = false
 
@@ -12,7 +13,12 @@ struct DashboardScreen: View {
     var body: some View {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let snapshot = DashboardSnapshot(notes: storage.notes, items: storage.agendaItems,
+        let terms = DashboardSearch.terms(query)
+        let items = terms.isEmpty
+            ? storage.agendaItems
+            : DashboardSearch.filter(storage.agendaItems, terms: terms,
+                                     notes: Dictionary(uniqueKeysWithValues: storage.notes.map { ($0.id, $0) }))
+        let snapshot = DashboardSnapshot(notes: storage.notes, items: items,
                                          today: today, upcomingDays: upcomingDays, calendar: calendar)
 
         NavigationStack {
@@ -25,7 +31,10 @@ struct DashboardScreen: View {
                     .listRowInsets(EdgeInsets())
                 }
 
-                if snapshot.isEmpty {
+                if snapshot.isEmpty && !terms.isEmpty {
+                    ContentUnavailableView.search(text: query)
+                        .listRowBackground(Color.clear)
+                } else if snapshot.isEmpty {
                     ContentUnavailableView(
                         "Nothing planned",
                         systemImage: "checkmark.circle",
@@ -48,7 +57,14 @@ struct DashboardScreen: View {
                         rows(group.items, in: snapshot)
                     }
                 }
-                ForEach(snapshot.undatedTodosByNote, id: \.note.id) { group in
+                // A note with one open to-do needs no heading: its row names the note
+                let singles = snapshot.undatedTodosByNote.filter { $0.items.count == 1 }
+                if !singles.isEmpty {
+                    Section("To-do") {
+                        rows(singles.flatMap(\.items), in: snapshot)
+                    }
+                }
+                ForEach(snapshot.undatedTodosByNote.filter { $0.items.count != 1 }, id: \.note.id) { group in
                     Section(group.note.displayTitle) {
                         rows(group.items, in: snapshot, showNote: false)
                     }
@@ -62,6 +78,7 @@ struct DashboardScreen: View {
                 }
             }
             .navigationTitle("Dashboard")
+            .searchable(text: $query, prompt: "Search the dashboard")
             .navigationDestination(for: Note.ID.self) { NoteEditorScreen(noteID: $0) }
             .refreshable { NotesFolder.refresh() }
             .toolbar {
@@ -120,6 +137,7 @@ struct AgendaRow: View {
     let note: Note?
     var dateLabel: String?
     var showNote = true
+    @State private var isEditingDate = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -153,6 +171,66 @@ struct AgendaRow: View {
                 }
             }
         }
+        .swipeActions(edge: .trailing) {
+            Button { isEditingDate = true } label: { Label("Date", systemImage: "calendar") }
+                .tint(.orange)
+        }
+        .contextMenu {
+            Button { isEditingDate = true } label: {
+                Label(item.date == nil ? "Set a Date" : "Change the Date", systemImage: "calendar")
+            }
+        }
+        .sheet(isPresented: $isEditingDate) {
+            DateEditorSheet(item: item) { storage.setDate(noteID: item.noteID, lineIndex: item.lineIndex, to: $0) }
+        }
+    }
+}
+
+/// Sets the day of a to-do: quick picks, a calendar, and what was changed before.
+private struct DateEditorSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let item: AgendaItem
+    let onPick: (Date) -> Void
+    @State private var picked: Date
+
+    init(item: AgendaItem, onPick: @escaping (Date) -> Void) {
+        self.item = item
+        self.onPick = onPick
+        _picked = State(initialValue: item.date ?? Date())
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    ForEach(QuickDates.options(today: Date()), id: \.title) { option in
+                        Button(option.title) { pick(option.day) }
+                    }
+                }
+                Section {
+                    DatePicker("Date", selection: $picked, displayedComponents: .date)
+                        .datePickerStyle(.graphical)
+                        .onChange(of: picked) { _, day in pick(day) }
+                }
+                let history = NoteStorageManager.shared.dateHistory(for: item)
+                if !history.isEmpty {
+                    Section("History") {
+                        ForEach(history.suffix(5).reversed()) { change in
+                            Text(change.summary).font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle(item.date == nil ? "Set a Date" : "Change the Date")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { Button("Cancel") { dismiss() } }
+        }
+        .presentationDetents([.large])
+    }
+
+    private func pick(_ day: Date) {
+        onPick(day)
+        dismiss()
     }
 }
 

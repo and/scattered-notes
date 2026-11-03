@@ -27,6 +27,10 @@ public enum SidebarSelection: Hashable {
         }
     }
 
+    /// Whether the detail pane shows a dashboard until a note is opened: the Dashboard itself, or the
+    /// dashboard of a project, person or tag
+    public var opensOnDashboard: Bool { self == .dashboard || hasOwnDashboard }
+
     /// Whether `note` is listed under this selection
     public func contains(_ note: Note) -> Bool {
         switch self {
@@ -41,7 +45,7 @@ public enum SidebarSelection: Hashable {
 
 /// A pane the keyboard can move to, so the arrow keys walk between the project list, the notes and back
 public enum MainPane: Hashable {
-    case sidebar, list
+    case sidebar, list, dashboard
 }
 
 public struct SidebarView: View {
