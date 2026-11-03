@@ -251,6 +251,17 @@ final class MacAppUITests: XCTestCase {
         XCTAssertTrue(waitUntil { self.noteFiles().contains { $0.text.contains("title: \"Order seeds\"") } }, "the title follows the first line")
     }
 
+    func testPointingAtANoteInTheListDoesNotOpenIt() throws {
+        try writeNote("Seeds to order for the garden")
+        launch()
+        sidebarItem("Inbox").click()
+        let row = text("Seeds to order for the garden")
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.hover()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        XCTAssertFalse(app.textViews["noteText"].exists, "hovering only marks the row; it does not select it")
+    }
+
     func testArrowKeysWalkBetweenTheProjectListAndItsNotes() throws {
         try writeNote("Kickoff notes for the project", in: "Projects/Work")
         launch()

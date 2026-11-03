@@ -349,6 +349,8 @@ public struct NoteCardRow: View {
     var isDimmed: Bool = false
     /// Marks the note whose text the pointer is over in a dashboard's notes log
     var isHighlighted: Bool = false
+    /// The pointer is over the row
+    @State private var isHovering = false
     
     private var onAccent: Bool { isSelected && !isDimmed }
     private var secondaryColor: Color { onAccent ? .white : .wcagSecondaryText }
@@ -418,8 +420,12 @@ public struct NoteCardRow: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isSelected ? (isDimmed ? Color.gray.opacity(0.22) : Color.wcagSelection) : isHighlighted ? Color.wcagSelection.opacity(0.15) : Color.clear)
+                .fill(isSelected ? (isDimmed ? Color.gray.opacity(0.22) : Color.wcagSelection)
+                      : isHighlighted ? Color.wcagSelection.opacity(0.15)
+                      : isHovering ? Color(nsColor: .quaternaryLabelColor).opacity(0.5) : Color.clear)
         )
+        .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: isHovering)
     }
     
     private var destinationIcon: String {
