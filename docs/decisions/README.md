@@ -36,3 +36,4 @@ What was given up. What would come next.
 - [2026-11-03: Changing a to-do's date, with a history](2026-11-03-date-log.md)
 - [2026-11-03: Walking the Dashboard with the keyboard](2026-11-03-dashboard-keyboard.md)
 - [2026-11-03: A new note takes its title from its first line](2026-11-03-title-follows-first-line.md)
+- [2026-11-03: Notes in the list react when the pointer is over them](2026-11-03-hover-on-notes.md)
