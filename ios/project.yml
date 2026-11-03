@@ -20,6 +20,8 @@ targets:
       # Notes, the agenda and storage are shared with the Mac app; FSEvents does not exist on iOS
       - path: ../Sources/Models
         group: Shared
+        excludes:
+          - NewNoteDraft.swift  # Mac-only: needs the sidebar and ⌘N
       - path: ../Sources/Storage
         group: Shared
         excludes:
