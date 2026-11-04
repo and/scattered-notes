@@ -42,6 +42,25 @@ Filter before grouping, not after: the sections, counts and "nothing planned" st
 
 Limits: it is a plain substring scan, so there is no typo tolerance or ranking, and it rescans all items on each keystroke. That is fine for thousands of items. For much more, an inverted index (word to items) would find matches without scanning.
 
+## Note links and backlinks
+
+Feature: find the notes a note mentions, by title or by `[[Title]]`, and the notes that mention it.
+
+| Piece | DS / algorithm | File | Cost |
+|---|---|---|---|
+| Split a text into words | One pass over the characters, a word being a run of letters and digits | `NoteLinkIndex.words` in `Sources/Models/NoteLinks.swift` | O(L) |
+| Ignore case and accents | Lower-case plain ASCII words, fold the rest | `NoteLinkIndex.words` | O(L) |
+| Find titles in a text | Trie of words: follow the text's words down the tree and keep the longest title that ends on the way | `NoteLinkIndex.scan` | O(L), plus the length of the longest title at each word |
+| Titles that overlap | Longest match wins, then skip past the words it used | `NoteLinkIndex.scan` | O(L) |
+| `[[Title]]` | Regular expression, then a hash map lookup of the folded title | `NoteLinkIndex.scan`, `byFullTitle` | O(L) |
+| Backlinks | Invert the links: hash map from target note to the set of notes that link to it, then sort newest first | `NoteLinkIndex.init` | O(links log links) |
+
+A trie is a tree where each step is one word, so all titles starting "Trip to" share the first two steps. The first version looked titles up by their first word and tested each candidate. It took 1.9 s to index 2,000 notes in which every title began with "Topic"; the trie takes 0.3 s, because the number of titles that share a first word no longer matters. Reach for a trie when many keys share a prefix and you need the longest one that matches. Aho-Corasick is the same idea with extra links so a failed match does not restart; this app does not need them, because it matches whole words and restarts at the next word anyway.
+
+The system's own word splitting (`enumerateSubstrings(.byWords)`) was left out: it changes with the language and is slower, and the same rule has to be written again for Windows and Android.
+
+Limits: the index is rebuilt from all notes, so keep it and rebuild only when a note's title or text changes. A title of one common word, such as "Notes", links wherever that word appears.
+
 ## Hash maps and multimaps
 
 A hash map finds a value from a key in O(1) on average.

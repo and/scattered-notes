@@ -127,6 +127,16 @@ Structure the app as levels, and make every Esc go up one level:
 - Start with exact title matches and explicit `[[Title]]` links; no fuzzy matching.
 - Linking must not rewrite the `.md` files unless the person accepts a suggestion.
 
+**Plan (5 Nov): no AI first, one rule set for every app**
+- Rules live in one pure type (`NoteLinks`, in `Sources/Models`), ported by hand to Windows (`ScatteredNotes.Core`) and Android (`core/`) like `AgendaExtractor`, so a note shows the same links on every device.
+- Mentions: look for every other note's title in the text in one pass (a trie or Aho-Corasick automaton), ignoring case and accents, matching whole words only, and skipping titles shorter than 3 characters and the note's own title. `[[Title]]` is parsed like `@name` is in `Mentions`.
+- Backlinks: a map from each note to the notes that link to it, rebuilt only for notes that changed (same pattern as `agendaCache`). Renaming a note changes its backlinks, so the map is also rebuilt when a title changes.
+- Related notes without AI: notes that share a `+project`, `#tag` or `@person`, then notes that share rare words (TF-IDF score), shown below the links as "Related".
+- Panel at the right of the editor: Links to, Linked from, Related. Click a row to open the note. A mention in the text gets a "Make this a link" button that writes `[[Title]]`; nothing is written otherwise.
+- Tests: whole-word matches, accents, a title inside a longer word, two notes with the same title, a note linking to itself, `[[Title]]` with no such note, a rename.
+- Open questions: what to do when two notes share a title (list both, or ask); whether the panel is on by default or opened from the toolbar.
+- Later, optional, Mac and iPhone only: a "Suggested" section ranked with Apple's on-device sentence embeddings (NaturalLanguage `NLEmbedding`), labeled as a suggestion and never written to the files. Windows and Android keep the rule-based list, because results from a model would differ between devices.
+
 ### Dashboard: typing while an item is highlighted goes to the search box
 - [ ] On the Dashboard the arrow keys move keyboard focus off the search box onto the items. Make typing a letter while an item is highlighted jump back to the search box and add the letter there, so the search can be refined while walking through the results without pressing ↑ back to the box.
 - Open question: should Esc in that state clear the search or only return focus to the items?
