@@ -18,6 +18,7 @@
 		425D856627D328B3A710779B /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9239C823B200641C2208AC33 /* AppSettings.swift */; };
 		50F240A1AF5524E67951EDD0 /* Agenda.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38D1F8C22FD49142B075ACA2 /* Agenda.swift */; };
 		6D2DFAC4DE2D5C16B4E33D2D /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9099280E14BB102C0B47431 /* Note.swift */; };
+		88BCA8038A38248B86AADE9E /* RecentNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 251BCB904C247312EF81E4D1 /* RecentNotes.swift */; };
 		8B100A4D2F6665C09BC5DA8C /* ICloudFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8285B8BE5487955A2B5E548B /* ICloudFolder.swift */; };
 		9926483CE2D20C8F353A0F50 /* NoteSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7125F8351E4EF3DC0D9E3F64 /* NoteSearch.swift */; };
 		9B2C982187472F6F5A9A83DD /* AgendaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E81A5377DB18C4501D70848 /* AgendaTests.swift */; };
@@ -53,6 +54,7 @@
 		030A71887BC59380FF7E288C /* NoteSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteSearchTests.swift; sourceTree = "<group>"; };
 		116002D71E440161D87E1F7F /* ScatteredNotesiOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ScatteredNotesiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		137CF5D5728347FBF63F20E7 /* Mentions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mentions.swift; sourceTree = "<group>"; };
+		251BCB904C247312EF81E4D1 /* RecentNotes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentNotes.swift; sourceTree = "<group>"; };
 		38D1F8C22FD49142B075ACA2 /* Agenda.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Agenda.swift; sourceTree = "<group>"; };
 		43D1A7CD4D557A7DCAB3AD16 /* NoteEditingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditingUITests.swift; sourceTree = "<group>"; };
 		443A05514307FAB2A5C8299F /* DashboardScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardScreen.swift; sourceTree = "<group>"; };
@@ -125,6 +127,7 @@
 				A9099280E14BB102C0B47431 /* Note.swift */,
 				7125F8351E4EF3DC0D9E3F64 /* NoteSearch.swift */,
 				BAA7461B99C41A9306C27AC3 /* ProjectArea.swift */,
+				251BCB904C247312EF81E4D1 /* RecentNotes.swift */,
 			);
 			name = Models;
 			path = ../Sources/Models;
@@ -330,6 +333,7 @@
 				F9938A3363EDDD3975A46480 /* NotesFolder.swift in Sources */,
 				3E3A053231165064ADF7AFC7 /* NotesScreen.swift in Sources */,
 				34D172EDC52CA09C4D522EC1 /* ProjectArea.swift in Sources */,
+				88BCA8038A38248B86AADE9E /* RecentNotes.swift in Sources */,
 				214B8E1787607E8517622DB1 /* ScatteredNotesPhoneApp.swift in Sources */,
 				E41F3496DE069AB93D131075 /* SettingsScreen.swift in Sources */,
 			);

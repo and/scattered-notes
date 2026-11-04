@@ -61,6 +61,10 @@ public struct MainSplitView: View {
             showingGoTo = true
         }
         .onChange(of: sidebarSelection) { _, selection in
+            // A note picked from Recent, by key or click, opens in the detail pane
+            if case .note(let id) = selection, let note = storageManager.notes.first(where: { $0.id == id }) {
+                selectedNote = note
+            }
             // A dashboard opens on its own, shown until a note is opened
             if selection.opensOnDashboard {
                 selectedNote = nil
@@ -100,7 +104,7 @@ public struct MainSplitView: View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             sidebar
         } content: {
-            NoteListView(selectedCategory: sidebarSelection, selectedNote: $selectedNote,
+            NoteListView(selectedCategory: sidebarSelection.listScope, selectedNote: $selectedNote,
                          focusRequest: $focusRequest, sidebarHasFocus: sidebarHasFocus, isCollapsed: showsDashboardOnly, onMoveLeft: moveToSidebar)
                 .navigationSplitViewColumnWidth(min: showsDashboardOnly ? 0 : 260, ideal: showsDashboardOnly ? 0 : 300, max: showsDashboardOnly ? 0 : 400)
         } detail: {
@@ -134,7 +138,7 @@ public struct MainSplitView: View {
 
     /// Left arrow from the notes: to the project list, on the note's own project when All Notes is open
     private func moveToSidebar() {
-        if sidebarSelection == .all, let note = selectedNote, note.categoryType == .project, let name = note.targetName {
+        if sidebarSelection.listScope == .all, let note = selectedNote, note.categoryType == .project, let name = note.targetName {
             sidebarSelection = .project(name: name)
         }
         focusRequest = .sidebar

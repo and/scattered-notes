@@ -10,7 +10,7 @@ struct NewNoteDraft: Equatable {
 
     init(for selection: SidebarSelection) {
         switch selection {
-        case .all, .inbox, .dashboard:
+        case .all, .inbox, .dashboard, .note:
             break
         case .project(let name):
             category = .project

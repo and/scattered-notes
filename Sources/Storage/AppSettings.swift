@@ -17,6 +17,7 @@ public final class AppSettings: ObservableObject {
     #endif
     private let storageKeyDefaultEditorFontSize = "settings.editorFontSize"
     private let storageKeyQuickNoteAutoSave = "settings.quickNoteAutoSave"
+    private let storageKeyHiddenRecents = "settings.hiddenRecentNotes"
     
     // Injected so tests can use an isolated suite instead of the app's real preferences
     private let defaults: UserDefaults
@@ -42,6 +43,15 @@ public final class AppSettings: ObservableObject {
     @Published public var quickNoteAutoSave: Bool {
         didSet {
             defaults.set(quickNoteAutoSave, forKey: storageKeyQuickNoteAutoSave)
+        }
+    }
+
+    /// Notes taken off the sidebar's Recent list, each with the time it was last edited when it was taken off,
+    /// so it comes back once it is edited again. Kept on this device only.
+    @Published public var hiddenRecents: [UUID: Date] {
+        didSet {
+            let saved = Dictionary(uniqueKeysWithValues: hiddenRecents.map { ($0.key.uuidString, $0.value.timeIntervalSince1970) })
+            defaults.set(saved, forKey: storageKeyHiddenRecents)
         }
     }
 
@@ -88,6 +98,10 @@ public final class AppSettings: ObservableObject {
         let savedFontSize = defaults.double(forKey: storageKeyDefaultEditorFontSize)
         self.editorFontSize = savedFontSize > 0 ? savedFontSize : 14.0
         self.quickNoteAutoSave = defaults.object(forKey: storageKeyQuickNoteAutoSave) as? Bool ?? true
+        let savedHidden = defaults.dictionary(forKey: storageKeyHiddenRecents) as? [String: Double] ?? [:]
+        self.hiddenRecents = savedHidden.reduce(into: [:]) { result, entry in
+            if let id = UUID(uuidString: entry.key) { result[id] = Date(timeIntervalSince1970: entry.value) }
+        }
         #if os(macOS)
         self.quickCaptureShortcut = Self.loadShortcut(from: defaults, key: storageKeyQuickCaptureShortcut, fallback: .quickCaptureDefault)
         self.searchShortcut = Self.loadShortcut(from: defaults, key: storageKeySearchShortcut, fallback: .searchDefault)

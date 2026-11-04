@@ -7,11 +7,13 @@ public enum SidebarSelection: Hashable {
     case project(name: String)
     case person(name: String)
     case tag(name: String)
+    /// A note picked from the Recent list: shown among all notes, with that note open
+    case note(id: UUID)
     
     public var title: String {
         switch self {
         case .dashboard: return "Dashboard"
-        case .all: return "All Notes"
+        case .all, .note: return "All Notes"
         case .inbox: return "Inbox"
         case .project(let name): return name
         case .person(let name): return "@" + name
@@ -31,10 +33,16 @@ public enum SidebarSelection: Hashable {
     /// dashboard of a project, person or tag
     public var opensOnDashboard: Bool { self == .dashboard || hasOwnDashboard }
 
+    /// The place whose notes the list shows: a note picked from Recent is listed among all notes
+    public var listScope: SidebarSelection {
+        if case .note = self { return .all }
+        return self
+    }
+
     /// Whether `note` is listed under this selection
     public func contains(_ note: Note) -> Bool {
         switch self {
-        case .all, .dashboard: return true
+        case .all, .dashboard, .note: return true
         case .inbox: return note.categoryType == .inbox
         case .project(let name): return note.categoryType == .project && note.targetName == name
         case .person(let name): return note.people.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
@@ -50,6 +58,7 @@ public enum MainPane: Hashable {
 
 public struct SidebarView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
+    @ObservedObject var settings = AppSettings.shared
     
     @Binding var selection: SidebarSelection
     /// Set to `.sidebar` to move keyboard focus here; cleared once it has
@@ -142,6 +151,16 @@ public struct SidebarView: View {
                 .modifier(NoteDropTarget(selection: .inbox, highlighted: $dropHighlight, onDrop: onDropNote))
             }
             
+            let recents = RecentNotes.latest(storageManager.notes, hidden: settings.hiddenRecents)
+            if !recents.isEmpty {
+                Section("Recent") {
+                    ForEach(recents) { note in
+                        RecentNoteRow(note: note,
+                                      onRemove: { settings.hiddenRecents[note.id] = note.updatedAt })
+                    }
+                }
+            }
+
             Section {
                 ForEach(storageManager.projects) { project in
                     NavigationLink(value: SidebarSelection.project(name: project.name)) {
@@ -236,9 +255,16 @@ public struct SidebarView: View {
                 .help("Settings")
                 .accessibilityLabel("Settings")
                 Spacer()
+                Text("v\(AppVersion.current.description)")
+                    .font(.caption)
+                    .foregroundColor(.wcagSecondaryText)
+                    .help("Scattered Notes \(AppVersion.current.description)")
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
+            // A bar of its own, so the folders and notes scroll under it instead of showing through the gear and version
+            .background(.bar)
+            .overlay(alignment: .top) { Divider() }
         }
         .sheet(isPresented: $showingNewProjectDialog) {
             NewProjectAreaSheet(type: .project) { name, icon in
@@ -260,6 +286,43 @@ public struct SidebarView: View {
             if let item = itemToDelete {
                 Text("Are you sure you want to delete \"\(item.name)\"? This will remove its directory.")
             }
+        }
+    }
+}
+
+/// A note under Recent: a row of the project list, so the arrow keys reach it, with an x on hover (and a menu
+/// item) to take it off the list. Clicking it also puts the cursor in the note.
+private struct RecentNoteRow: View {
+    let note: Note
+    let onRemove: () -> Void
+    @State private var isHovering = false
+
+    var body: some View {
+        NavigationLink(value: SidebarSelection.note(id: note.id)) {
+            HStack(spacing: 4) {
+                Label {
+                    Text(note.displayTitle).lineLimit(1)
+                } icon: {
+                    Image(systemName: note.categoryType.iconName)
+                        .foregroundColor(.wcagSecondaryText)
+                }
+                Spacer(minLength: 0)
+                Button(action: onRemove) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.wcagSecondaryText)
+                }
+                .buttonStyle(.plain)
+                .opacity(isHovering ? 1 : 0)
+                .help("Remove from Recent")
+                .accessibilityLabel("Remove \(note.displayTitle) from Recent")
+            }
+            .contentShape(Rectangle())
+        }
+        .simultaneousGesture(TapGesture().onEnded { EditorFocus.request(noteID: note.id) })
+        .onHover { isHovering = $0 }
+        .contextMenu {
+            Button("Remove from Recent", action: onRemove)
         }
     }
 }

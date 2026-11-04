@@ -25,6 +25,8 @@ public struct NoteListView: View {
     @State private var searchText: String = ""
     @State private var sortOption: NoteSortOption = .dateUpdated
     @FocusState private var listFocused: Bool
+    /// The cursor is in the note's text, so the selected row is drawn gray, like it is when the project list has the keyboard
+    @State private var editorHasFocus = false
     @FocusState private var searchFocused: Bool
     
     public init(
@@ -177,7 +179,7 @@ public struct NoteListView: View {
                     List {
                         ForEach(filteredNotes) { note in
                             let isSelected = note.id == selectedNote?.id
-                            NoteCardRow(note: note, showDestination: selectedCategory == .all, showProject: !isProject, isSelected: isSelected, isDimmed: sidebarHasFocus,
+                            NoteCardRow(note: note, showDestination: selectedCategory == .all, showProject: !isProject, isSelected: isSelected, isDimmed: sidebarHasFocus || editorHasFocus,
                                         isHighlighted: note.id == highlight.noteID)
                                 .id(note.id)
                                 .contentShape(Rectangle())
@@ -226,13 +228,14 @@ public struct NoteListView: View {
         .allowsHitTesting(!isCollapsed)
         .accessibilityHidden(isCollapsed)
         .focusedSceneValue(\.newNoteAction, createNewNoteInCurrentCategory)
+        .background(EditorFocusWatcher(hasFocus: $editorHasFocus))
     }
     
     /// Opens the project's or area's dashboard, which shows whenever no note is selected
     private var dashboardRow: some View {
         // Not drawn as selected while the cursor is in the search box, so it does not look like it has the focus
         let isSelected = selectedNote == nil && !searchFocused
-        let isMuted = sidebarHasFocus
+        let isMuted = sidebarHasFocus || editorHasFocus
         return Button(action: { selectedNote = nil }) {
             Label(selectedCategory == .dashboard ? "Dashboard" : "\(selectedCategory.title) Dashboard", systemImage: "square.grid.2x2")
                 .font(.callout.weight(.medium))
@@ -442,6 +445,33 @@ public struct NoteCardRow: View {
         case .inbox: return .wcagOrange
         case .project: return .wcagPurple
         case .area: return .wcagOrange
+        }
+    }
+}
+
+/// Reports whether the cursor is in a note's text: the window's first responder is an editable text view that
+/// is not the field editor of a search box. Watches the window, since the editor is a separate pane.
+private struct EditorFocusWatcher: NSViewRepresentable {
+    @Binding var hasFocus: Bool
+
+    func makeNSView(context: Context) -> WatcherView { WatcherView() }
+
+    func updateNSView(_ view: WatcherView, context: Context) {
+        view.onChange = { focused in
+            if hasFocus != focused { hasFocus = focused }
+        }
+    }
+
+    final class WatcherView: NSView {
+        var onChange: (Bool) -> Void = { _ in }
+        private var observation: NSKeyValueObservation?
+
+        override func viewDidMoveToWindow() {
+            observation = window?.observe(\.firstResponder, options: [.initial, .new]) { [weak self] window, _ in
+                let responder = window.firstResponder as? NSTextView
+                let inEditor = responder.map { $0.isEditable && !$0.isFieldEditor } ?? false
+                DispatchQueue.main.async { self?.onChange(inEditor) }
+            }
         }
     }
 }
