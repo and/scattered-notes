@@ -204,6 +204,28 @@ final class MacAppUITests: XCTestCase {
         })
     }
 
+    // MARK: - Links
+
+    func testTheLinksColumnShowsWhatANoteMentionsAndWhatMentionsIt() throws {
+        try writeNote("Budget\nmoney for the trip")
+        try writeNote("Trip plan\ncheck the budget first, then book")
+        launch()
+        openNote(titled: "Trip plan")
+
+        let toggle = app.buttons["linksToggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.click()
+        let panel = app.descendants(matching: .any)["linksPanel"].firstMatch
+        XCTAssertTrue(panel.waitForExistence(timeout: 5), "the Links column opens")
+        let budgetRow = panel.buttons.matching(NSPredicate(format: "label CONTAINS 'Budget'")).firstMatch
+        XCTAssertTrue(budgetRow.waitForExistence(timeout: 5), "the plan mentions Budget")
+
+        // Clicking the row opens that note, whose column says the plan mentions it
+        budgetRow.click()
+        let planRow = panel.buttons.matching(NSPredicate(format: "label CONTAINS 'Trip plan'")).firstMatch
+        XCTAssertTrue(planRow.waitForExistence(timeout: 5), "Budget lists Trip plan under Linked from")
+    }
+
     // MARK: - Dashboard
 
     func testProjectDashboardListsItsNotesAndChipsScroll() throws {

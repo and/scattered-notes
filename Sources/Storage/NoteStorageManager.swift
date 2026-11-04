@@ -7,7 +7,10 @@ public final class NoteStorageManager: ObservableObject {
     public static let shared = NoteStorageManager()
     
     @Published public private(set) var notes: [Note] = [] {
-        didSet { allAgendaItems = nil }
+        didSet {
+            allAgendaItems = nil
+            linkIndexCache = nil
+        }
     }
     @Published public private(set) var projects: [ProjectArea] = []
     
@@ -38,6 +41,15 @@ public final class NoteStorageManager: ObservableObject {
     }
     private var agendaCache: [UUID: CachedAgenda] = [:]
     private var allAgendaItems: [AgendaItem]?
+    private var linkIndexCache: NoteLinkIndex?
+
+    /// Which notes mention which, rebuilt the first time it is asked for after the notes change
+    public var linkIndex: NoteLinkIndex {
+        if let cached = linkIndexCache { return cached }
+        let built = NoteLinkIndex(notes: notes)
+        linkIndexCache = built
+        return built
+    }
 
     /// The `@people` of each note, valid while its text is unchanged, so the sidebar does not rescan
     /// every note's text each time one note is saved

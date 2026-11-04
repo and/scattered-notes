@@ -57,6 +57,13 @@ public struct MainSplitView: View {
                 onClose: { showingGoTo = false }
             )
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openNote)) { notification in
+            // A row in the editor's Links column: open that note, in the current list if it is there
+            guard let id = notification.userInfo?["id"] as? UUID,
+                  let note = storageManager.notes.first(where: { $0.id == id }) else { return }
+            selectedNote = note
+            if !sidebarSelection.listScope.contains(note) { sidebarSelection = .all }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .showGoTo)) { _ in
             showingGoTo = true
         }

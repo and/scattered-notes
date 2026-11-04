@@ -21,6 +21,8 @@ public struct NoteDetailEditorView: View {
     @State private var saveDebounceTimer: Timer?
     @State private var showingDeleteAlert = false
     @AppStorage("showAgendaInspector") private var showAgendaInspector = true
+    /// Off to begin with: most notes have no links, and the column takes room from the text
+    @AppStorage("showLinksPanel") private var showLinksPanel = false
     
     public enum EditorMode: String, CaseIterable {
         case edit = "Edit"
@@ -96,6 +98,14 @@ public struct NoteDetailEditorView: View {
                     }
                 )
             }
+            if showLinksPanel {
+                Divider()
+                NoteLinksPanel(
+                    noteID: note.id,
+                    index: storageManager.linkIndex,
+                    notes: Dictionary(storageManager.notes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                )
+            }
         }
     }
 
@@ -169,6 +179,15 @@ public struct NoteDetailEditorView: View {
                     .buttonStyle(.plain)
                     .help(showAgendaInspector ? "Hide Agenda" : "Show Agenda")
                 }
+                
+                // Links column toggle
+                Button(action: { showLinksPanel.toggle() }) {
+                    Image(systemName: "link")
+                        .foregroundColor(showLinksPanel ? .wcagBlue : .wcagSecondaryText)
+                }
+                .buttonStyle(.plain)
+                .help(showLinksPanel ? "Hide Links" : "Show Links")
+                .accessibilityIdentifier("linksToggle")
                 
                 // Pin Button
                 Button(action: {
