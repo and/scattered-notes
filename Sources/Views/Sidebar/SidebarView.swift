@@ -69,6 +69,8 @@ public struct SidebarView: View {
     @Binding var hasFocus: Bool
     /// Called when a note is dropped on a project or the Inbox; says whether it moved
     var onDropNote: (UUID, SidebarSelection) -> Bool = { _, _ in false }
+    /// Called when a note under Recent is clicked, even when it is the row already selected
+    var onOpenNote: (Note) -> Void = { _ in }
     @State private var dropHighlight: SidebarSelection?
     @FocusState private var sidebarFocused: Bool
     @State private var showingNewProjectDialog: Bool = false
@@ -76,12 +78,14 @@ public struct SidebarView: View {
     @State private var showingDeleteAlert: Bool = false
     
     public init(selection: Binding<SidebarSelection>, focusRequest: Binding<MainPane?> = .constant(nil), hasFocus: Binding<Bool> = .constant(false), onMoveRight: @escaping () -> Void = {},
-                onDropNote: @escaping (UUID, SidebarSelection) -> Bool = { _, _ in false }) {
+                onDropNote: @escaping (UUID, SidebarSelection) -> Bool = { _, _ in false },
+                onOpenNote: @escaping (Note) -> Void = { _ in }) {
         self._selection = selection
         self._focusRequest = focusRequest
         self._hasFocus = hasFocus
         self.onMoveRight = onMoveRight
         self.onDropNote = onDropNote
+        self.onOpenNote = onOpenNote
     }
 
     /// Each name used for one kind of mark across all notes, with how many notes use it, sorted by
@@ -155,7 +159,7 @@ public struct SidebarView: View {
             if !recents.isEmpty {
                 Section("Recent") {
                     ForEach(recents) { note in
-                        RecentNoteRow(note: note,
+                        RecentNoteRow(note: note, onOpen: { onOpenNote(note) },
                                       onRemove: { settings.hiddenRecents[note.id] = note.updatedAt })
                     }
                 }
@@ -294,6 +298,7 @@ public struct SidebarView: View {
 /// item) to take it off the list. Clicking it also puts the cursor in the note.
 private struct RecentNoteRow: View {
     let note: Note
+    let onOpen: () -> Void
     let onRemove: () -> Void
     @State private var isHovering = false
 
@@ -319,7 +324,7 @@ private struct RecentNoteRow: View {
             }
             .contentShape(Rectangle())
         }
-        .simultaneousGesture(TapGesture().onEnded { EditorFocus.request(noteID: note.id) })
+        .simultaneousGesture(TapGesture().onEnded(onOpen))
         .onHover { isHovering = $0 }
         .contextMenu {
             Button("Remove from Recent", action: onRemove)

@@ -203,7 +203,7 @@ public struct NoteDetailEditorView: View {
                 .help("Delete Note")
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .frame(height: PaneHeader.height)
             .background(Color(NSColor.windowBackgroundColor).opacity(0.6))
             
             Divider()
@@ -294,6 +294,7 @@ public struct NoteDetailEditorView: View {
             .background(Color(NSColor.windowBackgroundColor).opacity(0.3))
         }
         .onAppear {
+            EditorFocus.openNoteID = note.id
             syncFromNote()
             focusEditorIfRequested()
         }
@@ -301,6 +302,7 @@ public struct NoteDetailEditorView: View {
             focusEditorIfRequested()
         }
         .onDisappear {
+            if EditorFocus.openNoteID == note.id { EditorFocus.openNoteID = nil }
             // Flush pending edits instead of dropping them, e.g. when switching to the dashboard
             flushPendingSave()
         }
@@ -366,7 +368,7 @@ public struct NoteDetailEditorView: View {
         EditorFocus.pending = nil
         if editorMode == .preview { editorMode = .edit }
         let text = editableContent
-        EditorFocus.focusTextView(showing: text, atOffset: EditorFocus.cursorOffset(in: text, terms: request.terms))
+        EditorFocus.focusTextView(showing: text, atOffset: request.offset ?? EditorFocus.cursorOffset(in: text, terms: request.terms))
     }
     
     private func flushPendingSave() {
