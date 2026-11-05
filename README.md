@@ -100,10 +100,11 @@ Go to the [latest release](https://github.com/and/scattered-notes/releases/lates
   - Counters for overdue, today, upcoming and open to-dos.
   - Tick any item off from the dashboard or from the note's agenda column.
 - 🪵 **Log notes**: start a note's title or first line with `Log -` and it becomes a log book.
-  - Pressing Return starts a new line with the time already written, in the form log files use: `2026-11-05T14:22:19+05:30 one sun one moon.`
+  - Pressing Return starts a new line with the time already written, in the form log files use: `2026-11-05T09:52:40+05:30 took a break, tea and a walk`
+  - Use it for anything you want a record of in order: a reading or work day, a workout, symptoms, a build, a trip.
   - Monospaced font, with the times in a quieter grey so the entries read first.
   - Plain text, so `tail`, `lnav`, `grep` and other log readers can read the note as it is. See [docs/log-notes.md](docs/log-notes.md).
-  <p align="center"><img src="docs/log-notes.svg" alt="A log note: each line starts with its time" width="560" /></p>
+  <p align="center"><img src="docs/log-notes.svg" alt="A log note of a reading day: started reading, a break, resumed, lunch. Each line starts with its time" width="720" /></p>
 - 🔗 **Links between notes**: the Links column beside a note.
   - Lists the notes it mentions by title or with `[[Title]]`, and the notes that mention it. "Make this a link" turns a plain mention into `[[Title]]`.
   - Related notes share a `#tag` or `@person`, or many uncommon words. Suggested notes have a similar meaning (off by default; it uses Apple's on-device word model).
