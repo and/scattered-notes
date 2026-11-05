@@ -71,8 +71,8 @@ struct LogEditorView: NSViewRepresentable {
             let indent = text.substring(with: range).prefix { $0 == " " || $0 == "\t" }.count
             let t = range.location + indent + 10
             let offset = range.location + indent + 19
-            storage.addAttribute(.foregroundColor, value: NSColor.tertiaryLabelColor, range: NSRange(location: t, length: 1))
-            storage.addAttribute(.foregroundColor, value: NSColor.tertiaryLabelColor, range: NSRange(location: offset, length: NSMaxRange(range) - offset))
+            storage.addAttribute(.foregroundColor, value: NSColor.labelColor.withAlphaComponent(0.17), range: NSRange(location: t, length: 1))
+            storage.addAttribute(.foregroundColor, value: NSColor.labelColor.withAlphaComponent(0.17), range: NSRange(location: offset, length: NSMaxRange(range) - offset))
         }
         storage.endEditing()
         // What is typed next is text, even right after a time
