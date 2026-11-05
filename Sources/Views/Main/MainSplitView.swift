@@ -19,7 +19,8 @@ public struct MainSplitView: View {
     
     public var body: some View {
         splitView
-        .navigationTitle(windowTitle)
+        // The note's own title is right below, so the title bar has no title text of its own
+        .navigationTitle("")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(action: { showingSearch = true }) {
@@ -204,20 +205,5 @@ public struct MainSplitView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-    }
-
-    private var windowTitle: String {
-        if sidebarSelection == .dashboard && selectedNote == nil {
-            return sidebarSelection.title
-        }
-        if let selected = selectedNote {
-            // The stored note, so a renamed title shows
-            let note = storageManager.notes.first { $0.id == selected.id } ?? selected
-            return "\(note.displayTitle) — \(sidebarSelection.title)"
-        }
-        if sidebarSelection.hasOwnDashboard {
-            return "\(sidebarSelection.title) Dashboard"
-        }
-        return sidebarSelection.title
     }
 }

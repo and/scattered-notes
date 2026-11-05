@@ -19,7 +19,7 @@ struct ScatteredNotesApp: App {
                 .frame(minWidth: 800, minHeight: 520)
         }
         .windowStyle(.titleBar)
-        .windowToolbarStyle(.unified)
+        .windowToolbarStyle(.unifiedCompact)
         .commands {
             SidebarCommands()
             CommandGroup(after: .appInfo) {
