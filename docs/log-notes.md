@@ -14,7 +14,7 @@ Log - productivity
 
 - The time is ISO 8601 / RFC 3339 with seconds and the writer's UTC offset. The offset fixes the exact moment, so a line written in one time zone is read correctly in another.
 - Other log readers (`tail`, `lnav`, Console, `grep` and `sort`) can read the file as it is. That is the reason the time is first on the line.
-- The times are drawn in a quieter grey so the entries read first. The note is shown in the system monospaced font (SF Mono on a Mac), as in a log file.
+- The times are drawn in a quieter grey so the entries read first, and the "T" and the UTC offset in a lighter grey still so the date and clock time are easy to read. The note is shown in the system monospaced font (SF Mono on a Mac), as in a log file.
 - The "Log -" heading line has no time. A later line that starts with "Log -" is an ordinary entry.
 
 ## When a line gets its time
