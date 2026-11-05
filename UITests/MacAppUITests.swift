@@ -241,8 +241,11 @@ final class MacAppUITests: XCTestCase {
         text.typeKey(.downArrow, modifierFlags: .command)
         text.typeText("\nbench press")
         XCTAssertTrue(waitUntil {
-            self.noteFiles().contains { $0.text.contains("bench press ⏱ 20") && $0.text.contains("ran 5k ⏱ 2026-11-05 18:02") }
-        }, "the new line has its time in the file and the old line keeps its own")
+            self.noteFiles().contains {
+                $0.text.range(of: #"(?m)^20\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d bench press$"#, options: .regularExpression) != nil
+                    && $0.text.range(of: #"(?m)^2026-11-05T18:02:00[+-]\d\d:\d\d ran 5k$"#, options: .regularExpression) != nil
+            }
+        }, "the new line has its time at the start of the line in the file and the old line keeps its own")
     }
 
     // MARK: - Dashboard

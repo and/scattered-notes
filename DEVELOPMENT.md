@@ -126,6 +126,8 @@ The data structures and algorithms behind each feature, and what they cost, are 
 
 How the Suggested notes list works, what was tried and what could make it better is in [docs/suggested-notes.md](docs/suggested-notes.md). It is a living document: add each improvement and result to its change log.
 
+How log notes ("Log -" books with a time on each line) are stored and why the time is first on the line is in [docs/log-notes.md](docs/log-notes.md).
+
 ## Data safety rules
 
 Notes are the user's data, so these hold for any change to storage:

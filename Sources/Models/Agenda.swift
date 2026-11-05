@@ -91,6 +91,7 @@ public enum AgendaExtractor {
     /// Whether a text can hold a marker at all; most lines cannot, and this is far cheaper than the patterns.
     private static func hasMarker(_ text: String) -> Bool {
         text.unicodeScalars.contains { $0.value == 0x1F4C5 || $0.value == 0x2705 || $0.value == 0x23F1 }
+            || (LogLines.mayStartWithStamp(text) && LogLines.withoutStamp(text) != text)
     }
 
     /// The UTF-16 ranges of the `📅` and `✅` markers in a text, sorted.
@@ -109,7 +110,7 @@ public enum AgendaExtractor {
     /// The line without its `📅` and `✅` markers.
     static func withoutMarkers(_ line: String) -> String {
         guard hasMarker(line) else { return line }
-        var text = line
+        var text = LogLines.withoutStamp(line)
         for regex in [dueMarkerRegex, doneMarkerRegex, logMarkerRegex] {
             text = regex.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: "")
         }

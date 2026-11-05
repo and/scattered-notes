@@ -3,17 +3,24 @@ import Foundation
 /// A log note: a note whose first line starts with "Log -", kept like a log file, with the time each line was
 /// written shown in a column at the right of the editor.
 ///
-/// The times live in the note's file, as a marker at the end of each line: `⏱ 2026-11-05T11:34:07+05:30`, the
-/// ISO 8601 / RFC 3339 form used in software logs, with the writer's own time zone offset. Older markers without
-/// seconds or offset (`⏱ 2026-11-05 11:34`) are still read, in the reader's time zone, like the `📅` and `✅` markers. The editor takes the markers off the text and shows them
-/// in the column, so what is typed and what is read never includes them; saving puts them back. A line gets its
-/// time when it first has text, and keeps it however it is edited afterwards. Lines written before the note became
-/// a log, or in another app, have no time until they are edited.
+/// The times live in the note's file, at the start of each line, the way a log file has them:
+/// `2026-11-05T11:34:07+05:30 ran 5k`. That is the ISO 8601 / RFC 3339 form with the writer's time zone offset, so
+/// other log readers (`tail`, `lnav`, Console and the like) can read the file as it is. The editor takes the times
+/// off the text and shows them in the column, so what is typed and what is read never includes them; saving puts
+/// them back. A line gets its time when it first has text, and keeps it however it is edited afterwards. The
+/// "Log -" heading line has no time. Lines written before the note became a log, or in another app, have no time
+/// until they are edited. The first version wrote the time at the end of the line (`ran 5k ⏱ 2026-11-05 11:34`);
+/// those are still read, and written in the new place when the line is next saved.
 public enum LogLines {
-    /// The marker at the end of a line, with the optional variation selector some keyboards add after the symbol
     /// The time itself: date, `T` or a space, hours and minutes, optional seconds, optional `Z` or `+05:30`
     static let stampPattern = "(\\d{4})-(\\d{2})-(\\d{2})[T ](\\d{2}):(\\d{2})(?::(\\d{2}))?(Z|[+-]\\d{2}:?\\d{2})?"
 
+    /// The time at the start of a line: always the full form, so an ordinary line is not mistaken for a stamped one
+    private static let strictStamp = "(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(Z|[+-]\\d{2}:\\d{2})"
+    private static let leadingRegex = try! NSRegularExpression(pattern: "^[ \\t]*" + strictStamp + "(?:[ \\t]|$)")
+    private static let anyLeadingRegex = try! NSRegularExpression(pattern: "^[ \\t]*" + strictStamp + "(?:[ \\t]|$)", options: .anchorsMatchLines)
+
+    /// The first version's marker at the end of a line, with the optional variation selector some keyboards add
     private static let markerRegex = try! NSRegularExpression(
         pattern: "[ \\t]*\u{23F1}\u{FE0F}?[ \\t]*" + stampPattern + "[ \\t]*$")
 
@@ -25,9 +32,36 @@ public enum LogLines {
         for line in content.split(separator: "\n", omittingEmptySubsequences: true) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty else { continue }
-            return startRegex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)) != nil
+            return isHeading(trimmed)
         }
         return false
+    }
+
+    /// The index of the "Log -" heading line, which is never given a time: the first line that is not blank, when it
+    /// starts with "Log -". Later lines that start that way are entries like any other.
+    static func headingIndex(in lines: [String]) -> Int? {
+        guard let first = lines.firstIndex(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) else { return nil }
+        return isHeading(lines[first]) ? first : nil
+    }
+
+    private static func isHeading(_ line: String) -> Bool {
+        let trimmed = withoutStamp(line).trimmingCharacters(in: .whitespaces)
+        return startRegex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)) != nil
+    }
+
+    /// A quick test that a line could start with a time, before the pattern is tried
+    static func mayStartWithStamp(_ text: String) -> Bool {
+        guard let first = text.unicodeScalars.first(where: { $0 != " " && $0 != "\t" }) else { return false }
+        return first.value >= 0x30 && first.value <= 0x39 && text.utf8.count >= 20
+    }
+
+    /// The line without a time at its start or, in the first version's form, at its end
+    public static func withoutStamp(_ line: String) -> String {
+        let ns = line as NSString
+        let whole = NSRange(location: 0, length: ns.length)
+        if let match = leadingRegex.firstMatch(in: line, range: whole) { return ns.substring(from: match.range.upperBound) }
+        if let match = markerRegex.firstMatch(in: line, range: whole) { return ns.substring(to: match.range.location) }
+        return line
     }
 
     /// Whether a note is a log: "Log -" starts its title, or the first line of its text when it has no title of that kind
@@ -38,6 +72,7 @@ public enum LogLines {
     /// Whether the text holds a time marker, so `parse` has something to take off
     public static func hasStamps(_ content: String) -> Bool {
         content.unicodeScalars.contains { $0.value == 0x23F1 }
+            || anyLeadingRegex.firstMatch(in: content, range: NSRange(location: 0, length: (content as NSString).length)) != nil
     }
 
     /// The text of a log note without its time markers, and the time of each line, `nil` for a line without one.
@@ -47,16 +82,12 @@ public enum LogLines {
         var stamps: [Date?] = []
         for line in content.components(separatedBy: "\n") {
             let ns = line as NSString
-            if let match = markerRegex.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)) {
-                func part(_ group: Int) -> String? {
-                    let range = match.range(at: group)
-                    return range.location == NSNotFound ? nil : ns.substring(with: range)
-                }
-                var zoned = calendar
-                if let offset = part(7) { zoned.timeZone = Self.timeZone(offset) ?? calendar.timeZone }
-                stamps.append(zoned.date(from: DateComponents(
-                    year: Int(part(1)!), month: Int(part(2)!), day: Int(part(3)!),
-                    hour: Int(part(4)!), minute: Int(part(5)!), second: Int(part(6) ?? "0"))))
+            let whole = NSRange(location: 0, length: ns.length)
+            if let match = leadingRegex.firstMatch(in: line, range: whole) {
+                stamps.append(date(match, in: ns, calendar: calendar))
+                lines.append(ns.substring(from: match.range.upperBound))
+            } else if let match = markerRegex.firstMatch(in: line, range: whole) {
+                stamps.append(date(match, in: ns, calendar: calendar))
                 lines.append(ns.substring(to: match.range.location))
             } else {
                 stamps.append(nil)
@@ -66,18 +97,31 @@ public enum LogLines {
         return (lines.joined(separator: "\n"), stamps)
     }
 
+    /// The time in a match of either marker form: groups 1 to 7 are year, month, day, hour, minute, seconds, offset
+    private static func date(_ match: NSTextCheckingResult, in ns: NSString, calendar: Calendar) -> Date? {
+        func part(_ group: Int) -> String? {
+            let range = match.range(at: group)
+            return range.location == NSNotFound ? nil : ns.substring(with: range)
+        }
+        var zoned = calendar
+        if let offset = part(7) { zoned.timeZone = timeZone(offset) ?? calendar.timeZone }
+        return zoned.date(from: DateComponents(
+            year: Int(part(1)!), month: Int(part(2)!), day: Int(part(3)!),
+            hour: Int(part(4)!), minute: Int(part(5)!), second: Int(part(6) ?? "0")))
+    }
+
     /// The note's file text: each line that has text and a time gets its marker at the end. The reverse of `parse`.
     public static func serialize(text: String, stamps: [Date?], calendar: Calendar = .current) -> String {
         let lines = text.components(separatedBy: "\n")
+        let heading = headingIndex(in: lines)
         var out: [String] = []
         for (index, line) in lines.enumerated() {
-            guard index < stamps.count, let stamp = stamps[index], !line.trimmingCharacters(in: .whitespaces).isEmpty else {
+            guard index < stamps.count, let stamp = stamps[index], !line.trimmingCharacters(in: .whitespaces).isEmpty,
+                  index != heading else {
                 out.append(line)
                 continue
             }
-            var body = line
-            while let last = body.last, last == " " || last == "\t" { body.removeLast() }
-            out.append(body + " \u{23F1} " + format(stamp, calendar: calendar))
+            out.append(format(stamp, calendar: calendar) + " " + line)
         }
         return out.joined(separator: "\n")
     }
@@ -133,10 +177,11 @@ public enum LogLines {
         let after = old.replacingCharacters(in: range, with: replacement).components(separatedBy: "\n")
         while stamps.count < after.count { stamps.append(nil) }
         if stamps.count > after.count { stamps.removeLast(stamps.count - after.count) }
+        let heading = headingIndex(in: after)
         for index in startLine...min(startLine + inserted, after.count - 1) {
             let hasText = !after[index].trimmingCharacters(in: .whitespaces).isEmpty
-            if hasText, stamps[index] == nil { stamps[index] = now }
-            if !hasText { stamps[index] = nil }
+            if hasText, stamps[index] == nil, index != heading { stamps[index] = now }
+            if !hasText || index == heading { stamps[index] = nil }
         }
     }
 }
