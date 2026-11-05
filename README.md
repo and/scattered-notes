@@ -99,6 +99,11 @@ Go to the [latest release](https://github.com/and/scattered-notes/releases/lates
   - Overdue, Today, Next 14 Days and open to-dos, collected from every note.
   - Counters for overdue, today, upcoming and open to-dos.
   - Tick any item off from the dashboard or from the note's agenda column.
+- 🪵 **Log notes**: start a note's title or first line with `Log -` and it becomes a log book.
+  - Pressing Return starts a new line with the time already written, in the form log files use: `2026-11-05T14:22:19+05:30 one sun one moon.`
+  - Monospaced font, with the times in a quieter grey so the entries read first.
+  - Plain text, so `tail`, `lnav`, `grep` and other log readers can read the note as it is. See [docs/log-notes.md](docs/log-notes.md).
+  <p align="center"><img src="docs/log-notes.png" alt="A log note: each line starts with its time" width="560" /></p>
 - 🔎 **Global Search (⌘ + K or ⌥ + F)**: Spotlight-style palette over all notes with ranked results and highlighted snippets. `⌥ + F` works from any app.
 - 📂 **Full 3-Pane View**:
   - **Sidebar**: Quick access to *Inbox*, *All Notes*, *Projects*, and *Areas* with live badge counts and inline creation.

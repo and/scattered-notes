@@ -2,6 +2,8 @@
 
 A note whose title, or first line, starts with "Log -" is a log book: each line starts with the time it was written, like a line in a log file.
 
+![A log note: each line starts with its time](log-notes.png)
+
 ## What the note looks like
 
 The time is part of the text, at the start of each line, the way a log file has it. What you see in the editor is what is in the file, so copying the whole note copies the times too:
