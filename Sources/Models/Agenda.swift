@@ -429,3 +429,10 @@ public enum AgendaExtractor {
         return date
     }
 }
+
+extension AgendaItem {
+    /// The items with the ones still to do first and the done ones after them, each group in the order of the note
+    public static func pendingFirst(_ items: [AgendaItem]) -> [AgendaItem] {
+        items.filter { !$0.isDone } + items.filter { $0.isDone }
+    }
+}

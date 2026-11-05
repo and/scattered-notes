@@ -18,7 +18,7 @@ struct AgendaInspectorView: View {
                     .padding(.horizontal, 4)
                     .padding(.bottom, 6)
 
-                ForEach(items) { item in
+                ForEach(AgendaItem.pendingFirst(items)) { item in
                     InspectorRow(
                         item: item, dueLabel: dueLabel(for: item), history: history(item),
                         onToggle: { onToggle(item) }, onSetDate: { onSetDate(item, $0) }

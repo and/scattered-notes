@@ -364,4 +364,10 @@ final class AgendaTests: XCTestCase {
                                        doneToday: [items[3].id], showCompleted: false)
         XCTAssertEqual(hidden.completed.map(\.lineIndex), [3, 2, 0, 1], "ticked items hidden in place are still listed")
     }
+
+    func testPendingItemsComeFirstAndDoneOnesLastEachInNoteOrder() {
+        let items = AgendaExtractor.items(from: Note(content: "- [x] one\n- [ ] two\n- [x] three\n- [ ] four\n- [ ] five"), calendar: calendar)
+        XCTAssertEqual(AgendaItem.pendingFirst(items).map(\.text), ["two", "four", "five", "one", "three"])
+        XCTAssertTrue(AgendaItem.pendingFirst([]).isEmpty)
+    }
 }
