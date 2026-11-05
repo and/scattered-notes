@@ -26,33 +26,43 @@ final class SuggestionEngine: ObservableObject {
     /// False when this device has no word model, so the feature has nothing to offer
     private(set) var isAvailable = true
 
-    private var cache: [UUID: (updatedAt: Date, vector: [Double]?)] = [:]
+    private var signature = ""
     private var running: Task<Void, Never>?
 
-    /// Brings the vectors up to date with `notes`; does nothing when none changed
+    /// Brings the vectors up to date with `notes`; does nothing when no note changed. All vectors are worked out
+    /// again when one note changes, because how much a word says depends on all the notes.
     func update(with notes: [Note]) {
         #if canImport(NaturalLanguage)
-        let stale = notes.filter { cache[$0.id]?.updatedAt != $0.updatedAt }
-        guard !stale.isEmpty || cache.count != notes.count else { return }
-        let work = stale.map { (id: $0.id, updatedAt: $0.updatedAt, text: SuggestedIndex.text(of: $0)) }
-        let live = Set(notes.map(\.id))
-        let order = Dictionary(notes.map { ($0.id, $0.updatedAt) }, uniquingKeysWith: { first, _ in first })
+        let newest = notes.map(\.updatedAt).max()?.timeIntervalSince1970 ?? 0
+        let now = "\(notes.count)-\(newest)"
+        guard now != signature else { return }
+        signature = now
+        let work = notes.map { (id: $0.id, title: $0.displayTitle, body: SuggestedIndex.body(of: $0), marks: SuggestedIndex.marks(of: $0),
+                                project: $0.categoryType == .project ? $0.targetName?.lowercased() : nil, updated: $0.updatedAt) }
         running?.cancel()
         running = Task { [weak self] in
-            let computed: [(id: UUID, updatedAt: Date, vector: [Double]?)]? = await Task.detached(priority: .utility) {
+            let built: SuggestedIndex? = await Task.detached(priority: .utility) {
                 guard let words = AppleWordVectors() else { return nil }
-                return work.map { ($0.id, $0.updatedAt, SuggestedIndex.vector(for: $0.text, using: words)) }
+                var documentFrequency: [String: Int] = [:]
+                for note in work {
+                    for word in Set(SuggestedIndex.meaningfulWords(in: note.title + "\n" + note.body)) { documentFrequency[word, default: 0] += 1 }
+                }
+                let weight = { SuggestedIndex.weight(of: $0, documentFrequency: documentFrequency, count: work.count) }
+                var sums: [UUID: [Double]] = [:]
+                var marks: [UUID: Set<String>] = [:]
+                var projects: [UUID: String] = [:]
+                var updated: [UUID: Date] = [:]
+                for note in work {
+                    if Task.isCancelled { return nil }
+                    if let total = SuggestedIndex.sum(title: note.title, body: note.body, using: words, weight: weight) { sums[note.id] = total }
+                    marks[note.id] = note.marks
+                    if let project = note.project { projects[note.id] = project }
+                    updated[note.id] = note.updated
+                }
+                return SuggestedIndex(sums: sums, marks: marks, projects: projects, updated: updated)
             }.value
             guard let self, !Task.isCancelled else { return }
-            guard let computed else {
-                self.isAvailable = false
-                return
-            }
-            for item in computed { self.cache[item.id] = (item.updatedAt, item.vector) }
-            self.cache = self.cache.filter { live.contains($0.key) }
-            var vectors: [UUID: [Double]] = [:]
-            for (id, entry) in self.cache { if let vector = entry.vector { vectors[id] = vector } }
-            self.index = SuggestedIndex(vectors: vectors, updated: order)
+            if let built { self.index = built } else if AppleWordVectors() == nil { self.isAvailable = false }
         }
         #else
         isAvailable = false

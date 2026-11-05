@@ -124,6 +124,8 @@ The launcher icon is `generate_icon.swift --android`, scaled into the `mipmap-*`
 
 The data structures and algorithms behind each feature, and what they cost, are listed in [docs/data-structures.md](docs/data-structures.md). Add to it when a feature uses a new one.
 
+How the Suggested notes list works, what was tried and what could make it better is in [docs/suggested-notes.md](docs/suggested-notes.md). It is a living document: add each improvement and result to its change log.
+
 ## Data safety rules
 
 Notes are the user's data, so these hold for any change to storage:
