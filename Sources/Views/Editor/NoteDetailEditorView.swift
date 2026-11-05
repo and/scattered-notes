@@ -77,38 +77,47 @@ public struct NoteDetailEditorView: View {
     public var body: some View {
         HStack(spacing: 0) {
             editorColumn
-            if showAgendaInspector, !agendaItems.isEmpty {
+            // Agenda above Links in one column, so the window keeps three columns however many are open
+            if showsAgenda || showLinksPanel {
                 Divider()
-                AgendaInspectorView(
-                    items: agendaItems,
-                    onToggle: { item in
-                        // Edit the live text so the toggle is not overwritten by the next autosave
-                        editableContent = Note.togglingChecklistLine(item.lineIndex, in: editableContent)
-                        scheduleSave()
-                    },
-                    history: { storageManager.dateHistory(for: $0) },
-                    onSetDate: { item, day in
-                        // Same for the day: write it into the live text, then log it
-                        let day = Calendar.current.startOfDay(for: day)
-                        guard item.date != day,
-                              let key = AgendaExtractor.lineKey(onLine: item.lineIndex, in: editableContent) else { return }
-                        editableContent = AgendaExtractor.settingDate(day, onLine: item.lineIndex, in: editableContent)
-                        storageManager.logDateChange(noteID: note.id, lineText: key, from: item.date, to: day)
-                        scheduleSave()
+                VStack(spacing: 0) {
+                    if showsAgenda {
+                        AgendaInspectorView(
+                            items: agendaItems,
+                            onToggle: { item in
+                                // Edit the live text so the toggle is not overwritten by the next autosave
+                                editableContent = Note.togglingChecklistLine(item.lineIndex, in: editableContent)
+                                scheduleSave()
+                            },
+                            history: { storageManager.dateHistory(for: $0) },
+                            onSetDate: { item, day in
+                                // Same for the day: write it into the live text, then log it
+                                let day = Calendar.current.startOfDay(for: day)
+                                guard item.date != day,
+                                      let key = AgendaExtractor.lineKey(onLine: item.lineIndex, in: editableContent) else { return }
+                                editableContent = AgendaExtractor.settingDate(day, onLine: item.lineIndex, in: editableContent)
+                                storageManager.logDateChange(noteID: note.id, lineText: key, from: item.date, to: day)
+                                scheduleSave()
+                            }
+                        )
                     }
-                )
-            }
-            if showLinksPanel {
-                Divider()
-                NoteLinksPanel(
-                    noteID: note.id,
-                    index: storageManager.linkIndex,
-                    related: storageManager.relatedIndex,
-                    notes: Dictionary(storageManager.notes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-                )
+                    if showsAgenda && showLinksPanel { Divider() }
+                    if showLinksPanel {
+                        NoteLinksPanel(
+                            noteID: note.id,
+                            index: storageManager.linkIndex,
+                            related: storageManager.relatedIndex,
+                            notes: Dictionary(storageManager.notes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                        )
+                    }
+                }
+                // The divider between the two would otherwise let the column grow past the panels' own width
+                .frame(width: 240)
             }
         }
     }
+
+    private var showsAgenda: Bool { showAgendaInspector && !agendaItems.isEmpty }
 
     private var editorColumn: some View {
         VStack(spacing: 0) {
