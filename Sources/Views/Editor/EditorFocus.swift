@@ -2,6 +2,7 @@ import AppKit
 
 extension Notification.Name {
     static let focusNoteEditor = Notification.Name("ScatteredNotes.focusNoteEditor")
+    static let focusNoteList = Notification.Name("ScatteredNotes.focusNoteList")
 }
 
 /// Moves keyboard focus into a note's text so the user can start typing.
@@ -11,14 +12,44 @@ enum EditorFocus {
         let noteID: UUID
         /// Search words that led to the note; the cursor goes after the first one found in the text
         let terms: [String]
+        /// A position to put the cursor at instead, e.g. where it was when the app was last used
+        var offset: Int? = nil
     }
 
     /// The request the next editor for that note should act on
     static var pending: Request?
 
-    static func request(noteID: UUID, terms: [String] = []) {
-        pending = Request(noteID: noteID, terms: terms)
+    static func request(noteID: UUID, terms: [String] = [], offset: Int? = nil) {
+        pending = Request(noteID: noteID, terms: terms, offset: offset)
         NotificationCenter.default.post(name: .focusNoteEditor, object: nil)
+    }
+
+    /// The note whose text is open in the editor, so a cursor move can be saved against it
+    static var openNoteID: UUID?
+
+    /// Saves the cursor position whenever the person moves it in the open note, so the app can start there
+    /// next time. Quick Capture's panel and search boxes are left out.
+    static func installPlaceTracking() {
+        NotificationCenter.default.addObserver(placeTracker, selector: #selector(PlaceTracker.selectionChanged(_:)),
+                                               name: NSTextView.didChangeSelectionNotification, object: nil)
+    }
+
+    private static let placeTracker = PlaceTracker()
+
+    /// Left arrow with the cursor before the first character of the note goes back to the note list, with
+    /// the open note still selected, as the left arrow does from the list to the project list.
+    static func installLeftArrowExit() {
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let plain = event.modifierFlags.intersection([.shift, .command, .option, .control]).isEmpty
+            guard event.keyCode == 123, plain, !UITesting.isActive,
+                  let window = event.window, !(window is NSPanel),
+                  let textView = window.firstResponder as? NSTextView,
+                  textView.isEditable, !textView.isFieldEditor,
+                  textView.selectedRange() == NSRange(location: 0, length: 0),
+                  MainActor.assumeIsolated({ openNoteID != nil }) else { return event }
+            NotificationCenter.default.post(name: .focusNoteList, object: nil)
+            return nil
+        }
     }
 
     /// UTF-16 offset for the cursor: just after the first search term found in `text`, else the end of the text.
@@ -106,5 +137,17 @@ enum EditorFocus {
             if let found = editorTextView(in: subview, showing: text) { return found }
         }
         return nil
+    }
+}
+
+/// Receives every text selection change in the app and saves the ones made in the open note
+@MainActor
+private final class PlaceTracker: NSObject {
+    @objc func selectionChanged(_ notification: Notification) {
+        guard let id = EditorFocus.openNoteID, !UITesting.isActive,
+              let textView = notification.object as? NSTextView,
+              textView.isEditable, !textView.isFieldEditor,
+              let window = textView.window, !(window is NSPanel), window.firstResponder === textView else { return }
+        AppSettings.shared.lastPlace = LastPlace(noteID: id, offset: textView.selectedRange().location)
     }
 }

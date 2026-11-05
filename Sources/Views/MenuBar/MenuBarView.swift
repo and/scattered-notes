@@ -44,22 +44,9 @@ public struct MenuBarView: View {
             }
             
             Button(action: {
-                NSWorkspace.shared.open(storageManager.rootURL)
-            }) {
-                Label("Open Storage Folder", systemImage: "folder")
-            }
-
-            Button(action: {
                 Task { await UpdateChecker.shared.check(userInitiated: true) }
             }) {
                 Label("Check for Updates…", systemImage: "arrow.down.circle")
-            }
-            
-            Button(action: {
-                NSApp.activate(ignoringOtherApps: true)
-                StorageFolderPicker.chooseAndRelocate(storageManager: storageManager)
-            }) {
-                Label("Change Notes Folder…", systemImage: "folder.badge.gearshape")
             }
             
             SettingsLink {

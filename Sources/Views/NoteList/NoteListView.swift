@@ -1,5 +1,10 @@
 import SwiftUI
 
+/// The height of the bar at the top of the note list and of the note, so the line under each sits at the same height
+enum PaneHeader {
+    static let height: CGFloat = 48
+}
+
 public enum NoteSortOption: String, CaseIterable {
     case dateUpdated = "Date Modified"
     case dateCreated = "Date Created"
@@ -143,8 +148,7 @@ public struct NoteListView: View {
                 }
             }
             .padding(.horizontal, 12)
-            .padding(.top, 10)
-            .padding(.bottom, 8)
+            .frame(height: PaneHeader.height)
             
             if selectedCategory.opensOnDashboard {
                 dashboardRow
@@ -214,7 +218,8 @@ public struct NoteListView: View {
                             proxy.scrollTo(first.id)
                         }
                     }
-                    .onKeyPress(.return) {
+                    // Return and the right arrow both go on into the note's text
+                    .onKeyPress(keys: [.return, .rightArrow]) { _ in
                         guard let note = selectedNote else { return .ignored }
                         EditorFocus.request(noteID: note.id, terms: NoteSearch.terms(in: searchText))
                         return .handled

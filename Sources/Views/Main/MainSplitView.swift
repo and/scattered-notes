@@ -12,6 +12,8 @@ public struct MainSplitView: View {
     @State private var focusRequest: MainPane?
     @State private var sidebarHasFocus = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    /// When this window appeared: the app only opens at the last cursor position as it starts up
+    @State private var launchedAt = Date()
     
     public init() {}
     
@@ -67,6 +69,10 @@ public struct MainSplitView: View {
         .onReceive(NotificationCenter.default.publisher(for: .showGoTo)) { _ in
             showingGoTo = true
         }
+        .onChange(of: selectedNote?.id) { _, id in
+            // Another note opened from the list: the Recent row no longer matches the open note
+            if case .note(let recent) = sidebarSelection, recent != id { sidebarSelection = .all }
+        }
         .onChange(of: sidebarSelection) { _, selection in
             // A note picked from Recent, by key or click, opens in the detail pane
             if case .note(let id) = selection, let note = storageManager.notes.first(where: { $0.id == id }) {
@@ -87,6 +93,8 @@ public struct MainSplitView: View {
                 (notification.object as? NSWindow)?.orderOut(nil)
             }
         }
+        .onChange(of: storageManager.notes.count) { _, _ in openLastPlace() }
+        .onReceive(NotificationCenter.default.publisher(for: .focusNoteList)) { _ in focusRequest = .list }
         .onReceive(NotificationCenter.default.publisher(for: .showGlobalSearch)) { _ in
             AppRouter.pendingSearch = false
             showingSearch = true
@@ -99,9 +107,22 @@ public struct MainSplitView: View {
             if selectedNote == nil, !sidebarSelection.opensOnDashboard, let first = storageManager.notes.first {
                 selectedNote = first
             }
+            openLastPlace()
         }
     }
     
+    /// At start-up, opens the note typed in last with the cursor where it was, instead of the Dashboard.
+    /// Skipped when the person has already gone somewhere, or the note is gone.
+    private func openLastPlace() {
+        guard !UITesting.isActive, Date().timeIntervalSince(launchedAt) < 5,
+              sidebarSelection == .dashboard, selectedNote == nil,
+              let place = settings.lastPlace,
+              let note = storageManager.notes.first(where: { $0.id == place.noteID }) else { return }
+        selectedNote = note
+        sidebarSelection = .note(id: note.id)
+        EditorFocus.request(noteID: note.id, offset: place.offset)
+    }
+
     /// The Dashboard itself with no note open: the one place the note list is hidden
     private var showsDashboardOnly: Bool { sidebarSelection == .dashboard && selectedNote == nil }
 
@@ -121,8 +142,16 @@ public struct MainSplitView: View {
 
     private var sidebar: some View {
         SidebarView(selection: $sidebarSelection, focusRequest: $focusRequest, hasFocus: $sidebarHasFocus, onMoveRight: { focusRequest = showsDashboardOnly ? .dashboard : .list },
-                    onDropNote: dropNote)
+                    onDropNote: dropNote, onOpenNote: openFromRecent)
             .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
+    }
+
+    /// A note clicked under Recent opens with the cursor in it. The click counts even when its row is already
+    /// the selected one, which happens when another note was opened from the list since.
+    private func openFromRecent(_ note: Note) {
+        selectedNote = note
+        sidebarSelection = .note(id: note.id)
+        EditorFocus.request(noteID: note.id)
     }
 
     /// A note dragged from the list onto a project or the Inbox moves there, and ⌘Z moves it back.

@@ -18,6 +18,8 @@ public final class AppSettings: ObservableObject {
     private let storageKeyDefaultEditorFontSize = "settings.editorFontSize"
     private let storageKeyQuickNoteAutoSave = "settings.quickNoteAutoSave"
     private let storageKeyHiddenRecents = "settings.hiddenRecentNotes"
+    private let storageKeyLastNote = "settings.lastNoteID"
+    private let storageKeyLastCursor = "settings.lastCursorOffset"
     
     // Injected so tests can use an isolated suite instead of the app's real preferences
     private let defaults: UserDefaults
@@ -52,6 +54,19 @@ public final class AppSettings: ObservableObject {
         didSet {
             let saved = Dictionary(uniqueKeysWithValues: hiddenRecents.map { ($0.key.uuidString, $0.value.timeIntervalSince1970) })
             defaults.set(saved, forKey: storageKeyHiddenRecents)
+        }
+    }
+
+    /// The note and cursor position last typed in, kept on this device. Not published: nothing on screen
+    /// follows it, and it is written on every cursor move.
+    public var lastPlace: LastPlace? {
+        get {
+            guard let text = defaults.string(forKey: storageKeyLastNote), let id = UUID(uuidString: text) else { return nil }
+            return LastPlace(noteID: id, offset: defaults.integer(forKey: storageKeyLastCursor))
+        }
+        set {
+            defaults.set(newValue?.noteID.uuidString, forKey: storageKeyLastNote)
+            defaults.set(newValue?.offset ?? 0, forKey: storageKeyLastCursor)
         }
     }
 
