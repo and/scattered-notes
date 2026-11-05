@@ -143,7 +143,7 @@ Structure the app as levels, and make every Esc go up one level:
 
 ### Log notes: a summary of what the log says
 - [ ] Read a log note's entries and show a short summary of them, for example for a day of reading: when it started and ended, how long was spent working and how long on breaks, how many entries, the longest unbroken stretch.
-- Example, from the reading day in `docs/log-notes.svg`: 09:08 to 13:40, about 3 h 40 min working on reading and replies, 1 h 8 min on breaks and lunch, 7 entries, longest stretch 1 h 19 min (10:07 to 11:26).
+- Example, from the reading day in `docs/log-notes.svg`: 09:08 to 13:40, about 3 h 31 min working on reading and replies, 1 h 1 min on breaks and lunch, 7 entries, longest unbroken stretch 2 h 27 min (10:07 to 12:34).
 
 **Plan**
 - A pure type (`LogSummary`, in `Sources/Models` next to `LogLines`) so the Mac and iPhone show the same numbers, ported by hand to Windows and Android later.
