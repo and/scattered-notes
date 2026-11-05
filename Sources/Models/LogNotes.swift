@@ -87,6 +87,24 @@ public enum LogLines {
         return line
     }
 
+    private static let headingEndRegex = try! NSRegularExpression(pattern: "^[ \\t]*log\\s*[-\u{2013}\u{2014}]", options: [.caseInsensitive, .anchorsMatchLines])
+
+    /// Where "Log -" ends (as a UTF-16 offset, just after the dash) when it starts the first line that is not blank.
+    /// That is where the cursor is at the moment typing makes a note a log.
+    public static func headingEnd(in content: String) -> Int? {
+        let ns = content as NSString
+        var start = 0
+        while start < ns.length {
+            let line = ns.lineRange(for: NSRange(location: start, length: 0))
+            if !ns.substring(with: line).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                guard let match = headingEndRegex.firstMatch(in: content, range: line), match.range.location == line.location else { return nil }
+                return NSMaxRange(match.range)
+            }
+            start = NSMaxRange(line)
+        }
+        return nil
+    }
+
     /// Whether a note is a log: "Log -" starts its title, or the first line of its text when it has no title of that kind
     public static func isLog(title: String, content: String) -> Bool {
         isLog(title) || isLog(content)

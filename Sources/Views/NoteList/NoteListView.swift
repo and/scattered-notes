@@ -432,8 +432,17 @@ public struct NoteCardRow: View {
                       : isHighlighted ? Color.wcagSelection.opacity(0.15)
                       : isHovering ? Color(nsColor: .quaternaryLabelColor).opacity(0.5) : Color.clear)
         )
+        // The row is as tall as its text needs. Without this, a row whose text grew from one line to two (a log
+        // note getting its second entry) kept its old height and the tag at its bottom was cut off.
+        .fixedSize(horizontal: false, vertical: true)
+        .id(layoutKey)
         .onHover { isHovering = $0 }
         .animation(.easeOut(duration: 0.12), value: isHovering)
+    }
+
+    /// Changes whenever something that sets the row's height does, so the list measures it again
+    private var layoutKey: String {
+        "\(note.displayTitle)|\(note.previewExcerpt)|\(note.checklistStats != nil)|\(note.tags.first ?? "")|\(note.isPinned)"
     }
     
     private var destinationIcon: String {

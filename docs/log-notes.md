@@ -39,5 +39,5 @@ The first version hid the time from the text, kept it at the end of the line (`r
 
 ## Limits
 
-- The iPhone has the same log editor. Windows and Android show a log note as plain text for now.
+- The iPhone has the same log editor (`ios/Sources/LogTextEditor.swift`), with the text and the times at one size, a little under the normal text size, and the UTC offset drawn out of sight so a small phone keeps room for the entry. The offset stays in the file. Windows and Android show a log note as plain text for now.
 - The log editor does not offer "Make this a link".

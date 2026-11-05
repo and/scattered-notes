@@ -24,6 +24,8 @@ struct LogTextEditor: UIViewRepresentable {
         view.accessibilityIdentifier = "noteText"
         view.text = text
         Self.style(view)
+        // Typing "Log -" in a note swaps the editor while the cursor is in it: the cursor goes just after the dash
+        if focused.wrappedValue { view.selectedRange = NSRange(location: LogLines.headingEnd(in: text) ?? (text as NSString).length, length: 0) }
         return view
     }
 
@@ -41,20 +43,26 @@ struct LogTextEditor: UIViewRepresentable {
 
     /// The system's monospaced font, the text in the normal colour, the times quieter
     static func style(_ view: UITextView) {
-        let size = UIFont.preferredFont(forTextStyle: .body).pointSize
+        // The text and the times share one size, a little under the system's body size, so a small phone keeps room
+        // for the entry
+        let size = (UIFont.preferredFont(forTextStyle: .body).pointSize * 0.85).rounded()
         let font = UIFont.monospacedSystemFont(ofSize: size, weight: .regular)
-        // The time is 25 characters wide, which on a small phone would leave little room for the entry, so it is
-        // drawn at about half the size of the text. It stays the same text in the file.
-        let stampFont = UIFont.monospacedSystemFont(ofSize: max(9, (size * 0.55).rounded()), weight: .regular)
+        // The UTC offset stays in the file but is drawn out of the way: a size too small to see, and clear
+        let hidden = UIFont.monospacedSystemFont(ofSize: 1, weight: .regular)
         let storage = view.textStorage
         let all = NSRange(location: 0, length: storage.length)
         storage.beginEditing()
         storage.addAttributes([.font: font, .foregroundColor: UIColor.label], range: all)
         let styling = LogLines.stampStyling(in: view.text)
-        for range in styling.quiet {
-            storage.addAttributes([.foregroundColor: UIColor.secondaryLabel, .font: stampFont], range: range)
+        for range in styling.quiet { storage.addAttribute(.foregroundColor, value: UIColor.secondaryLabel, range: range) }
+        // Each time has two faint parts, the "T" and then the offset
+        for (index, range) in styling.faint.enumerated() {
+            if index % 2 == 0 {
+                storage.addAttribute(.foregroundColor, value: UIColor.label.withAlphaComponent(0.17), range: range)
+            } else {
+                storage.addAttributes([.foregroundColor: UIColor.clear, .font: hidden], range: range)
+            }
         }
-        for range in styling.faint { storage.addAttribute(.foregroundColor, value: UIColor.label.withAlphaComponent(0.17), range: range) }
         storage.endEditing()
         // What is typed next is text, even right after a time
         view.typingAttributes = [.font: font, .foregroundColor: UIColor.label]

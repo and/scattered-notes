@@ -109,6 +109,15 @@ final class LogNotesTests: XCTestCase {
         XCTAssertEqual(styling.faint.map { ns.substring(with: $0) }, ["T", "+05:30"])
     }
 
+    func testTheHeadingEndsRightAfterTheDash() {
+        XCTAssertEqual(LogLines.headingEnd(in: "Log -"), 5)
+        XCTAssertEqual(LogLines.headingEnd(in: "\n  log – gym\nmore"), 8)
+        XCTAssertEqual(LogLines.headingEnd(in: "Log -\n2026-11-05T11:34:00+05:30 a"), 5)
+        XCTAssertNil(LogLines.headingEnd(in: "Log x"))
+        XCTAssertNil(LogLines.headingEnd(in: "Today\nLog - not first"))
+        XCTAssertNil(LogLines.headingEnd(in: ""))
+    }
+
     // MARK: The rest of the app ignores the markers
 
     func testAgendaItemsOfALogNoteAreNotMistakenForDatedLines() {

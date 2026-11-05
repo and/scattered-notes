@@ -91,7 +91,7 @@ struct NoteEditorScreen: View {
                     .padding(.horizontal, 4)
             } else {
                 TextEditor(text: $content)
-                    .font(.body.monospaced())
+                    .font(.body)
                     .padding(.horizontal, 12)
                     .focused($editorFocused)
             }

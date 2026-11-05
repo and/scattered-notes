@@ -201,9 +201,14 @@ public struct NoteDetailEditorView: View {
             }
         }
         .onChange(of: isLogNote) { _, _ in
-            // Typing "Log -" swaps the editor, which loses the cursor: put it back where it was
+            // Typing "Log -" swaps the editor, which loses the cursor: put it back where it was. Typing in the
+            // title field also gets here, and the cursor stays there.
+            if let field = NSApp.keyWindow?.firstResponder as? NSTextView, field.isFieldEditor { return }
             let place = settings.lastPlace
-            EditorFocus.request(noteID: note.id, offset: place?.noteID == note.id ? place?.offset : nil)
+            var offset = place?.noteID == note.id ? place?.offset : nil
+            // The saved place is one keystroke behind: the cursor is just after the dash that made it a log
+            if isLogNote, let end = LogLines.headingEnd(in: editableContent) { offset = max(offset ?? 0, end) }
+            EditorFocus.request(noteID: note.id, offset: offset)
         }
     }
 
