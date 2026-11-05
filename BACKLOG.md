@@ -141,6 +141,19 @@ Structure the app as levels, and make every Esc go up one level:
 - [ ] On the Dashboard the arrow keys move keyboard focus off the search box onto the items. Make typing a letter while an item is highlighted jump back to the search box and add the letter there, so the search can be refined while walking through the results without pressing ↑ back to the box.
 - Open question: should Esc in that state clear the search or only return focus to the items?
 
+### Log notes: a summary of what the log says
+- [ ] Read a log note's entries and show a short summary of them, for example for a day of reading: when it started and ended, how long was spent working and how long on breaks, how many entries, the longest unbroken stretch.
+- Example, from the reading day in `docs/log-notes.svg`: 09:08 to 13:40, about 3 h 40 min working on reading and replies, 1 h 8 min on breaks and lunch, 7 entries, longest stretch 1 h 19 min (10:07 to 11:26).
+
+**Plan**
+- A pure type (`LogSummary`, in `Sources/Models` next to `LogLines`) so the Mac and iPhone show the same numbers, ported by hand to Windows and Android later.
+- Length of an entry: the time from its stamp to the next entry's stamp. The last entry of a day runs to the next stamp or, for today, to now. A gap longer than a set limit (for example 3 hours) is not counted, since the log was probably left alone.
+- Break or work: an entry that holds a word like "break", "lunch", "walk", "tea", "coffee" or "nap" counts as a break; the rest count as work. The words are a short list we can change. Start with the list, and let a `#break` or `#work` tag in the line override it.
+- Group by day (the date in the stamp) and show one summary per day, newest first, with a total for the week.
+- Where it shows: a "Summary" section in the Links column of a log note, and later a line on the dashboard. A summary is shown, never written into the file.
+- Tests: two entries a day apart, a gap over the limit, entries out of order, a line with no stamp, a `#break` override, a day that crosses midnight, a stamp with another UTC offset.
+- Open questions: should the person mark breaks by a tag instead of guessing from words? Should a summary be shareable, for example as text to paste into a report?
+
 ## Done
 
 _Nothing yet._
