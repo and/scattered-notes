@@ -12,6 +12,8 @@ struct NoteLinksPanel: View {
     let index: NoteLinkIndex
     let related: RelatedIndex
     let notes: [UUID: Note]
+    /// Writes `[[Title]]` over a mention of that note
+    let onMakeLink: (UUID) -> Void
 
     private var linkedNotes: [UUID] { index.linkedNotes(from: noteID) }
     private var backlinks: [UUID] { index.backlinks(to: noteID) }
@@ -19,6 +21,16 @@ struct NoteLinksPanel: View {
     private var unresolved: [NoteLink] {
         var seen = Set<String>()
         return index.links(from: noteID).filter { $0.target == nil && seen.insert($0.text.lowercased()).inserted }
+    }
+
+    /// Notes mentioned only in plain text, never as `[[Title]]`: the ones that can be made a link
+    private var canMakeLink: Set<UUID> {
+        let links = index.links(from: noteID)
+        let explicit = Set(links.filter(\.isExplicit).compactMap(\.target))
+        let plain = Set(links.filter { !$0.isExplicit }.compactMap(\.target))
+        return plain.subtracting(explicit).filter { id in
+            notes[id].flatMap { NoteLinkIndex.explicitText(forTitle: $0.displayTitle) } != nil
+        }
     }
 
     var body: some View {
@@ -29,7 +41,8 @@ struct NoteLinksPanel: View {
                     .padding(.horizontal, 4)
                     .padding(.bottom, 6)
 
-                section("Links to", ids: linkedNotes, empty: "This note does not mention another note's title. Write a title, or [[Title]], to link.")
+                section("Links to", ids: linkedNotes, empty: "This note does not mention another note's title. Write a title, or [[Title]], to link.",
+                        makeLink: canMakeLink)
                 if !unresolved.isEmpty {
                     Text("No note with this title")
                         .font(.caption.weight(.semibold))
@@ -76,7 +89,7 @@ struct NoteLinksPanel: View {
     }
 
     @ViewBuilder
-    private func section(_ title: String, ids: [UUID], empty: String) -> some View {
+    private func section(_ title: String, ids: [UUID], empty: String, makeLink: Set<UUID> = []) -> some View {
         Text(title)
             .font(.caption.weight(.semibold))
             .foregroundColor(.wcagSecondaryText)
@@ -90,7 +103,7 @@ struct NoteLinksPanel: View {
         }
         ForEach(ids, id: \.self) { id in
             if let note = notes[id] {
-                LinkRow(note: note)
+                LinkRow(note: note, onMakeLink: makeLink.contains(id) ? { onMakeLink(id) } : nil)
             }
         }
     }
@@ -99,9 +112,28 @@ struct NoteLinksPanel: View {
 private struct LinkRow: View {
     let note: Note
     var why: String?
+    /// Set when the mention can be made an explicit link: shows a button for it
+    var onMakeLink: (() -> Void)?
     @State private var isHovering = false
 
     var body: some View {
+        HStack(spacing: 2) {
+            openButton
+            if let onMakeLink {
+                Button(action: onMakeLink) {
+                    Image(systemName: "link.badge.plus")
+                        .foregroundColor(.wcagBlue)
+                        .padding(4)
+                }
+                .buttonStyle(.plain)
+                .help("Make this a link: writes [[\(note.displayTitle)]] in the note where it is mentioned")
+                .accessibilityLabel("Make this a link")
+                .accessibilityIdentifier("makeLink")
+            }
+        }
+    }
+
+    private var openButton: some View {
         Button {
             NotificationCenter.default.post(name: .openNote, object: nil, userInfo: ["id": note.id])
         } label: {

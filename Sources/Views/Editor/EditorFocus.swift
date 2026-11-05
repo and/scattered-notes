@@ -80,6 +80,19 @@ enum EditorFocus {
         }
     }
 
+    /// Replaces `range` of the open note's text with `replacement` through the text view, as if typed, so ⌘Z undoes it
+    /// and the editor's own text and saving follow. False when the text view is not on screen showing `text`.
+    @discardableResult
+    static func replaceText(in range: NSRange, with replacement: String, showing text: String) -> Bool {
+        guard let window = NSApp.mainWindow ?? NSApp.keyWindow,
+              let textView = editorTextView(in: window.contentView, showing: text),
+              NSMaxRange(range) <= (textView.string as NSString).length,
+              textView.shouldChangeText(in: range, replacementString: replacement) else { return false }
+        textView.textStorage?.replaceCharacters(in: range, with: replacement)
+        textView.didChangeText()
+        return true
+    }
+
     /// Where a position in `old` lands in `new` when `new` is `old` with date markers written into its
     /// lines: the same place in the words, so a cursor typing at the end of a line stays before the marker
     /// written there, and one right after a marker stays after it.

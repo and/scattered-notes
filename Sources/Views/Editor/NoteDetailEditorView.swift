@@ -107,13 +107,30 @@ public struct NoteDetailEditorView: View {
                             noteID: note.id,
                             index: storageManager.linkIndex,
                             related: storageManager.relatedIndex,
-                            notes: Dictionary(storageManager.notes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                            notes: Dictionary(storageManager.notes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
+                            onMakeLink: makeLink
                         )
                     }
                 }
                 // The divider between the two would otherwise let the column grow past the panels' own width
                 .frame(width: 240)
             }
+        }
+    }
+
+    /// Writes `[[Title]]` over the first plain mention of that note, in the text as it is now (the Links column
+    /// reads the saved text, which may be a moment behind). Done through the text view so ⌘Z undoes it.
+    private func makeLink(to targetID: UUID) {
+        guard let target = storageManager.notes.first(where: { $0.id == targetID }) else { return }
+        var notes = storageManager.notes
+        if let mine = notes.firstIndex(where: { $0.id == note.id }) { notes[mine].content = editableContent }
+        guard let link = NoteLinkIndex(notes: notes).links(from: note.id).first(where: { $0.target == targetID && !$0.isExplicit }),
+              let replacement = NoteLinkIndex.explicitText(forTitle: target.displayTitle) else { return }
+        if !EditorFocus.replaceText(in: link.range, with: replacement, showing: editableContent),
+           let changed = NoteLinkIndex.makingExplicit(link, title: target.displayTitle, in: editableContent) {
+            // The text view is not showing (preview mode): change the text directly
+            editableContent = changed
+            scheduleSave()
         }
     }
 

@@ -155,6 +155,40 @@ final class NoteLinksTests: XCTestCase {
         XCTAssertTrue(NoteLinkIndex(notes: [budget, other]).links(from: other.id).isEmpty)
     }
 
+    // MARK: Making a mention a link
+
+    func testAMentionBecomesAnExplicitLinkToTheSameNote() throws {
+        let budget = note("Budget")
+        let other = note("Other", "🙂 check the budget first, then the budget again")
+        let link = try XCTUnwrap(NoteLinkIndex(notes: [budget, other]).links(from: other.id).first)
+        let changed = try XCTUnwrap(NoteLinkIndex.makingExplicit(link, title: "Budget", in: other.content))
+        XCTAssertEqual(changed, "🙂 check the [[Budget]] first, then the budget again")
+
+        var edited = other
+        edited.content = changed
+        let after = NoteLinkIndex(notes: [budget, edited]).links(from: other.id)
+        XCTAssertEqual(after.map(\.isExplicit), [true, false], "the first is now written as a link, the second is still plain")
+        XCTAssertEqual(after.map(\.target), [budget.id, budget.id])
+    }
+
+    func testTitlesThatCannotBeWrittenAsALinkAreRefused() {
+        XCTAssertNil(NoteLinkIndex.explicitText(forTitle: "Plan [draft]"))
+        XCTAssertNil(NoteLinkIndex.explicitText(forTitle: "Two\nlines"))
+        XCTAssertNil(NoteLinkIndex.explicitText(forTitle: ""))
+        XCTAssertEqual(NoteLinkIndex.explicitText(forTitle: "Plan: Q4"), "[[Plan: Q4]]")
+    }
+
+    func testAnExplicitLinkOrAStaleRangeIsNotRewritten() throws {
+        let budget = note("Budget")
+        let other = note("Other", "[[Budget]]")
+        let link = try XCTUnwrap(NoteLinkIndex(notes: [budget, other]).links(from: other.id).first)
+        XCTAssertNil(NoteLinkIndex.makingExplicit(link, title: "Budget", in: other.content))
+
+        let plain = note("Plain", "the budget")
+        let mention = try XCTUnwrap(NoteLinkIndex(notes: [budget, plain]).links(from: plain.id).first)
+        XCTAssertNil(NoteLinkIndex.makingExplicit(mention, title: "Budget", in: "tiny"), "the text is shorter than the range")
+    }
+
     // MARK: Backlinks
 
     func testBacklinksListEachLinkingNoteOnceNewestFirst() {

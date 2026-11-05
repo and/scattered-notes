@@ -107,6 +107,21 @@ public struct NoteLinkIndex: Sendable {
         self.backlinksByTarget = [:]
     }
 
+    /// What to write in place of a mention to make it an explicit link: `[[Title]]`. Nil when the title cannot be
+    /// written that way, because it holds a bracket or a line break.
+    public static func explicitText(forTitle title: String) -> String? {
+        guard !title.isEmpty, !title.contains(where: { $0 == "[" || $0 == "]" || $0.isNewline }) else { return nil }
+        return "[[\(title)]]"
+    }
+
+    /// `content` with the mention at `link.range` replaced by `[[Title]]`; nil when that cannot be done
+    public static func makingExplicit(_ link: NoteLink, title: String, in content: String) -> String? {
+        let text = content as NSString
+        guard !link.isExplicit, link.range.location >= 0, NSMaxRange(link.range) <= text.length,
+              let replacement = explicitText(forTitle: title) else { return nil }
+        return text.replacingCharacters(in: link.range, with: replacement)
+    }
+
     /// Every link in the note, in the order they appear in its text
     public func links(from noteID: UUID) -> [NoteLink] {
         linksBySource[noteID] ?? []
