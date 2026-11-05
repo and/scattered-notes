@@ -226,6 +226,25 @@ final class MacAppUITests: XCTestCase {
         XCTAssertTrue(planRow.waitForExistence(timeout: 5), "Budget lists Trip plan under Linked from")
     }
 
+    // MARK: - Log notes
+
+    func testALogNoteShowsATimeAtTheRightOfEachLineAndKeepsItInTheFile() throws {
+        try writeNote("Log - gym\nran 5k ⏱ 2026-11-05 18:02")
+        launch()
+        openNote(titled: "Log - gym")
+        let text = app.textViews["noteText"]
+        XCTAssertTrue(text.waitForExistence(timeout: 5))
+        XCTAssertEqual((text.value as? String) ?? "", "Log - gym\nran 5k", "the time marker is not shown in the text")
+
+        // A new line typed now gets the time it was written
+        text.click()
+        text.typeKey(.downArrow, modifierFlags: .command)
+        text.typeText("\nbench press")
+        XCTAssertTrue(waitUntil {
+            self.noteFiles().contains { $0.text.contains("bench press ⏱ 20") && $0.text.contains("ran 5k ⏱ 2026-11-05 18:02") }
+        }, "the new line has its time in the file and the old line keeps its own")
+    }
+
     // MARK: - Dashboard
 
     func testProjectDashboardListsItsNotesAndChipsScroll() throws {

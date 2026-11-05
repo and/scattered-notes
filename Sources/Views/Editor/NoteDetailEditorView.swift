@@ -177,6 +177,45 @@ public struct NoteDetailEditorView: View {
         suggestions.update(with: storageManager.notes)
     }
 
+    /// A log note (its title or its first line starts with "Log -") is edited with its times in a column at the right
+    private var isLogNote: Bool { LogLines.isLog(title: editableTitle, content: editableContent) }
+
+    /// The place text is typed into: the log editor for a log note, the plain one for the rest
+    @ViewBuilder
+    private var textPane: some View {
+        Group {
+            if isLogNote {
+                LogEditorView(content: $editableContent, fontSize: CGFloat(settings.editorFontSize))
+            } else {
+                TextEditor(text: $editableContent)
+                    .accessibilityIdentifier("noteText")
+                    .font(.system(size: CGFloat(settings.editorFontSize)))
+                    .lineSpacing(4)
+                    .padding(16)
+                    .scrollContentBackground(.hidden)
+            }
+        }
+        .onChange(of: editableContent) { _, newContent in
+            if newContent != note.content {
+                scheduleSave()
+            }
+        }
+        .onChange(of: isLogNote) { _, _ in
+            // Typing "Log -" swaps the editor, which loses the cursor: put it back where it was
+            let place = settings.lastPlace
+            EditorFocus.request(noteID: note.id, offset: place?.noteID == note.id ? place?.offset : nil)
+        }
+    }
+
+    /// What the preview shows: for a log note without the time markers, which are for the column
+    private var renderedContent: Binding<String> {
+        guard isLogNote || LogLines.hasStamps(editableContent) else { return $editableContent }
+        return Binding(
+            get: { LogLines.parse(editableContent).text },
+            set: { editableContent = LogLines.serialize(text: $0, stamps: LogLines.parse(editableContent).stamps) }
+        )
+    }
+
     private var showsAgenda: Bool { showAgendaInspector && !agendaItems.isEmpty }
 
     private var editorColumn: some View {
@@ -301,40 +340,21 @@ public struct NoteDetailEditorView: View {
             GeometryReader { _ in
                 switch editorMode {
                 case .edit:
-                    TextEditor(text: $editableContent)
-                        .accessibilityIdentifier("noteText")
-                        .font(.system(size: CGFloat(settings.editorFontSize)))
-                        .lineSpacing(4)
-                        .padding(16)
-                        .scrollContentBackground(.hidden)
-                        .onChange(of: editableContent) { _, newContent in
-                            if newContent != note.content {
-                                scheduleSave()
-                            }
-                        }
-                    
+                    textPane
+
                 case .split:
                     HStack(spacing: 0) {
-                        TextEditor(text: $editableContent)
-                            .font(.system(size: CGFloat(settings.editorFontSize)))
-                            .lineSpacing(4)
-                            .padding(16)
-                            .scrollContentBackground(.hidden)
-                            .onChange(of: editableContent) { _, newContent in
-                                if newContent != note.content {
-                                    scheduleSave()
-                                }
-                            }
+                        textPane
                         
                         Divider()
                         
-                        MarkdownRendererView(content: $editableContent) { _ in
+                        MarkdownRendererView(content: renderedContent) { _ in
                             scheduleSave()
                         }
                     }
                     
                 case .preview:
-                    MarkdownRendererView(content: $editableContent) { _ in
+                    MarkdownRendererView(content: renderedContent) { _ in
                         scheduleSave()
                     }
                 }

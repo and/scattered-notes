@@ -38,8 +38,10 @@ public enum AgendaExtractor {
         let fallback = calendar.startOfDay(for: note.updatedAt)
         var result: [AgendaItem] = []
         var previousDate: Date?
+        // A log note's time markers are not part of what its lines say
+        let content = LogLines.hasStamps(note.content) ? LogLines.parse(note.content, calendar: calendar).text : note.content
 
-        for (index, rawLine) in note.content.components(separatedBy: .newlines).enumerated() {
+        for (index, rawLine) in content.components(separatedBy: .newlines).enumerated() {
             let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { continue }
 
@@ -71,6 +73,8 @@ public enum AgendaExtractor {
     // MARK: - Date markers
     private static let dueMarkerRegex = try! NSRegularExpression(pattern: "\\s*📅\\s*(\\d{4})-(\\d{2})-(\\d{2})")
     private static let doneMarkerRegex = try! NSRegularExpression(pattern: "\\s*✅\\s*(\\d{4})-(\\d{2})-(\\d{2})")
+    /// The time marker of a log line (see `LogLines`), taken off wherever a line is read for what it says
+    private static let logMarkerRegex = try! NSRegularExpression(pattern: "\\s*\u{23F1}\u{FE0F}?\\s*\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}")
 
     /// The days written into a line by `📅` and `✅`, as start of day.
     static func markers(in line: String, calendar: Calendar) -> (due: Date?, done: Date?) {
@@ -86,7 +90,7 @@ public enum AgendaExtractor {
 
     /// Whether a text can hold a marker at all; most lines cannot, and this is far cheaper than the patterns.
     private static func hasMarker(_ text: String) -> Bool {
-        text.unicodeScalars.contains { $0.value == 0x1F4C5 || $0.value == 0x2705 }
+        text.unicodeScalars.contains { $0.value == 0x1F4C5 || $0.value == 0x2705 || $0.value == 0x23F1 }
     }
 
     /// The UTF-16 ranges of the `📅` and `✅` markers in a text, sorted.
@@ -106,7 +110,7 @@ public enum AgendaExtractor {
     static func withoutMarkers(_ line: String) -> String {
         guard hasMarker(line) else { return line }
         var text = line
-        for regex in [dueMarkerRegex, doneMarkerRegex] {
+        for regex in [dueMarkerRegex, doneMarkerRegex, logMarkerRegex] {
             text = regex.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: "")
         }
         return text
@@ -121,6 +125,14 @@ public enum AgendaExtractor {
     /// line that had none. A `✅` marker stays. Other lines are left untouched. The marker beats any
     /// date words in the line, so "call the bank tomorrow" with `📅` on Friday means Friday.
     public static func settingDate(_ day: Date, onLine lineIndex: Int, in content: String, calendar: Calendar = .current) -> String {
+        if LogLines.hasStamps(content) {
+            let log = LogLines.parse(content, calendar: calendar)
+            return LogLines.serialize(text: settingDatePlain(day, onLine: lineIndex, in: log.text, calendar: calendar), stamps: log.stamps, calendar: calendar)
+        }
+        return settingDatePlain(day, onLine: lineIndex, in: content, calendar: calendar)
+    }
+
+    private static func settingDatePlain(_ day: Date, onLine lineIndex: Int, in content: String, calendar: Calendar) -> String {
         var lines = content.components(separatedBy: .newlines)
         guard lines.indices.contains(lineIndex) else { return content }
         let marks = markers(in: lines[lineIndex], calendar: calendar)
@@ -148,6 +160,19 @@ public enum AgendaExtractor {
     /// any other line was written `now`. Only lines that need a marker change.
     public static func resolvingDates(
         in content: String, previous: String?, previousUpdatedAt: Date?, now: Date, calendar: Calendar = .current
+    ) -> String {
+        if LogLines.hasStamps(content) {
+            // The lines are matched without their time markers, which are put back unchanged afterwards
+            let log = LogLines.parse(content, calendar: calendar)
+            let resolved = resolvingDatesPlain(in: log.text, previous: previous.map { LogLines.parse($0, calendar: calendar).text },
+                                               previousUpdatedAt: previousUpdatedAt, now: now, calendar: calendar)
+            return LogLines.serialize(text: resolved, stamps: log.stamps, calendar: calendar)
+        }
+        return resolvingDatesPlain(in: content, previous: previous, previousUpdatedAt: previousUpdatedAt, now: now, calendar: calendar)
+    }
+
+    private static func resolvingDatesPlain(
+        in content: String, previous: String?, previousUpdatedAt: Date?, now: Date, calendar: Calendar
     ) -> String {
         let today = calendar.startOfDay(for: now)
         let before = previousUpdatedAt.map { calendar.startOfDay(for: $0) } ?? today
