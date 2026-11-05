@@ -48,6 +48,13 @@ public enum LogLines {
         return startRegex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)) != nil
     }
 
+    private static let stampRangeRegex = try! NSRegularExpression(pattern: "^[ \\t]*" + strictStamp, options: .anchorsMatchLines)
+
+    /// Where the times at the start of lines are in a text, as UTF-16 ranges, for the editor to show them quieter
+    static func stampRanges(in text: String) -> [NSRange] {
+        stampRangeRegex.matches(in: text, range: NSRange(location: 0, length: (text as NSString).length)).map(\.range)
+    }
+
     /// A quick test that a line could start with a time, before the pattern is tried
     static func mayStartWithStamp(_ text: String) -> Bool {
         guard let first = text.unicodeScalars.first(where: { $0 != " " && $0 != "\t" }) else { return false }

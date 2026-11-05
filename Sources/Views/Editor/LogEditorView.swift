@@ -39,6 +39,7 @@ struct LogEditorView: NSViewRepresentable {
         context.coordinator.textView = textView
         textView.string = content
         apply(fontSize: fontSize, to: textView)
+        Self.colour(textView)
         return scrollView
     }
 
@@ -53,7 +54,22 @@ struct LogEditorView: NSViewRepresentable {
             let length = (content as NSString).length
             textView.setSelectedRange(NSRange(location: min(selection.location, length), length: 0))
             apply(fontSize: fontSize, to: textView, force: true)
+            Self.colour(textView)
         }
+    }
+
+    /// The text in the normal colour and the times in a quieter one, so the entries read first
+    static func colour(_ textView: NSTextView) {
+        guard let storage = textView.textStorage else { return }
+        let all = NSRange(location: 0, length: storage.length)
+        storage.beginEditing()
+        storage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: all)
+        for range in LogLines.stampRanges(in: textView.string) {
+            storage.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: range)
+        }
+        storage.endEditing()
+        // What is typed next is text, even right after a time
+        textView.typingAttributes[.foregroundColor] = NSColor.labelColor
     }
 
     /// The system's monospaced font (SF Mono on a Mac)
@@ -85,6 +101,7 @@ struct LogEditorView: NSViewRepresentable {
 
         func textDidChange(_ notification: Notification) {
             guard let textView else { return }
+            LogEditorView.colour(textView)
             if parent.content != textView.string { parent.content = textView.string }
         }
     }
