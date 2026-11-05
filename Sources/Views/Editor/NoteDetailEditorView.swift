@@ -81,43 +81,78 @@ public struct NoteDetailEditorView: View {
             // Agenda above Links in one column, so the window keeps three columns however many are open
             if showsAgenda || showLinksPanel {
                 Divider()
-                VStack(spacing: 0) {
-                    if showsAgenda {
-                        AgendaInspectorView(
-                            items: agendaItems,
-                            onToggle: { item in
-                                // Edit the live text so the toggle is not overwritten by the next autosave
-                                editableContent = Note.togglingChecklistLine(item.lineIndex, in: editableContent)
-                                scheduleSave()
-                            },
-                            history: { storageManager.dateHistory(for: $0) },
-                            onSetDate: { item, day in
-                                // Same for the day: write it into the live text, then log it
-                                let day = Calendar.current.startOfDay(for: day)
-                                guard item.date != day,
-                                      let key = AgendaExtractor.lineKey(onLine: item.lineIndex, in: editableContent) else { return }
-                                editableContent = AgendaExtractor.settingDate(day, onLine: item.lineIndex, in: editableContent)
-                                storageManager.logDateChange(noteID: note.id, lineText: key, from: item.date, to: day)
-                                scheduleSave()
-                            }
-                        )
-                    }
-                    if showsAgenda && showLinksPanel { Divider() }
-                    if showLinksPanel {
-                        NoteLinksPanel(
-                            noteID: note.id,
-                            index: storageManager.linkIndex,
-                            related: storageManager.relatedIndex,
-                            notes: Dictionary(storageManager.notes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
-                            suggested: settings.suggestNotes ? suggestions.index : nil,
-                            onMakeLink: makeLink
-                        )
-                    }
-                }
-                // The divider between the two would otherwise let the column grow past the panels' own width
-                .frame(width: 240)
+                rightColumn
             }
         }
+    }
+
+    /// Height Links keeps when Agenda is open too; dragged with the bar between them, and remembered
+    @AppStorage("linksPanelHeight") private var linksPanelHeight = 340.0
+    @State private var linksHeightAtDragStart: Double?
+
+    private var rightColumn: some View {
+        GeometryReader { geo in
+            let both = showsAgenda && showLinksPanel
+            let handle: CGFloat = 9
+            let minimum: CGFloat = 90
+            let links = min(max(CGFloat(linksPanelHeight), minimum), max(minimum, geo.size.height - minimum - handle))
+            VStack(spacing: 0) {
+                if showsAgenda {
+                    agendaPanel.frame(height: both ? geo.size.height - links - handle : nil)
+                }
+                if both {
+                    PaneResizeHandle()
+                        .frame(height: handle)
+                        .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                            .onChanged { drag in
+                                let start = linksHeightAtDragStart ?? Double(links)
+                                linksHeightAtDragStart = start
+                                // Dragging the bar up gives Links more room
+                                linksPanelHeight = min(max(start - Double(drag.translation.height), Double(minimum)),
+                                                       Double(max(minimum, geo.size.height - minimum - handle)))
+                            }
+                            .onEnded { _ in linksHeightAtDragStart = nil })
+                        .onTapGesture(count: 2) { linksPanelHeight = 340 }
+                }
+                if showLinksPanel {
+                    linksPanel.frame(height: both ? links : nil)
+                }
+            }
+        }
+        // The panels have their own width; this keeps the column from growing past it
+        .frame(width: 240)
+    }
+
+    private var agendaPanel: some View {
+        AgendaInspectorView(
+            items: agendaItems,
+            onToggle: { item in
+                // Edit the live text so the toggle is not overwritten by the next autosave
+                editableContent = Note.togglingChecklistLine(item.lineIndex, in: editableContent)
+                scheduleSave()
+            },
+            history: { storageManager.dateHistory(for: $0) },
+            onSetDate: { item, day in
+                // Same for the day: write it into the live text, then log it
+                let day = Calendar.current.startOfDay(for: day)
+                guard item.date != day,
+                      let key = AgendaExtractor.lineKey(onLine: item.lineIndex, in: editableContent) else { return }
+                editableContent = AgendaExtractor.settingDate(day, onLine: item.lineIndex, in: editableContent)
+                storageManager.logDateChange(noteID: note.id, lineText: key, from: item.date, to: day)
+                scheduleSave()
+            }
+        )
+    }
+
+    private var linksPanel: some View {
+        NoteLinksPanel(
+            noteID: note.id,
+            index: storageManager.linkIndex,
+            related: storageManager.relatedIndex,
+            notes: Dictionary(storageManager.notes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
+            suggested: settings.suggestNotes ? suggestions.index : nil,
+            onMakeLink: makeLink
+        )
     }
 
     /// Writes `[[Title]]` over the first plain mention of that note, in the text as it is now (the Links column

@@ -187,3 +187,29 @@ private struct LinkRow: View {
         .help("Open \(note.displayTitle)")
     }
 }
+
+/// The bar between the Agenda and Links panels: a line with room around it to grab, and the up-and-down arrows
+/// as the pointer comes over it. Double-click puts the panels back to their usual sizes.
+struct PaneResizeHandle: View {
+    @State private var isHovering = false
+
+    var body: some View {
+        ZStack {
+            Color.clear
+            Divider()
+            if isHovering {
+                Capsule()
+                    .fill(Color.wcagSecondaryText.opacity(0.6))
+                    .frame(width: 32, height: 3)
+            }
+        }
+        .contentShape(Rectangle())
+        .onHover { inside in
+            isHovering = inside
+            if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
+        }
+        .help("Drag to change the height of Links. Double-click to reset.")
+        .accessibilityLabel("Resize Links")
+        .accessibilityIdentifier("linksResizeHandle")
+    }
+}
