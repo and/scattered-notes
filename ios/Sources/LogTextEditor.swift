@@ -20,7 +20,7 @@ struct LogTextEditor: UIViewRepresentable {
         view.smartDashesType = .no
         view.alwaysBounceVertical = true
         view.keyboardDismissMode = .interactive
-        view.textContainerInset = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+        view.textContainerInset = UIEdgeInsets(top: 8, left: 4, bottom: 8, right: 4)
         view.accessibilityIdentifier = "noteText"
         view.text = text
         Self.style(view)
@@ -41,13 +41,19 @@ struct LogTextEditor: UIViewRepresentable {
 
     /// The system's monospaced font, the text in the normal colour, the times quieter
     static func style(_ view: UITextView) {
-        let font = UIFont.monospacedSystemFont(ofSize: UIFont.preferredFont(forTextStyle: .body).pointSize, weight: .regular)
+        let size = UIFont.preferredFont(forTextStyle: .body).pointSize
+        let font = UIFont.monospacedSystemFont(ofSize: size, weight: .regular)
+        // The time is 25 characters wide, which on a small phone would leave little room for the entry, so it is
+        // drawn at about half the size of the text. It stays the same text in the file.
+        let stampFont = UIFont.monospacedSystemFont(ofSize: max(9, (size * 0.55).rounded()), weight: .regular)
         let storage = view.textStorage
         let all = NSRange(location: 0, length: storage.length)
         storage.beginEditing()
         storage.addAttributes([.font: font, .foregroundColor: UIColor.label], range: all)
         let styling = LogLines.stampStyling(in: view.text)
-        for range in styling.quiet { storage.addAttribute(.foregroundColor, value: UIColor.secondaryLabel, range: range) }
+        for range in styling.quiet {
+            storage.addAttributes([.foregroundColor: UIColor.secondaryLabel, .font: stampFont], range: range)
+        }
         for range in styling.faint { storage.addAttribute(.foregroundColor, value: UIColor.label.withAlphaComponent(0.17), range: range) }
         storage.endEditing()
         // What is typed next is text, even right after a time
