@@ -1,7 +1,7 @@
 import Foundation
 
 /// A log note: a note whose first line starts with "Log -", kept like a log file, with the time each line was
-/// written shown in a column at the right of the editor.
+/// written shown in a column at the left of the editor.
 ///
 /// The times live in the note's file, at the start of each line, the way a log file has them:
 /// `2026-11-05T11:34:07+05:30 ran 5k`. That is the ISO 8601 / RFC 3339 form with the writer's time zone offset, so

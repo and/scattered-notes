@@ -4,7 +4,7 @@ import AppKit
 /// The text view of a log note. A class of its own so the rest of the app can tell it from other text views.
 final class LogTextView: NSTextView {}
 
-/// The editor of a log note (see `LogLines`): plain text with a column at the right that shows when each line was
+/// The editor of a log note (see `LogLines`): plain text with a column at the left that shows when each line was
 /// written, like the line numbers of a code editor but at the other side. The file's time markers are taken off
 /// the text shown here and put back when the text is handed on, so the column is the only place they appear.
 struct LogEditorView: NSViewRepresentable {
@@ -68,7 +68,7 @@ struct LogEditorView: NSViewRepresentable {
     }
 }
 
-/// The text with the column of times at its right
+/// The text with the column of times at its left
 final class LogEditorContainer: NSView {
     static let gutterWidth: CGFloat = 138
 
@@ -136,13 +136,14 @@ final class LogEditorContainer: NSView {
     override func layout() {
         super.layout()
         let width = max(bounds.width - Self.gutterWidth, 100)
-        scrollView.frame = NSRect(x: 0, y: 0, width: width, height: bounds.height)
-        gutter.frame = NSRect(x: width, y: 0, width: min(Self.gutterWidth, bounds.width), height: bounds.height)
+        let gutterWidth = min(Self.gutterWidth, bounds.width)
+        gutter.frame = NSRect(x: 0, y: 0, width: gutterWidth, height: bounds.height)
+        scrollView.frame = NSRect(x: gutterWidth, y: 0, width: width, height: bounds.height)
         gutter.needsDisplay = true
     }
 }
 
-/// Draws each line's time at the right, level with the line
+/// Draws each line's time at the left, level with the line
 final class LogGutterView: NSView {
     weak var owner: LogEditorContainer?
 
@@ -179,7 +180,7 @@ final class LogGutterView: NSView {
                 let size = label.size(withAttributes: Self.attributes)
                 // Level with the first row of the line's text
                 let top = y + (min(rect.height, 26) - size.height) / 2 + 2
-                label.draw(at: NSPoint(x: bounds.width - size.width - 10, y: top), withAttributes: Self.attributes)
+                label.draw(at: NSPoint(x: bounds.width - size.width - 8, y: top), withAttributes: Self.attributes)
             }
             line += 1
             guard start < text.length else { break }

@@ -1,6 +1,6 @@
 # Log notes
 
-A note whose title, or first line, starts with "Log -" is a log book. Each line is given the time it was written, shown in a column at the right of the editor, like line numbers in a code editor.
+A note whose title, or first line, starts with "Log -" is a log book. Each line is given the time it was written, shown in a column at the left of the editor, like line numbers in a code editor.
 
 ## What the file looks like
 
