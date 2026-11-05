@@ -121,7 +121,7 @@ final class LogEditorContainer: NSView {
 
     func apply(fontSize: CGFloat) {
         guard textView.font?.pointSize != fontSize else { return }
-        let font = NSFont.systemFont(ofSize: fontSize)
+        let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         let style = NSMutableParagraphStyle()
         style.lineSpacing = 4
         textView.font = font
@@ -150,7 +150,7 @@ final class LogGutterView: NSView {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
     private static let attributes: [NSAttributedString.Key: Any] = [
-        .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular),
+        .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
         .foregroundColor: NSColor.secondaryLabelColor,
     ]
 

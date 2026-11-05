@@ -15,7 +15,7 @@ Log - productivity
 - The time is ISO 8601 / RFC 3339 with seconds and the writer's UTC offset. The offset fixes the exact moment, so a line written in one time zone shows the right local time when read in another.
 - The file is a plain log. Other log readers (`tail`, `lnav`, Console, `grep` and `sort`) can read it as it is. That is the reason the time is first on the line.
 - The "Log -" heading line has no time. A later line that starts with "Log -" is an ordinary entry and gets one.
-- The editor hides the times from the text and draws them in the column as `2026-11-05 13:39:57`, in the time zone the Mac is set to. Saving puts them back.
+- The text is in the system monospaced font (SF Mono on a Mac), as in a log file. The editor hides the times from the text and draws them in the column as `2026-11-05 13:39:57`, in the time zone the Mac is set to. Saving puts them back.
 
 ## When a line gets its time
 
