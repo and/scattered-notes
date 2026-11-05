@@ -135,6 +135,11 @@ public struct NoteLinkIndex: Sendable {
 
     /// The words of a text: runs of letters and digits, which is the same rule on every device (the system's own
     /// word splitting varies with the language, and is several times slower)
+    /// The folded words of a text, for the related-notes rules, which count words the same way
+    static func foldedWords(in text: String) -> [String] {
+        words(in: text).map(\.folded)
+    }
+
     private static func words(in text: String) -> [Word] {
         var result: [Word] = []
         var current = ""

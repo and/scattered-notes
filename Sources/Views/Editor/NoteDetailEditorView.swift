@@ -103,6 +103,7 @@ public struct NoteDetailEditorView: View {
                 NoteLinksPanel(
                     noteID: note.id,
                     index: storageManager.linkIndex,
+                    related: storageManager.relatedIndex,
                     notes: Dictionary(storageManager.notes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
                 )
             }

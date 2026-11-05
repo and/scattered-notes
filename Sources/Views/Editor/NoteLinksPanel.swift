@@ -10,6 +10,7 @@ extension Notification.Name {
 struct NoteLinksPanel: View {
     let noteID: UUID
     let index: NoteLinkIndex
+    let related: RelatedIndex
     let notes: [UUID: Note]
 
     private var linkedNotes: [UUID] { index.linkedNotes(from: noteID) }
@@ -45,12 +46,33 @@ struct NoteLinksPanel: View {
                 }
                 section("Linked from", ids: backlinks, empty: "No other note mentions this one.")
                     .padding(.top, 10)
+
+                // Notes already listed above are not repeated here
+                let similar = related.related(to: noteID, excluding: Set(linkedNotes + backlinks))
+                if !similar.isEmpty {
+                    Text("Related")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.wcagSecondaryText)
+                        .padding(.horizontal, 4)
+                        .padding(.top, 10)
+                    ForEach(similar, id: \.id) { item in
+                        if let note = notes[item.id] {
+                            LinkRow(note: note, why: why(item))
+                        }
+                    }
+                }
             }
             .padding(12)
         }
         .frame(width: 240)
         .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
         .accessibilityIdentifier("linksPanel")
+    }
+
+    /// Why a note is listed: the tags and people it shares, else the words
+    private func why(_ item: RelatedNote) -> String {
+        if !item.sharedMarks.isEmpty { return "Shares " + item.sharedMarks.joined(separator: ", ") }
+        return "Also about " + item.sharedWords.joined(separator: ", ")
     }
 
     @ViewBuilder
@@ -76,6 +98,7 @@ struct NoteLinksPanel: View {
 
 private struct LinkRow: View {
     let note: Note
+    var why: String?
     @State private var isHovering = false
 
     var body: some View {
@@ -85,8 +108,16 @@ private struct LinkRow: View {
             HStack(spacing: 6) {
                 Image(systemName: note.categoryType.iconName)
                     .foregroundColor(.wcagSecondaryText)
-                Text(note.displayTitle)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(note.displayTitle)
+                        .lineLimit(1)
+                    if let why {
+                        Text(why)
+                            .font(.caption)
+                            .foregroundColor(.wcagSecondaryText)
+                            .lineLimit(1)
+                    }
+                }
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 4)

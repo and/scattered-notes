@@ -10,6 +10,7 @@ public final class NoteStorageManager: ObservableObject {
         didSet {
             allAgendaItems = nil
             linkIndexCache = nil
+            relatedIndexCache = nil
         }
     }
     @Published public private(set) var projects: [ProjectArea] = []
@@ -42,6 +43,15 @@ public final class NoteStorageManager: ObservableObject {
     private var agendaCache: [UUID: CachedAgenda] = [:]
     private var allAgendaItems: [AgendaItem]?
     private var linkIndexCache: NoteLinkIndex?
+    private var relatedIndexCache: RelatedIndex?
+
+    /// Which notes look related to which, rebuilt the first time it is asked for after the notes change
+    public var relatedIndex: RelatedIndex {
+        if let cached = relatedIndexCache { return cached }
+        let built = RelatedIndex(notes: notes)
+        relatedIndexCache = built
+        return built
+    }
 
     /// Which notes mention which, rebuilt the first time it is asked for after the notes change
     public var linkIndex: NoteLinkIndex {
