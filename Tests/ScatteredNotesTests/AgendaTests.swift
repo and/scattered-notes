@@ -238,12 +238,14 @@ final class AgendaTests: XCTestCase {
         XCTAssertTrue(AgendaExtractor.isPlannedAction(AgendaExtractor.displayText(for: "call bank 📅 2026-10-27")))
     }
 
+#if os(macOS)
     func testWordCountMatchesSplittingOnWhitespace() {
         for text in ["", "   ", "one", " two  words\n", "tab\tand\nnewline  mix", "naïve café — dash", "a\u{00A0}b"] {
             let expected = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
             XCTAssertEqual(NoteDetailEditorView.wordCount(in: text), expected, text)
         }
     }
+#endif
 
     @MainActor
     func testSavingWritesDaysIntoTheNotesOwnFile() throws {
@@ -319,6 +321,7 @@ final class AgendaTests: XCTestCase {
         XCTAssertEqual(again.serializeToMarkdown(), saved)
     }
 
+#if os(macOS)
     @MainActor
     func testCursorStaysInTheSameWordsWhenMarkersAreWritten() {
         let old = "do this tomorrow\nand the day after tomorrow do"
@@ -335,6 +338,7 @@ final class AgendaTests: XCTestCase {
         XCTAssertTrue(AgendaExtractor.sameIgnoringMarkers(old, new))
         XCTAssertFalse(AgendaExtractor.sameIgnoringMarkers(old, new + "x"))
     }
+#endif
 
     func testMarkersStayOutOfTitlesAndPreviews() {
         let note = Note(content: "do this tomorrow 📅 2026-10-30\n- [x] check linkedin today 📅 2026-10-29 ✅ 2026-10-29")

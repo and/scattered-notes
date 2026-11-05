@@ -55,6 +55,23 @@ public enum LogLines {
         stampRangeRegex.matches(in: text, range: NSRange(location: 0, length: (text as NSString).length)).map(\.range)
     }
 
+    /// What an editor shows quieter: the whole time at the start of each line, and within it the "T" and the UTC
+    /// offset, which are shown lighter still so the date and the clock time stand out
+    static func stampStyling(in text: String) -> (quiet: [NSRange], faint: [NSRange]) {
+        let ns = text as NSString
+        var quiet: [NSRange] = []
+        var faint: [NSRange] = []
+        for range in stampRanges(in: text) {
+            quiet.append(range)
+            let indent = ns.substring(with: range).prefix { $0 == " " || $0 == "\t" }.count
+            let t = range.location + indent + 10
+            let offset = range.location + indent + 19
+            faint.append(NSRange(location: t, length: 1))
+            faint.append(NSRange(location: offset, length: NSMaxRange(range) - offset))
+        }
+        return (quiet, faint)
+    }
+
     /// A quick test that a line could start with a time, before the pattern is tried
     static func mayStartWithStamp(_ text: String) -> Bool {
         guard let first = text.unicodeScalars.first(where: { $0 != " " && $0 != "\t" }) else { return false }

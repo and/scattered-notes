@@ -64,16 +64,9 @@ struct LogEditorView: NSViewRepresentable {
         let all = NSRange(location: 0, length: storage.length)
         storage.beginEditing()
         storage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: all)
-        let text = textView.string as NSString
-        for range in LogLines.stampRanges(in: textView.string) {
-            storage.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: range)
-            // The "T" and the offset are lighter still, so the date and the clock time stand out
-            let indent = text.substring(with: range).prefix { $0 == " " || $0 == "\t" }.count
-            let t = range.location + indent + 10
-            let offset = range.location + indent + 19
-            storage.addAttribute(.foregroundColor, value: NSColor.labelColor.withAlphaComponent(0.17), range: NSRange(location: t, length: 1))
-            storage.addAttribute(.foregroundColor, value: NSColor.labelColor.withAlphaComponent(0.17), range: NSRange(location: offset, length: NSMaxRange(range) - offset))
-        }
+        let styling = LogLines.stampStyling(in: textView.string)
+        for range in styling.quiet { storage.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: range) }
+        for range in styling.faint { storage.addAttribute(.foregroundColor, value: NSColor.labelColor.withAlphaComponent(0.17), range: range) }
         storage.endEditing()
         // What is typed next is text, even right after a time
         textView.typingAttributes[.foregroundColor] = NSColor.labelColor

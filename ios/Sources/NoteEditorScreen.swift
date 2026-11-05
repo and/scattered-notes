@@ -85,10 +85,16 @@ struct NoteEditorScreen: View {
                 .font(.title2.weight(.semibold))
                 .padding(.horizontal)
                 .padding(.top, 8)
-            TextEditor(text: $content)
-                .font(.body.monospaced())
-                .padding(.horizontal, 12)
-                .focused($editorFocused)
+            if LogLines.isLog(title: title, content: content) {
+                // A note that starts with "Log -" is a log book: each line starts with its time
+                LogTextEditor(text: $content, focused: $editorFocused)
+                    .padding(.horizontal, 4)
+            } else {
+                TextEditor(text: $content)
+                    .font(.body.monospaced())
+                    .padding(.horizontal, 12)
+                    .focused($editorFocused)
+            }
         }
     }
 

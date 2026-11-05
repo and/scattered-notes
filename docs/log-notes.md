@@ -2,7 +2,7 @@
 
 A note whose title, or first line, starts with "Log -" is a log book: each line starts with the time it was written, like a line in a log file.
 
-![A log note: each line starts with its time](log-notes.png)
+![A log note: each line starts with its time](log-notes.svg)
 
 ## What the note looks like
 
@@ -34,9 +34,10 @@ The first version hid the time from the text, kept it at the end of the line (`r
 | Telling a log note, the time format, taking the times off a text and putting them back | `Sources/Models/LogNotes.swift` (`LogLines`) |
 | The editor, and Return writing the time | `Sources/Views/Editor/LogEditorView.swift` |
 | Agenda, previews and search ignore the times | `Sources/Models/Agenda.swift` (`withoutMarkers`) |
+| The iPhone editor | `ios/Sources/LogTextEditor.swift` |
 | Tests | `Tests/ScatteredNotesTests/LogNotesTests.swift` |
 
 ## Limits
 
-- The iPhone, Windows and Android apps show the times as part of the text for now.
+- The iPhone has the same log editor. Windows and Android show a log note as plain text for now.
 - The log editor does not offer "Make this a link".

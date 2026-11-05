@@ -29,6 +29,19 @@ final class NoteEditingUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Buy oat milk"].waitForExistence(timeout: 3))
     }
 
+    func testReturnInALogNoteStartsALineWithTheTimeWrittenInIt() {
+        app.buttons["New Note"].tap()
+        let title = app.textFields["Title"]
+        title.tap()
+        title.typeText("Log - gym")
+        let text = app.textViews["noteText"]
+        XCTAssertTrue(text.waitForExistence(timeout: 3), "a title that starts with Log - switches to the log editor")
+        text.tap()
+        text.typeText("ran 5k\nbench press")
+        let value = (text.value as? String) ?? ""
+        XCTAssertNotNil(value.range(of: #"^ran 5k\n20\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d bench press$"#, options: .regularExpression), value)
+    }
+
     func testLeavingANewNoteEmptyKeepsNothing() {
         app.buttons["New Note"].tap()
         sleep(2)

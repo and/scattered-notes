@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 360" width="840" height="360" role="img" aria-label="A note named Plan mentions the word budget. The Links column beside it lists the note Budget as linked to, a note that mentions Plan as linked from, a note that shares a tag as related, and a note with a similar meaning as suggested.">
+  <defs>
+    <marker id="head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="accent-fill"/>
+    </marker>
+  </defs>
+  <style>
+    .card { fill: #ffffff; stroke: #e2e2e7; }
+    .panel { fill: #f5f5f7; stroke: #e2e2e7; }
+    .title { fill: #1d1d1f; font: 600 20px -apple-system, "SF Pro Display", "Helvetica Neue", Arial, sans-serif; }
+    .body { fill: #1d1d1f; font: 400 17px -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; }
+    .head { fill: #8a8a8e; font: 600 12px -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; letter-spacing: 0.08em; }
+    .row { fill: #1d1d1f; font: 500 16px -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; }
+    .sub { fill: #8a8a8e; font: 400 13px -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; }
+    .mention { fill: #0a84ff; fill-opacity: 0.16; }
+    .mention-text { fill: #0a6cdb; }
+    .accent { stroke: #0a84ff; fill: none; stroke-width: 2.5; stroke-linecap: round; }
+    .accent-fill { fill: #0a84ff; }
+    .dot-a { fill: #0a84ff; } .dot-b { fill: #34c759; } .dot-c { fill: #ff9f0a; } .dot-d { fill: #af52de; }
+    .line { stroke: #e2e2e7; }
+    .dash { stroke: #c7c7cc; stroke-dasharray: 3 4; fill: none; stroke-width: 1.5; }
+    @media (prefers-color-scheme: dark) {
+      .card { fill: #1e1e20; stroke: #3a3a3e; } .panel { fill: #28282b; stroke: #3a3a3e; }
+      .title, .body, .row { fill: #f5f5f7; } .head, .sub { fill: #98989d; }
+      .mention-text { fill: #64b5ff; } .line { stroke: #3a3a3e; } .dash { stroke: #5a5a5e; }
+    }
+  </style>
+
+  <!-- the open note -->
+  <rect class="card" x="0.5" y="0.5" width="440" height="359" rx="16"/>
+  <text class="title" x="28" y="50">Plan</text>
+  <line class="line" x1="0" y1="72" x2="441" y2="72"/>
+  <rect class="mention" x="112" y="100" width="70" height="28" rx="6"/>
+  <text class="body" x="28" y="120">Check the <tspan class="mention-text" font-weight="600">budget</tspan> before Friday,</text>
+  <text class="body" x="28" y="152">then call about the trip.</text>
+  <text class="body" x="28" y="184">#travel</text>
+
+  <!-- the Links column -->
+  <rect class="panel" x="480" y="0.5" width="359" height="359" rx="16"/>
+  <text class="head" x="508" y="40">LINKS TO</text>
+  <circle class="dot-a" cx="514" cy="68" r="5"/>
+  <text class="row" x="530" y="73">Budget</text>
+  <text class="sub" x="720" y="73">mentioned</text>
+
+  <text class="head" x="508" y="118">LINKED FROM</text>
+  <circle class="dot-b" cx="514" cy="146" r="5"/>
+  <text class="row" x="530" y="151">Kickoff notes</text>
+
+  <text class="head" x="508" y="196">RELATED</text>
+  <circle class="dot-c" cx="514" cy="224" r="5"/>
+  <text class="row" x="530" y="229">Trip to Goa</text>
+  <text class="sub" x="720" y="229">shares #travel</text>
+
+  <text class="head" x="508" y="274">SUGGESTED</text>
+  <circle class="dot-d" cx="514" cy="302" r="5"/>
+  <text class="row" x="530" y="307">Holiday packing</text>
+  <text class="sub" x="720" y="307">similar meaning</text>
+  <text class="sub" x="508" y="340">Only a guess. Nothing is written.</text>
+
+  <!-- the link from the word to the column -->
+  <path class="accent" d="M 147 98 C 150 56, 330 40, 466 66" marker-end="url(#head)"/>
+  <path class="dash" d="M 100 192 C 240 250, 340 226, 466 224"/>
+</svg>

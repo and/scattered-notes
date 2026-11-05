@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 300" width="840" height="300" role="img" aria-label="A log note named Log - productivity. Each line starts with the time it was written, in grey, followed by the entry in black.">
+  <style>
+    .card { fill: #ffffff; stroke: #e2e2e7; }
+    .title { fill: #1d1d1f; font: 600 24px -apple-system, "SF Pro Display", "Helvetica Neue", Arial, sans-serif; }
+    .rule { stroke: #e2e2e7; }
+    .row { font: 400 19px ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "DejaVu Sans Mono", monospace; white-space: pre; }
+    .time { fill: #8a8a8e; }
+    .faint { fill: #cfcfd4; }
+    .text { fill: #1d1d1f; }
+    .cursor { fill: #0a84ff; font-weight: 300; }
+    @media (prefers-color-scheme: dark) {
+      .card { fill: #1e1e20; stroke: #3a3a3e; }
+      .title { fill: #f5f5f7; }
+      .rule { stroke: #3a3a3e; }
+      .time { fill: #98989d; }
+      .faint { fill: #4a4a4e; }
+      .text { fill: #f5f5f7; }
+    }
+  </style>
+  <rect class="card" x="0.5" y="0.5" width="839" height="299" rx="16"/>
+  <text class="title" x="32" y="52">Log - productivity</text>
+  <line class="rule" x1="0" y1="76" x2="840" y2="76"/>
+  <g class="row">
+    <text x="32" y="124"><tspan class="time">2026-11-05</tspan><tspan class="faint">T</tspan><tspan class="time">14:22:19</tspan><tspan class="faint">+05:30</tspan><tspan class="text"> one sun one moon.</tspan></text>
+    <text x="32" y="168"><tspan class="time">2026-11-05</tspan><tspan class="faint">T</tspan><tspan class="time">14:29:51</tspan><tspan class="faint">+05:30</tspan><tspan class="text"> and one ___</tspan></text>
+    <text x="32" y="212"><tspan class="time">2026-11-05</tspan><tspan class="faint">T</tspan><tspan class="time">14:34:43</tspan><tspan class="faint">+05:30</tspan><tspan class="text"> read the logs with tail -f</tspan></text>
+    <text x="32" y="256"><tspan class="time">2026-11-05</tspan><tspan class="faint">T</tspan><tspan class="time">14:34:53</tspan><tspan class="faint">+05:30</tspan><tspan class="text"> </tspan><tspan class="cursor">|</tspan></text>
+  </g>
+</svg>

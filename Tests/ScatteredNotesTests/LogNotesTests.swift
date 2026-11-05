@@ -101,6 +101,14 @@ final class LogNotesTests: XCTestCase {
         XCTAssertEqual(log.stamps, [nil])
     }
 
+    func testTheTimeAtTheStartOfALineIsQuietAndItsTAndOffsetAreFaint() {
+        let text = "Log - gym\n2026-11-05T14:22:19+05:30 one sun\nplain 2026-11-05T14:22:19+05:30"
+        let styling = LogLines.stampStyling(in: text)
+        let ns = text as NSString
+        XCTAssertEqual(styling.quiet.map { ns.substring(with: $0) }, ["2026-11-05T14:22:19+05:30"])
+        XCTAssertEqual(styling.faint.map { ns.substring(with: $0) }, ["T", "+05:30"])
+    }
+
     // MARK: The rest of the app ignores the markers
 
     func testAgendaItemsOfALogNoteAreNotMistakenForDatedLines() {

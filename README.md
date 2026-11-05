@@ -103,7 +103,11 @@ Go to the [latest release](https://github.com/and/scattered-notes/releases/lates
   - Pressing Return starts a new line with the time already written, in the form log files use: `2026-11-05T14:22:19+05:30 one sun one moon.`
   - Monospaced font, with the times in a quieter grey so the entries read first.
   - Plain text, so `tail`, `lnav`, `grep` and other log readers can read the note as it is. See [docs/log-notes.md](docs/log-notes.md).
-  <p align="center"><img src="docs/log-notes.png" alt="A log note: each line starts with its time" width="560" /></p>
+  <p align="center"><img src="docs/log-notes.svg" alt="A log note: each line starts with its time" width="560" /></p>
+- 🔗 **Links between notes**: the Links column beside a note.
+  - Lists the notes it mentions by title or with `[[Title]]`, and the notes that mention it. "Make this a link" turns a plain mention into `[[Title]]`.
+  - Related notes share a `#tag` or `@person`, or many uncommon words. Suggested notes have a similar meaning (off by default; it uses Apple's on-device word model).
+  <p align="center"><img src="docs/note-links.svg" alt="A note mentions the word budget; the Links column lists the linked, related and suggested notes" width="720" /></p>
 - 🔎 **Global Search (⌘ + K or ⌥ + F)**: Spotlight-style palette over all notes with ranked results and highlighted snippets. `⌥ + F` works from any app.
 - 📂 **Full 3-Pane View**:
   - **Sidebar**: Quick access to *Inbox*, *All Notes*, *Projects*, and *Areas* with live badge counts and inline creation.
