@@ -3,15 +3,19 @@ import Foundation
 /// A log note: a note whose first line starts with "Log -", kept like a log file, with the time each line was
 /// written shown in a column at the right of the editor.
 ///
-/// The times live in the note's file, as a marker at the end of each line: `⏱ 2026-11-05 11:34`, in the
-/// writer's own time zone, like the `📅` and `✅` markers. The editor takes the markers off the text and shows them
+/// The times live in the note's file, as a marker at the end of each line: `⏱ 2026-11-05T11:34:07+05:30`, the
+/// ISO 8601 / RFC 3339 form used in software logs, with the writer's own time zone offset. Older markers without
+/// seconds or offset (`⏱ 2026-11-05 11:34`) are still read, in the reader's time zone, like the `📅` and `✅` markers. The editor takes the markers off the text and shows them
 /// in the column, so what is typed and what is read never includes them; saving puts them back. A line gets its
 /// time when it first has text, and keeps it however it is edited afterwards. Lines written before the note became
 /// a log, or in another app, have no time until they are edited.
 public enum LogLines {
     /// The marker at the end of a line, with the optional variation selector some keyboards add after the symbol
+    /// The time itself: date, `T` or a space, hours and minutes, optional seconds, optional `Z` or `+05:30`
+    static let stampPattern = "(\\d{4})-(\\d{2})-(\\d{2})[T ](\\d{2}):(\\d{2})(?::(\\d{2}))?(Z|[+-]\\d{2}:?\\d{2})?"
+
     private static let markerRegex = try! NSRegularExpression(
-        pattern: "[ \\t]*\u{23F1}\u{FE0F}?[ \\t]*(\\d{4})-(\\d{2})-(\\d{2}) (\\d{2}):(\\d{2})[ \\t]*$")
+        pattern: "[ \\t]*\u{23F1}\u{FE0F}?[ \\t]*" + stampPattern + "[ \\t]*$")
 
     private static let startRegex = try! NSRegularExpression(pattern: "^log\\s*[-\u{2013}\u{2014}]", options: .caseInsensitive)
 
@@ -44,8 +48,15 @@ public enum LogLines {
         for line in content.components(separatedBy: "\n") {
             let ns = line as NSString
             if let match = markerRegex.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)) {
-                let parts = (1...5).map { Int(ns.substring(with: match.range(at: $0))) ?? 0 }
-                stamps.append(calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2], hour: parts[3], minute: parts[4])))
+                func part(_ group: Int) -> String? {
+                    let range = match.range(at: group)
+                    return range.location == NSNotFound ? nil : ns.substring(with: range)
+                }
+                var zoned = calendar
+                if let offset = part(7) { zoned.timeZone = Self.timeZone(offset) ?? calendar.timeZone }
+                stamps.append(zoned.date(from: DateComponents(
+                    year: Int(part(1)!), month: Int(part(2)!), day: Int(part(3)!),
+                    hour: Int(part(4)!), minute: Int(part(5)!), second: Int(part(6) ?? "0"))))
                 lines.append(ns.substring(to: match.range.location))
             } else {
                 stamps.append(nil)
@@ -71,9 +82,20 @@ public enum LogLines {
         return out.joined(separator: "\n")
     }
 
-    private static func format(_ date: Date, calendar: Calendar) -> String {
-        let c = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
-        return String(format: "%04d-%02d-%02d %02d:%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0, c.hour ?? 0, c.minute ?? 0)
+    /// "Z", "+05:30" or "+0530" as a time zone
+    private static func timeZone(_ offset: String) -> TimeZone? {
+        if offset == "Z" { return TimeZone(secondsFromGMT: 0) }
+        let digits = offset.dropFirst().filter(\.isNumber)
+        guard digits.count == 4, let hours = Int(digits.prefix(2)), let minutes = Int(digits.suffix(2)) else { return nil }
+        return TimeZone(secondsFromGMT: (offset.hasPrefix("-") ? -1 : 1) * (hours * 3600 + minutes * 60))
+    }
+
+    /// `2026-11-05T11:34:07+05:30`: local time with its offset from UTC
+    static func format(_ date: Date, calendar: Calendar) -> String {
+        let c = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+        let seconds = calendar.timeZone.secondsFromGMT(for: date)
+        let offset = String(format: "%@%02d:%02d", seconds < 0 ? "-" : "+", abs(seconds) / 3600, abs(seconds) % 3600 / 60)
+        return String(format: "%04d-%02d-%02dT%02d:%02d:%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0, c.hour ?? 0, c.minute ?? 0, c.second ?? 0) + offset
     }
 
     /// Brings `stamps` in step with a change to `text`: `replacement` takes the place of `range`. `text` is the text

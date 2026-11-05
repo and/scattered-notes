@@ -74,7 +74,7 @@ public enum AgendaExtractor {
     private static let dueMarkerRegex = try! NSRegularExpression(pattern: "\\s*📅\\s*(\\d{4})-(\\d{2})-(\\d{2})")
     private static let doneMarkerRegex = try! NSRegularExpression(pattern: "\\s*✅\\s*(\\d{4})-(\\d{2})-(\\d{2})")
     /// The time marker of a log line (see `LogLines`), taken off wherever a line is read for what it says
-    private static let logMarkerRegex = try! NSRegularExpression(pattern: "\\s*\u{23F1}\u{FE0F}?\\s*\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}")
+    private static let logMarkerRegex = try! NSRegularExpression(pattern: "\\s*\u{23F1}\u{FE0F}?\\s*" + LogLines.stampPattern)
 
     /// The days written into a line by `📅` and `✅`, as start of day.
     static func markers(in line: String, calendar: Calendar) -> (due: Date?, done: Date?) {

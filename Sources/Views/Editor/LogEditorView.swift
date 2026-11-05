@@ -70,7 +70,7 @@ struct LogEditorView: NSViewRepresentable {
 
 /// The text with the column of times at its right
 final class LogEditorContainer: NSView {
-    static let gutterWidth: CGFloat = 112
+    static let gutterWidth: CGFloat = 138
 
     let scrollView = NSScrollView()
     let textView: LogTextView
@@ -191,11 +191,11 @@ final class LogGutterView: NSView {
         _ = container
     }
 
-    /// "5 Nov 11:34", with the year when it is not this one
+    /// "2026-11-05 11:34:07", in the reader's time zone
     static func label(for date: Date) -> String {
         let formatter = DateFormatter()
-        let sameYear = Calendar.current.component(.year, from: date) == Calendar.current.component(.year, from: Date())
-        formatter.setLocalizedDateFormatFromTemplate(sameYear ? "d MMM HH:mm" : "d MMM yyyy HH:mm")
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         return formatter.string(from: date)
     }
 }

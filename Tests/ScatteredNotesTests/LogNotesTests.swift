@@ -50,14 +50,30 @@ final class LogNotesTests: XCTestCase {
     }
 
     func testSerializeIsTheReverseOfParse() {
-        let content = "Log - gym ⏱ 2026-11-05 11:34\n\nran 5k ⏱ 2026-11-05 18:02\nplain"
+        let content = "Log - gym ⏱ 2026-11-05T11:34:00+05:30\n\nran 5k ⏱ 2026-11-05T18:02:09+05:30\nplain"
         let log = LogLines.parse(content, calendar: calendar)
         XCTAssertEqual(LogLines.serialize(text: log.text, stamps: log.stamps, calendar: calendar), content)
     }
 
     func testBlankLinesGetNoMarkerAndTrailingSpacesAreTrimmedBeforeOne() {
         let out = LogLines.serialize(text: "a  \n\n   \nb", stamps: [morning, morning, morning, nil], calendar: calendar)
-        XCTAssertEqual(out, "a ⏱ 2026-11-05 11:34\n\n   \nb")
+        XCTAssertEqual(out, "a ⏱ 2026-11-05T11:34:00+05:30\n\n   \nb")
+    }
+
+    func testTheMarkerIsWrittenAsIsoWithSecondsAndOffset() {
+        let out = LogLines.serialize(text: "a", stamps: [at(18, 2).addingTimeInterval(9)], calendar: calendar)
+        XCTAssertEqual(out, "a ⏱ 2026-11-05T18:02:09+05:30")
+    }
+
+    func testAnOffsetFixesTheMomentWhateverTheReadersTimeZone() {
+        let log = LogLines.parse("a ⏱ 2026-11-05T11:34:07Z\nb ⏱ 2026-11-05T11:34:07-08:00", calendar: calendar)
+        XCTAssertEqual(log.stamps, [Date(timeIntervalSince1970: 1_793_878_447), Date(timeIntervalSince1970: 1_793_907_247)])
+    }
+
+    func testOlderMarkersWithoutSecondsOrOffsetAreStillRead() {
+        let log = LogLines.parse("a ⏱ 2026-11-05 11:34", calendar: calendar)
+        XCTAssertEqual(log.text, "a")
+        XCTAssertEqual(log.stamps, [at(11, 34)])
     }
 
     func testTheSymbolWithAVariationSelectorIsRead() {
@@ -163,14 +179,14 @@ final class LogNotesTests: XCTestCase {
     }
 
     func testSettingADateOnALogLineKeepsItsTime() {
-        let content = "Log - gym ⏱ 2026-11-05 11:34\nbuy shoes ⏱ 2026-11-05 18:05"
+        let content = "Log - gym ⏱ 2026-11-05T11:34:00+05:30\nbuy shoes ⏱ 2026-11-05T18:05:00+05:30"
         let changed = AgendaExtractor.settingDate(at(0, 0), onLine: 1, in: content, calendar: calendar)
-        XCTAssertEqual(changed, "Log - gym ⏱ 2026-11-05 11:34\nbuy shoes 📅 2026-11-05 ⏱ 2026-11-05 18:05")
+        XCTAssertEqual(changed, "Log - gym ⏱ 2026-11-05T11:34:00+05:30\nbuy shoes 📅 2026-11-05 ⏱ 2026-11-05T18:05:00+05:30")
     }
 
     func testResolvingDatesOnALogNoteKeepsTheTimes() {
-        let content = "Log - plans ⏱ 2026-11-05 11:34\ncall the bank tomorrow ⏱ 2026-11-05 11:40"
+        let content = "Log - plans ⏱ 2026-11-05T11:34:00+05:30\ncall the bank tomorrow ⏱ 2026-11-05T11:40:00+05:30"
         let resolved = AgendaExtractor.resolvingDates(in: content, previous: nil, previousUpdatedAt: nil, now: morning, calendar: calendar)
-        XCTAssertEqual(resolved, "Log - plans ⏱ 2026-11-05 11:34\ncall the bank tomorrow 📅 2026-11-06 ⏱ 2026-11-05 11:40")
+        XCTAssertEqual(resolved, "Log - plans ⏱ 2026-11-05T11:34:00+05:30\ncall the bank tomorrow 📅 2026-11-06 ⏱ 2026-11-05T11:40:00+05:30")
     }
 }
