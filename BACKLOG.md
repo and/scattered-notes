@@ -128,6 +128,7 @@ Structure the app as levels, and make every Esc go up one level:
 - Linking must not rewrite the `.md` files unless the person accepts a suggestion.
 
 **Plan (5 Nov): no AI first, one rule set for every app**
+- **Status (5 Nov): Mac done; Windows done (links, backlinks, "Make this a link" and Related, in `NoteLinks.cs` and `RelatedNotes.cs` with the same tests; not yet seen running on a Windows PC). Android not started. No Suggested on Windows or Android.**
 - Rules live in one pure type (`NoteLinks`, in `Sources/Models`), ported by hand to Windows (`ScatteredNotes.Core`) and Android (`core/`) like `AgendaExtractor`, so a note shows the same links on every device.
 - Mentions: look for every other note's title in the text in one pass (a trie or Aho-Corasick automaton), ignoring case and accents, matching whole words only, and skipping titles shorter than 3 characters and the note's own title. `[[Title]]` is parsed like `@name` is in `Mentions`.
 - Backlinks: a map from each note to the notes that link to it, rebuilt only for notes that changed (same pattern as `agendaCache`). Renaming a note changes its backlinks, so the map is also rebuilt when a title changes.

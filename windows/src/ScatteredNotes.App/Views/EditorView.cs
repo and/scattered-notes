@@ -28,6 +28,7 @@ internal enum EditorMode
 internal sealed class EditorView : UserControl
 {
     private static bool s_showAgenda = true;
+    private static bool s_showLinks = true;
 
     private readonly AppState _state;
     private readonly TextBox _title;
@@ -35,7 +36,11 @@ internal sealed class EditorView : UserControl
     private readonly MarkdownView _preview;
     private readonly Grid _body;
     private readonly Border _agendaPane;
+    private readonly Border _linksPane;
+    private readonly Border _rightPane;
     private readonly StackPanel _agendaList;
+    private readonly StackPanel _linksList;
+    private readonly ToggleButton _linksToggle;
     private readonly DropDownButton _destination;
     private readonly ToggleButton _agendaToggle;
     private readonly Button _pin;
@@ -95,6 +100,15 @@ internal sealed class EditorView : UserControl
             RefreshAgenda();
         };
 
+        _linksToggle = new ToggleButton { Classes = { "icon" }, Content = Ui.Icon(Symbol.Link, 16), IsChecked = s_showLinks, Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
+        ToolTip.SetTip(_linksToggle, "Show or hide the links column");
+        Avalonia.Automation.AutomationProperties.SetName(_linksToggle, "Links column");
+        _linksToggle.IsCheckedChanged += (_, _) =>
+        {
+            s_showLinks = _linksToggle.IsChecked == true;
+            RefreshLinks();
+        };
+
         _pin = Ui.IconButton(Symbol.Pin, "Pin Note", () => _state.Store.TogglePin(CurrentNote()));
         var reveal = Ui.IconButton(Symbol.FolderOpen, OperatingSystem.IsWindows() ? "Show in File Explorer" : "Reveal in Finder", () =>
         {
@@ -102,7 +116,7 @@ internal sealed class EditorView : UserControl
         });
         var delete = Ui.IconButton(Symbol.Delete, "Delete Note", () => _ = NoteMenus.ConfirmDeleteAsync(_state, _note, TopLevel.GetTopLevel(this) as Window));
 
-        var toolbar = Ui.Row(4, _destination, new Border { Width = 6 }, modes, _agendaToggle, _pin, reveal, delete);
+        var toolbar = Ui.Row(4, _destination, new Border { Width = 6 }, modes, _agendaToggle, _linksToggle, _pin, reveal, delete);
         var header = new DockPanel { Margin = new Thickness(16, 8, 12, 8) };
         DockPanel.SetDock(toolbar, Dock.Right);
         header.Children.Add(toolbar);
@@ -139,11 +153,17 @@ internal sealed class EditorView : UserControl
 
         _body = new Grid();
         _agendaList = new StackPanel { Spacing = 2, Margin = new Thickness(12) };
-        _agendaPane = new Border
+        _agendaPane = new Border { MaxHeight = 280, Child = new ScrollViewer { Content = _agendaList } };
+        _linksList = new StackPanel { Spacing = 2, Margin = new Thickness(12) };
+        _linksPane = new Border { BorderThickness = new Thickness(0, 1, 0, 0), Child = new ScrollViewer { Content = _linksList } }
+            .Themed(Border.BorderBrushProperty, "CardBorder");
+        Grid.SetRow(_agendaPane, 0);
+        Grid.SetRow(_linksPane, 1);
+        _rightPane = new Border
         {
             Width = 250,
             BorderThickness = new Thickness(1, 0, 0, 0),
-            Child = new ScrollViewer { Content = _agendaList },
+            Child = new Grid { RowDefinitions = new RowDefinitions("Auto,*"), Children = { _agendaPane, _linksPane } },
         }.Themed(Border.BorderBrushProperty, "CardBorder").Themed(Border.BackgroundProperty, "PaneBackground");
 
         _status = Ui.Row(16);
@@ -151,8 +171,8 @@ internal sealed class EditorView : UserControl
             .Themed(Border.BorderBrushProperty, "CardBorder");
 
         var columns = new DockPanel();
-        DockPanel.SetDock(_agendaPane, Dock.Right);
-        columns.Children.Add(_agendaPane);
+        DockPanel.SetDock(_rightPane, Dock.Right);
+        columns.Children.Add(_rightPane);
         columns.Children.Add(_body);
 
         var root = new DockPanel();
@@ -237,6 +257,7 @@ internal sealed class EditorView : UserControl
         _loading = false;
         RefreshChrome();
         RefreshAgenda();
+        RefreshLinks();
         RefreshStatus();
     }
 
@@ -259,6 +280,7 @@ internal sealed class EditorView : UserControl
             _note = current;
             RefreshChrome();
             RefreshAgenda();
+            RefreshLinks();
             RefreshStatus();
         }
         if (_mode != EditorMode.Edit) _preview.Render(_text.Text ?? "");
@@ -292,6 +314,7 @@ internal sealed class EditorView : UserControl
         var items = _state.Store.AgendaItemsFor(CurrentNote());
         _agendaToggle.IsVisible = items.Count > 0;
         _agendaPane.IsVisible = items.Count > 0 && s_showAgenda;
+        _rightPane.IsVisible = _agendaPane.IsVisible || s_showLinks;
         _agendaList.Children.Clear();
         _agendaList.Children.Add(new TextBlock { Text = "Agenda", FontSize = 15, FontWeight = FontWeight.SemiBold, Margin = new Thickness(4, 0, 0, 6) });
         var today = DateOnly.FromDateTime(DateTime.Now);
@@ -307,6 +330,122 @@ internal sealed class EditorView : UserControl
                 FlushPendingSave();
             }, details: details));
         }
+    }
+
+
+    /// <summary>The links column: the notes this note mentions, the notes that mention it, and notes related to it.
+    /// Reads the saved text, so a new mention shows up a moment after typing stops.</summary>
+    private void RefreshLinks()
+    {
+        _linksPane.IsVisible = s_showLinks;
+        _rightPane.IsVisible = _agendaPane.IsVisible || s_showLinks;
+        if (!s_showLinks) return;
+
+        var note = CurrentNote();
+        var notes = _state.Store.Notes;
+        var byId = new Dictionary<Guid, Note>();
+        foreach (var n in notes) byId[n.Id] = n;
+        var index = new NoteLinkIndex(notes);
+        var linked = index.LinkedNotesFrom(note.Id);
+        var backlinks = index.BacklinksTo(note.Id);
+        var links = index.LinksFrom(note.Id);
+        var explicitTargets = links.Where(l => l.IsExplicit && l.Target is not null).Select(l => l.Target!.Value).ToHashSet();
+        // Notes mentioned only in plain text, never as [[Title]]: the ones that can be made a link
+        var makeLink = links.Where(l => !l.IsExplicit && l.Target is { } t && !explicitTargets.Contains(t)
+                                        && byId.TryGetValue(t, out var target) && NoteLinkIndex.ExplicitText(target.DisplayTitle) is not null)
+            .GroupBy(l => l.Target!.Value).ToDictionary(g => g.Key, g => g.First());
+
+        _linksList.Children.Clear();
+        _linksList.Children.Add(new TextBlock { Text = "Links", FontSize = 15, FontWeight = FontWeight.SemiBold, Margin = new Thickness(4, 0, 0, 6) });
+
+        LinkSection("Links to", linked, byId, "This note does not mention another note's title. Write a title, or [[Title]], to link.", makeLink);
+        var unresolved = links.Where(l => l.Target is null).GroupBy(l => l.Text.ToLowerInvariant()).Select(g => g.First()).ToList();
+        if (unresolved.Count > 0)
+        {
+            _linksList.Children.Add(SectionTitle("No note with this title"));
+            foreach (var link in unresolved)
+                _linksList.Children.Add(new TextBlock { Text = $"[[{link.Text}]]", FontSize = 13, Margin = new Thickness(4, 2) }.Themed(TextBlock.ForegroundProperty, "WcagOrange"));
+        }
+        LinkSection("Linked from", backlinks, byId, "No other note mentions this one.", null);
+
+        // Notes already listed above are not repeated here
+        var similar = new RelatedIndex(notes).RelatedTo(note.Id, excluding: linked.Concat(backlinks).ToHashSet());
+        if (similar.Count > 0)
+        {
+            _linksList.Children.Add(SectionTitle("Related"));
+            foreach (var item in similar)
+            {
+                if (!byId.TryGetValue(item.Id, out var other)) continue;
+                var why = item.SharedMarks.Count > 0 ? "Shares " + string.Join(", ", item.SharedMarks) : "Also about " + string.Join(", ", item.SharedWords);
+                _linksList.Children.Add(LinkRow(other, why, null));
+            }
+        }
+    }
+
+    private static TextBlock SectionTitle(string title) =>
+        Ui.Text(title, 12, FontWeight.SemiBold, "WcagSecondaryText").With(t => t.Margin = new Thickness(4, 12, 0, 2));
+
+    private void LinkSection(string title, IReadOnlyList<Guid> ids, Dictionary<Guid, Note> byId, string empty, Dictionary<Guid, NoteLink>? makeLink)
+    {
+        _linksList.Children.Add(SectionTitle(title));
+        if (ids.Count == 0)
+        {
+            _linksList.Children.Add(Ui.Text(empty, 12, brushKey: "WcagSecondaryText").With(t =>
+            {
+                t.TextWrapping = TextWrapping.Wrap;
+                t.Margin = new Thickness(4, 2);
+            }));
+        }
+        foreach (var id in ids)
+        {
+            if (!byId.TryGetValue(id, out var other)) continue;
+            NoteLink? link = makeLink is not null && makeLink.TryGetValue(id, out var found) ? found : null;
+            _linksList.Children.Add(LinkRow(other, null, link));
+        }
+    }
+
+    private Control LinkRow(Note other, string? why, NoteLink? makeLink)
+    {
+        var text = new StackPanel { Spacing = 1, VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(Ui.Text(other.DisplayTitle, 13).With(t => t.TextTrimming = TextTrimming.CharacterEllipsis));
+        if (why is not null) text.Children.Add(Ui.Text(why, 11, brushKey: "WcagSecondaryText").With(t => t.TextTrimming = TextTrimming.CharacterEllipsis));
+        var open = new Button
+        {
+            Classes = { "icon" },
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Padding = new Thickness(4, 4),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Content = Ui.Row(6, Ui.Icon(Symbol.Document, 14, "WcagSecondaryText"), text),
+        };
+        ToolTip.SetTip(open, $"Open {other.DisplayTitle}");
+        Avalonia.Automation.AutomationProperties.SetName(open, $"Open {other.DisplayTitle}");
+        open.Click += (_, _) =>
+        {
+            FlushPendingSave();
+            _state.OpenNote(other);
+        };
+        if (makeLink is null) return open;
+
+        var make = Ui.IconButton(Symbol.LinkAdd, $"Make this a link: writes [[{other.DisplayTitle}]] in the note where it is mentioned", () => MakeLink(other, makeLink), "WcagBlue");
+        Avalonia.Automation.AutomationProperties.SetName(make, "Make this a link");
+        var row = new DockPanel();
+        DockPanel.SetDock(make, Dock.Right);
+        row.Children.Add(make);
+        row.Children.Add(open);
+        return row;
+    }
+
+    /// <summary>Writes <c>[[Title]]</c> over the mention, in the text as it is now.</summary>
+    private void MakeLink(Note target, NoteLink link)
+    {
+        FlushPendingSave();
+        var current = CurrentNote();
+        // The saved text is what the link was found in, so its place in the text is right
+        if (NoteLinkIndex.MakingExplicit(link, target.DisplayTitle, current.Content) is not { } changed) return;
+        _text.Text = changed;
+        FlushPendingSave();
     }
 
     private static string? DueLabel(DateOnly? date, DateOnly today)

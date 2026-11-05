@@ -19,6 +19,13 @@ internal static class Ui
         return control;
     }
 
+    /// <summary>Sets a few properties on a control while building it.</summary>
+    public static T With<T>(this T control, Action<T> configure)
+    {
+        configure(control);
+        return control;
+    }
+
     public static SymbolIcon Icon(Symbol symbol, double size = 16, string? brushKey = null, IconVariant variant = IconVariant.Regular)
     {
         var icon = new SymbolIcon { Symbol = symbol, FontSize = size, IconVariant = variant };
