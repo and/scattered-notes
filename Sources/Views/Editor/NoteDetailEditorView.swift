@@ -177,7 +177,7 @@ public struct NoteDetailEditorView: View {
         suggestions.update(with: storageManager.notes)
     }
 
-    /// A log note (its title or its first line starts with "Log -") is edited with its times in a column at the left
+    /// A log note (its title or its first line starts with "Log -") is edited in a monospaced font, with a time at the start of each line
     private var isLogNote: Bool { LogLines.isLog(title: editableTitle, content: editableContent) }
 
     /// The place text is typed into: the log editor for a log note, the plain one for the rest
@@ -205,15 +205,6 @@ public struct NoteDetailEditorView: View {
             let place = settings.lastPlace
             EditorFocus.request(noteID: note.id, offset: place?.noteID == note.id ? place?.offset : nil)
         }
-    }
-
-    /// What the preview shows: for a log note without the time markers, which are for the column
-    private var renderedContent: Binding<String> {
-        guard isLogNote || LogLines.hasStamps(editableContent) else { return $editableContent }
-        return Binding(
-            get: { LogLines.parse(editableContent).text },
-            set: { editableContent = LogLines.serialize(text: $0, stamps: LogLines.parse(editableContent).stamps) }
-        )
     }
 
     private var showsAgenda: Bool { showAgendaInspector && !agendaItems.isEmpty }
@@ -348,13 +339,13 @@ public struct NoteDetailEditorView: View {
                         
                         Divider()
                         
-                        MarkdownRendererView(content: renderedContent) { _ in
+                        MarkdownRendererView(content: $editableContent) { _ in
                             scheduleSave()
                         }
                     }
                     
                 case .preview:
-                    MarkdownRendererView(content: renderedContent) { _ in
+                    MarkdownRendererView(content: $editableContent) { _ in
                         scheduleSave()
                     }
                 }

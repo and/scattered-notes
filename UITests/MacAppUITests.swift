@@ -228,24 +228,26 @@ final class MacAppUITests: XCTestCase {
 
     // MARK: - Log notes
 
-    func testALogNoteShowsATimeAtTheRightOfEachLineAndKeepsItInTheFile() throws {
-        try writeNote("Log - gym\nran 5k ⏱ 2026-11-05 18:02")
+    func testReturnInALogNoteStartsALineWithTheTimeWrittenInIt() throws {
+        let first = "2026-11-05T18:02:00+05:30 ran 5k"
+        try writeNote("Log - gym\n\(first)")
         launch()
         openNote(titled: "Log - gym")
         let text = app.textViews["noteText"]
         XCTAssertTrue(text.waitForExistence(timeout: 5))
-        XCTAssertEqual((text.value as? String) ?? "", "Log - gym\nran 5k", "the time marker is not shown in the text")
+        XCTAssertEqual((text.value as? String) ?? "", "Log - gym\n\(first)", "the time is part of the text")
 
-        // A new line typed now gets the time it was written
+        // Return starts a new line with the time of that moment already in it
         text.click()
         text.typeKey(.downArrow, modifierFlags: .command)
-        text.typeText("\nbench press")
+        text.typeKey(.return, modifierFlags: [])
+        text.typeText("bench press")
         XCTAssertTrue(waitUntil {
             self.noteFiles().contains {
                 $0.text.range(of: #"(?m)^20\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d bench press$"#, options: .regularExpression) != nil
-                    && $0.text.range(of: #"(?m)^2026-11-05T18:02:00[+-]\d\d:\d\d ran 5k$"#, options: .regularExpression) != nil
+                    && $0.text.contains("\n" + first)
             }
-        }, "the new line has its time at the start of the line in the file and the old line keeps its own")
+        }, "the new line starts with its time in the file and the old line keeps its own")
     }
 
     // MARK: - Dashboard

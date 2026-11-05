@@ -1,16 +1,15 @@
 import Foundation
 
-/// A log note: a note whose first line starts with "Log -", kept like a log file, with the time each line was
-/// written shown in a column at the left of the editor.
+/// A log note: a note whose title or first line starts with "Log -", kept like a log file.
 ///
-/// The times live in the note's file, at the start of each line, the way a log file has them:
+/// The time of each line is part of the text, at the start of the line, the way a log file has it:
 /// `2026-11-05T11:34:07+05:30 ran 5k`. That is the ISO 8601 / RFC 3339 form with the writer's time zone offset, so
-/// other log readers (`tail`, `lnav`, Console and the like) can read the file as it is. The editor takes the times
-/// off the text and shows them in the column, so what is typed and what is read never includes them; saving puts
-/// them back. A line gets its time when it first has text, and keeps it however it is edited afterwards. The
-/// "Log -" heading line has no time. Lines written before the note became a log, or in another app, have no time
-/// until they are edited. The first version wrote the time at the end of the line (`ran 5k ⏱ 2026-11-05 11:34`);
-/// those are still read, and written in the new place when the line is next saved.
+/// other log readers (`tail`, `lnav`, Console and the like) can read the file as it is. The editor writes the time
+/// when Return starts a new line, so copying the text copies the times too. The "Log -" heading line has no time.
+///
+/// The first version of the feature wrote the time at the end of the line (`ran 5k ⏱ 2026-11-05 11:34`) and hid it
+/// from the text. Those are still read. `parse` and `serialize` take the times off a note's text and put them back,
+/// for the code that reads lines for what they say, such as the agenda.
 public enum LogLines {
     /// The time itself: date, `T` or a space, hours and minutes, optional seconds, optional `Z` or `+05:30`
     static let stampPattern = "(\\d{4})-(\\d{2})-(\\d{2})[T ](\\d{2}):(\\d{2})(?::(\\d{2}))?(Z|[+-]\\d{2}:?\\d{2})?"
@@ -116,8 +115,7 @@ public enum LogLines {
         let heading = headingIndex(in: lines)
         var out: [String] = []
         for (index, line) in lines.enumerated() {
-            guard index < stamps.count, let stamp = stamps[index], !line.trimmingCharacters(in: .whitespaces).isEmpty,
-                  index != heading else {
+            guard index < stamps.count, let stamp = stamps[index], index != heading else {
                 out.append(line)
                 continue
             }
@@ -140,48 +138,5 @@ public enum LogLines {
         let seconds = calendar.timeZone.secondsFromGMT(for: date)
         let offset = String(format: "%@%02d:%02d", seconds < 0 ? "-" : "+", abs(seconds) / 3600, abs(seconds) % 3600 / 60)
         return String(format: "%04d-%02d-%02dT%02d:%02d:%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0, c.hour ?? 0, c.minute ?? 0, c.second ?? 0) + offset
-    }
-
-    /// Brings `stamps` in step with a change to `text`: `replacement` takes the place of `range`. `text` is the text
-    /// before the change. Lines pushed down by a new line keep their time, lines that go away lose theirs, and a
-    /// line that gets its first text in this change is given `now`. Typing in a line never changes its time.
-    public static func edit(stamps: inout [Date?], in text: String, replacing range: NSRange, with replacement: String, now: Date) {
-        let old = text as NSString
-        let lineCount = text.components(separatedBy: "\n").count
-        while stamps.count < lineCount { stamps.append(nil) }
-        if stamps.count > lineCount { stamps.removeLast(stamps.count - lineCount) }
-
-        let range = NSRange(location: min(range.location, old.length), length: min(range.length, old.length - min(range.location, old.length)))
-        let before = old.substring(to: range.location)
-        let startLine = before.reduce(0) { $0 + ($1 == "\n" ? 1 : 0) }
-        let removed = old.substring(with: range).reduce(0) { $0 + ($1 == "\n" ? 1 : 0) }
-        let inserted = replacement.reduce(0) { $0 + ($1 == "\n" ? 1 : 0) }
-
-        // A new line typed at the very start of a line pushes that line down, and the line pushed down keeps its time
-        let atLineStart = range.location == 0 || old.character(at: range.location - 1) == 0x0A
-        let pushesDown = atLineStart && range.length == 0 && inserted > 0 && replacement.hasSuffix("\n")
-
-        if removed > 0 {
-            // Deleting whole lines, from the start of one: those lines go and the line after them keeps its own time.
-            // Otherwise the line the deleted text began in keeps its time, and the lines joined onto it lose theirs.
-            let wholeLines = atLineStart && replacement.isEmpty
-            let first = wholeLines ? startLine : min(startLine + 1, stamps.count)
-            let last = min(wholeLines ? startLine + removed - 1 : startLine + removed, stamps.count - 1)
-            if first <= last { stamps.removeSubrange(first...last) }
-        }
-        if inserted > 0 {
-            let at = pushesDown ? startLine : min(startLine + 1, stamps.count)
-            stamps.insert(contentsOf: [Date?](repeating: nil, count: inserted), at: at)
-        }
-
-        let after = old.replacingCharacters(in: range, with: replacement).components(separatedBy: "\n")
-        while stamps.count < after.count { stamps.append(nil) }
-        if stamps.count > after.count { stamps.removeLast(stamps.count - after.count) }
-        let heading = headingIndex(in: after)
-        for index in startLine...min(startLine + inserted, after.count - 1) {
-            let hasText = !after[index].trimmingCharacters(in: .whitespaces).isEmpty
-            if hasText, stamps[index] == nil, index != heading { stamps[index] = now }
-            if !hasText || index == heading { stamps[index] = nil }
-        }
     }
 }

@@ -55,9 +55,13 @@ final class LogNotesTests: XCTestCase {
         XCTAssertEqual(LogLines.serialize(text: log.text, stamps: log.stamps, calendar: calendar), content)
     }
 
-    func testBlankLinesGetNoMarkerAndTrailingSpacesAreTrimmedBeforeOne() {
-        let out = LogLines.serialize(text: "a  \n\n   \nb", stamps: [morning, morning, morning, nil], calendar: calendar)
-        XCTAssertEqual(out, "2026-11-05T11:34:00+05:30 a  \n\n   \nb")
+    func testOnlyLinesWithATimeGetOneAndALineWithOnlyATimeKeepsIt() {
+        let out = LogLines.serialize(text: "a\n\nb", stamps: [morning, nil, morning], calendar: calendar)
+        XCTAssertEqual(out, "2026-11-05T11:34:00+05:30 a\n\n2026-11-05T11:34:00+05:30 b")
+        let waiting = "2026-11-05T11:34:00+05:30 "
+        let log = LogLines.parse(waiting, calendar: calendar)
+        XCTAssertEqual(log.text, "")
+        XCTAssertEqual(LogLines.serialize(text: log.text, stamps: log.stamps, calendar: calendar), waiting)
     }
 
     func testTheMarkerIsWrittenAsIsoWithSecondsAndOffset() {
@@ -79,9 +83,6 @@ final class LogNotesTests: XCTestCase {
     func testTheLogHeadingGetsNoTimeButLaterLinesThatLookLikeItDo() {
         let out = LogLines.serialize(text: "Log - gym\nLog - restarted", stamps: [morning, morning], calendar: calendar)
         XCTAssertEqual(out, "Log - gym\n2026-11-05T11:34:00+05:30 Log - restarted")
-        var stamps: [Date?] = []
-        LogLines.edit(stamps: &stamps, in: "", replacing: NSRange(location: 0, length: 0), with: "Log - gym", now: morning)
-        XCTAssertEqual(stamps, [nil])
     }
 
     func testAStampedFirstLineIsStillALogHeading() {
@@ -98,81 +99,6 @@ final class LogNotesTests: XCTestCase {
         let log = LogLines.parse("note about ⏱ 2026-11-05 11:34 and more", calendar: calendar)
         XCTAssertEqual(log.text, "note about ⏱ 2026-11-05 11:34 and more")
         XCTAssertEqual(log.stamps, [nil])
-    }
-
-    // MARK: Keeping the times in step with typing
-
-    private func edit(_ stamps: inout [Date?], _ text: String, _ location: Int, _ length: Int = 0, _ replacement: String, now: Date? = nil) {
-        LogLines.edit(stamps: &stamps, in: text, replacing: NSRange(location: location, length: length), with: replacement, now: now ?? morning)
-    }
-
-    func testTypingInALineNeverChangesItsTime() {
-        var stamps: [Date?] = [at(9, 0), at(10, 0)]
-        edit(&stamps, "first\nsecond", 3, 0, "XYZ")
-        XCTAssertEqual(stamps, [at(9, 0), at(10, 0)])
-    }
-
-    func testTheFirstTextInALineGivesItTheTime() {
-        var stamps: [Date?] = [at(9, 0), nil]
-        edit(&stamps, "first\n", 6, 0, "n", now: at(12, 30))
-        XCTAssertEqual(stamps, [at(9, 0), at(12, 30)])
-    }
-
-    func testPressingReturnAtTheEndOfALineMakesANewLineWithoutATimeUntilItHasText() {
-        var stamps: [Date?] = [at(9, 0)]
-        edit(&stamps, "first", 5, 0, "\n")
-        XCTAssertEqual(stamps, [at(9, 0), nil])
-        edit(&stamps, "first\n", 6, 0, "x", now: at(9, 5))
-        XCTAssertEqual(stamps, [at(9, 0), at(9, 5)])
-    }
-
-    func testPressingReturnAtTheStartOfALinePushesItDownWithItsTime() {
-        var stamps: [Date?] = [at(9, 0), at(10, 0)]
-        edit(&stamps, "first\nsecond", 6, 0, "\n")
-        XCTAssertEqual(stamps, [at(9, 0), nil, at(10, 0)])
-    }
-
-    func testSplittingALineKeepsTheTimeOnTheFirstPart() {
-        var stamps: [Date?] = [at(9, 0)]
-        edit(&stamps, "abcdef", 3, 0, "\n", now: at(9, 30))
-        XCTAssertEqual(stamps, [at(9, 0), at(9, 30)])
-    }
-
-    func testJoiningTwoLinesKeepsTheFirstTime() {
-        var stamps: [Date?] = [at(9, 0), at(10, 0), at(11, 0)]
-        edit(&stamps, "one\ntwo\nthree", 3, 1, "")
-        XCTAssertEqual(stamps, [at(9, 0), at(11, 0)])
-    }
-
-    func testPastingSeveralLinesGivesEachTheTime() {
-        var stamps: [Date?] = [at(9, 0)]
-        edit(&stamps, "one", 3, 0, "\ntwo\nthree", now: at(14, 0))
-        XCTAssertEqual(stamps, [at(9, 0), at(14, 0), at(14, 0)])
-    }
-
-    func testDeletingAWholeLineRemovesItsTimeAndAnEmptiedLineLosesItsTime() {
-        var stamps: [Date?] = [at(9, 0), at(10, 0), at(11, 0)]
-        edit(&stamps, "one\ntwo\nthree", 4, 4, "")
-        XCTAssertEqual(stamps, [at(9, 0), at(11, 0)])
-
-        var emptied: [Date?] = [at(9, 0)]
-        edit(&emptied, "one", 0, 3, "")
-        XCTAssertEqual(emptied, [nil], "a line with no text has no time; typing again starts a new one")
-    }
-
-    func testOldLinesWithoutATimeStayWithoutOneUntilTheyAreEdited() {
-        var stamps: [Date?] = [nil, nil, nil]
-        edit(&stamps, "a\nb\nc", 3, 0, "x", now: at(15, 0))
-        XCTAssertEqual(stamps, [nil, at(15, 0), nil])
-    }
-
-    func testTheTimesAreFittedWhenTheirCountIsWrong() {
-        var stamps: [Date?] = [at(9, 0)]
-        edit(&stamps, "a\nb\nc", 0, 0, "x", now: at(15, 0))
-        XCTAssertEqual(stamps.count, 3)
-        var tooMany: [Date?] = [nil, nil, nil, nil, nil]
-        edit(&tooMany, "a", 1, 0, "b", now: at(15, 0))
-        XCTAssertEqual(tooMany.count, 1)
     }
 
     // MARK: The rest of the app ignores the markers

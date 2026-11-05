@@ -123,7 +123,6 @@ enum EditorFocus {
     static func keepCursor(from old: String, to new: String, attemptsLeft: Int = 10) {
         guard let window = NSApp.mainWindow ?? NSApp.keyWindow,
               let textView = editorTextView(in: window.contentView, showing: old),
-              !(textView is LogTextView),
               window.firstResponder === textView else { return }
         let selection = textView.selectedRange()
         let start = mappedOffset(selection.location, from: old, to: new)
@@ -144,8 +143,7 @@ enum EditorFocus {
 
     private static func editorTextView(in view: NSView?, showing text: String) -> NSTextView? {
         guard let view else { return nil }
-        // A log note's editor shows the text without its time markers, so it is found by what it is
-        if let textView = view as? NSTextView, textView.isEditable, !textView.isFieldEditor, textView.string == text || textView is LogTextView {
+        if let textView = view as? NSTextView, textView.isEditable, !textView.isFieldEditor, textView.string == text {
             return textView
         }
         for subview in view.subviews {
