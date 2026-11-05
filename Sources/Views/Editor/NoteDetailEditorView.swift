@@ -177,7 +177,7 @@ public struct NoteDetailEditorView: View {
         suggestions.update(with: storageManager.notes)
     }
 
-    /// A log note (its title or its first line starts with "Log -") is edited with its times in a column at the right
+    /// A log note (its title or its first line starts with "Log -") is edited with its times in a column at the left
     private var isLogNote: Bool { LogLines.isLog(title: editableTitle, content: editableContent) }
 
     /// The place text is typed into: the log editor for a log note, the plain one for the rest
