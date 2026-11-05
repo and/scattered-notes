@@ -12,6 +12,8 @@ struct NoteLinksPanel: View {
     let index: NoteLinkIndex
     let related: RelatedIndex
     let notes: [UUID: Note]
+    /// Notes close in meaning, or nil when suggestions are turned off
+    let suggested: SuggestedIndex?
     /// Writes `[[Title]]` over a mention of that note
     let onMakeLink: (UUID) -> Void
 
@@ -62,6 +64,7 @@ struct NoteLinksPanel: View {
 
                 // Notes already listed above are not repeated here
                 let similar = related.related(to: noteID, excluding: Set(linkedNotes + backlinks))
+                let listed = Set(linkedNotes + backlinks + similar.map(\.id))
                 if !similar.isEmpty {
                     Text("Related")
                         .font(.caption.weight(.semibold))
@@ -72,6 +75,27 @@ struct NoteLinksPanel: View {
                         if let note = notes[item.id] {
                             LinkRow(note: note, why: why(item))
                         }
+                    }
+                }
+
+                if let suggested {
+                    let ideas = suggested.suggestions(for: noteID, excluding: listed)
+                    if !ideas.isEmpty {
+                        Text("Suggested")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.wcagSecondaryText)
+                            .padding(.horizontal, 4)
+                            .padding(.top, 10)
+                        ForEach(ideas, id: \.id) { idea in
+                            if let note = notes[idea.id] {
+                                LinkRow(note: note, why: "Similar meaning")
+                            }
+                        }
+                        Text("By meaning, worked out on this Mac. Only a guess.")
+                            .font(.caption2)
+                            .foregroundColor(.wcagSecondaryText)
+                            .padding(.horizontal, 4)
+                            .padding(.top, 4)
                     }
                 }
             }

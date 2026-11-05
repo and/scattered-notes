@@ -117,6 +117,13 @@ public struct SettingsView: View {
                     .foregroundColor(.wcagSecondaryText)
             }
 
+            Section("Suggestions") {
+                Toggle("Suggest notes by meaning", isOn: $settings.suggestNotes)
+                Text("The Links column lists notes about the same thing even when the words differ, such as \"dentist\" and \"teeth appointment\". It uses the word model built into macOS, runs on this Mac and sends nothing anywhere. English only, and only a guess: it never changes a note.")
+                    .font(.caption)
+                    .foregroundColor(.wcagSecondaryText)
+            }
+
             Section("Global Shortcuts") {
                 shortcutRow(
                     "Quick Capture",

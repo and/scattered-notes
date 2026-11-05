@@ -4,6 +4,7 @@ import Combine
 public struct NoteDetailEditorView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
     @ObservedObject var settings = AppSettings.shared
+    @ObservedObject var suggestions = SuggestionEngine.shared
     
     /// The note as it was when opened; it only says which note this is
     private let opened: Note
@@ -108,6 +109,7 @@ public struct NoteDetailEditorView: View {
                             index: storageManager.linkIndex,
                             related: storageManager.relatedIndex,
                             notes: Dictionary(storageManager.notes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
+                            suggested: settings.suggestNotes ? suggestions.index : nil,
                             onMakeLink: makeLink
                         )
                     }
@@ -132,6 +134,12 @@ public struct NoteDetailEditorView: View {
             editableContent = changed
             scheduleSave()
         }
+    }
+
+    /// Keeps the meaning vectors of the notes up to date while suggestions are on and the column is open
+    private func updateSuggestions() {
+        guard showLinksPanel, settings.suggestNotes else { return }
+        suggestions.update(with: storageManager.notes)
     }
 
     private var showsAgenda: Bool { showAgendaInspector && !agendaItems.isEmpty }
@@ -339,7 +347,11 @@ public struct NoteDetailEditorView: View {
             .padding(.vertical, 6)
             .background(Color(NSColor.windowBackgroundColor).opacity(0.3))
         }
+        .onReceive(storageManager.$notes) { _ in updateSuggestions() }
+        .onChange(of: showLinksPanel) { _, _ in updateSuggestions() }
+        .onChange(of: settings.suggestNotes) { _, _ in updateSuggestions() }
         .onAppear {
+            updateSuggestions()
             EditorFocus.openNoteID = note.id
             syncFromNote()
             focusEditorIfRequested()

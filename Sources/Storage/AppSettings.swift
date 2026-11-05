@@ -18,6 +18,7 @@ public final class AppSettings: ObservableObject {
     private let storageKeyDefaultEditorFontSize = "settings.editorFontSize"
     private let storageKeyQuickNoteAutoSave = "settings.quickNoteAutoSave"
     private let storageKeyHiddenRecents = "settings.hiddenRecentNotes"
+    private let storageKeySuggestNotes = "settings.suggestNotes"
     private let storageKeyLastNote = "settings.lastNoteID"
     private let storageKeyLastCursor = "settings.lastCursorOffset"
     
@@ -55,6 +56,11 @@ public final class AppSettings: ObservableObject {
             let saved = Dictionary(uniqueKeysWithValues: hiddenRecents.map { ($0.key.uuidString, $0.value.timeIntervalSince1970) })
             defaults.set(saved, forKey: storageKeyHiddenRecents)
         }
+    }
+
+    /// Whether the Links column suggests notes close in meaning, using the word model built into the Mac. Off to begin with.
+    @Published public var suggestNotes: Bool {
+        didSet { defaults.set(suggestNotes, forKey: storageKeySuggestNotes) }
     }
 
     /// The note and cursor position last typed in, kept on this device. Not published: nothing on screen
@@ -113,6 +119,7 @@ public final class AppSettings: ObservableObject {
         let savedFontSize = defaults.double(forKey: storageKeyDefaultEditorFontSize)
         self.editorFontSize = savedFontSize > 0 ? savedFontSize : 14.0
         self.quickNoteAutoSave = defaults.object(forKey: storageKeyQuickNoteAutoSave) as? Bool ?? true
+        self.suggestNotes = defaults.bool(forKey: storageKeySuggestNotes)
         let savedHidden = defaults.dictionary(forKey: storageKeyHiddenRecents) as? [String: Double] ?? [:]
         self.hiddenRecents = savedHidden.reduce(into: [:]) { result, entry in
             if let id = UUID(uuidString: entry.key) { result[id] = Date(timeIntervalSince1970: entry.value) }
