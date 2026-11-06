@@ -79,7 +79,7 @@ public struct NoteDetailEditorView: View {
         HStack(spacing: 0) {
             editorColumn
             // Agenda above Links in one column, so the window keeps three columns however many are open
-            if showsAgenda || showLinksPanel {
+            if showsAgenda || showsLinks {
                 Divider()
                 rightColumn
             }
@@ -92,7 +92,7 @@ public struct NoteDetailEditorView: View {
 
     private var rightColumn: some View {
         GeometryReader { geo in
-            let both = showsAgenda && showLinksPanel
+            let both = showsAgenda && showsLinks
             let handle: CGFloat = 9
             let minimum: CGFloat = 90
             let links = min(max(CGFloat(linksPanelHeight), minimum), max(minimum, geo.size.height - minimum - handle))
@@ -114,7 +114,7 @@ public struct NoteDetailEditorView: View {
                             .onEnded { _ in linksHeightAtDragStart = nil })
                         .onTapGesture(count: 2) { linksPanelHeight = 340 }
                 }
-                if showLinksPanel {
+                if showsLinks {
                     linksPanel.frame(height: both ? links : nil)
                 }
             }
@@ -144,7 +144,10 @@ public struct NoteDetailEditorView: View {
         )
     }
 
-    private var linksPanel: some View {
+    /// The Links column shows only when it is turned on and the note has something to list
+    private var showsLinks: Bool { showLinksPanel && linksPanel.hasContent }
+
+    private var linksPanel: NoteLinksPanel {
         NoteLinksPanel(
             noteID: note.id,
             index: storageManager.linkIndex,

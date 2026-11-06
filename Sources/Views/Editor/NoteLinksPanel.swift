@@ -35,6 +35,16 @@ struct NoteLinksPanel: View {
         }
     }
 
+    /// False when there is nothing to list: no links either way, no related or suggested notes
+    var hasContent: Bool {
+        if !linkedNotes.isEmpty || !backlinks.isEmpty || !unresolved.isEmpty { return true }
+        let shown = Set(linkedNotes + backlinks)
+        let similar = related.related(to: noteID, excluding: shown)
+        if !similar.isEmpty { return true }
+        let listed = shown.union(similar.map(\.id))
+        return suggested.map { !$0.suggestions(for: noteID, excluding: listed).isEmpty } ?? false
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 4) {
@@ -43,8 +53,9 @@ struct NoteLinksPanel: View {
                     .padding(.horizontal, 4)
                     .padding(.bottom, 6)
 
-                section("Links to", ids: linkedNotes, empty: "This note does not mention another note's title. Write a title, or [[Title]], to link.",
-                        makeLink: canMakeLink)
+                if !linkedNotes.isEmpty {
+                    section("Links to", ids: linkedNotes, makeLink: canMakeLink)
+                }
                 if !unresolved.isEmpty {
                     Text("No note with this title")
                         .font(.caption.weight(.semibold))
@@ -59,8 +70,10 @@ struct NoteLinksPanel: View {
                             .padding(.vertical, 2)
                     }
                 }
-                section("Linked from", ids: backlinks, empty: "No other note mentions this one.")
-                    .padding(.top, 10)
+                if !backlinks.isEmpty {
+                    section("Linked from", ids: backlinks)
+                        .padding(.top, 10)
+                }
 
                 // Notes already listed above are not repeated here
                 let similar = related.related(to: noteID, excluding: Set(linkedNotes + backlinks))
@@ -113,18 +126,11 @@ struct NoteLinksPanel: View {
     }
 
     @ViewBuilder
-    private func section(_ title: String, ids: [UUID], empty: String, makeLink: Set<UUID> = []) -> some View {
+    private func section(_ title: String, ids: [UUID], makeLink: Set<UUID> = []) -> some View {
         Text(title)
             .font(.caption.weight(.semibold))
             .foregroundColor(.wcagSecondaryText)
             .padding(.horizontal, 4)
-        if ids.isEmpty {
-            Text(empty)
-                .font(.caption)
-                .foregroundColor(.wcagSecondaryText)
-                .padding(.horizontal, 4)
-                .padding(.top, 2)
-        }
         ForEach(ids, id: \.self) { id in
             if let note = notes[id] {
                 LinkRow(note: note, onMakeLink: makeLink.contains(id) ? { onMakeLink(id) } : nil)
@@ -167,6 +173,17 @@ private struct LinkRow: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(note.displayTitle)
                         .lineLimit(1)
+                    if note.categoryType == .project, let project = note.targetName {
+                        Text(project)
+                            .font(.caption.weight(.medium))
+                            .foregroundColor(.wcagPurple)
+                            .lineLimit(1)
+                    } else if note.categoryType == .inbox {
+                        Text("Inbox")
+                            .font(.caption.weight(.medium))
+                            .foregroundColor(.wcagOrange)
+                            .lineLimit(1)
+                    }
                     if let why {
                         Text(why)
                             .font(.caption)

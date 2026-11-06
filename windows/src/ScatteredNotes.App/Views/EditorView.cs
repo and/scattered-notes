@@ -337,9 +337,12 @@ internal sealed class EditorView : UserControl
     /// Reads the saved text, so a new mention shows up a moment after typing stops.</summary>
     private void RefreshLinks()
     {
-        _linksPane.IsVisible = s_showLinks;
-        _rightPane.IsVisible = _agendaPane.IsVisible || s_showLinks;
-        if (!s_showLinks) return;
+        if (!s_showLinks)
+        {
+            _linksPane.IsVisible = false;
+            _rightPane.IsVisible = _agendaPane.IsVisible;
+            return;
+        }
 
         var note = CurrentNote();
         var notes = _state.Store.Notes;
@@ -355,21 +358,27 @@ internal sealed class EditorView : UserControl
                                         && byId.TryGetValue(t, out var target) && NoteLinkIndex.ExplicitText(target.DisplayTitle) is not null)
             .GroupBy(l => l.Target!.Value).ToDictionary(g => g.Key, g => g.First());
 
+        var unresolved = links.Where(l => l.Target is null).GroupBy(l => l.Text.ToLowerInvariant()).Select(g => g.First()).ToList();
+        var similar = new RelatedIndex(notes).RelatedTo(note.Id, excluding: linked.Concat(backlinks).ToHashSet());
+        // Nothing to list: hide the whole column
+        var hasContent = linked.Count > 0 || backlinks.Count > 0 || unresolved.Count > 0 || similar.Count > 0;
+        _linksPane.IsVisible = hasContent;
+        _rightPane.IsVisible = _agendaPane.IsVisible || hasContent;
+        if (!hasContent) return;
+
         _linksList.Children.Clear();
         _linksList.Children.Add(new TextBlock { Text = "Links", FontSize = 15, FontWeight = FontWeight.SemiBold, Margin = new Thickness(4, 0, 0, 6) });
 
-        LinkSection("Links to", linked, byId, "This note does not mention another note's title. Write a title, or [[Title]], to link.", makeLink);
-        var unresolved = links.Where(l => l.Target is null).GroupBy(l => l.Text.ToLowerInvariant()).Select(g => g.First()).ToList();
+        LinkSection("Links to", linked, byId, makeLink);
         if (unresolved.Count > 0)
         {
             _linksList.Children.Add(SectionTitle("No note with this title"));
             foreach (var link in unresolved)
                 _linksList.Children.Add(new TextBlock { Text = $"[[{link.Text}]]", FontSize = 13, Margin = new Thickness(4, 2) }.Themed(TextBlock.ForegroundProperty, "WcagOrange"));
         }
-        LinkSection("Linked from", backlinks, byId, "No other note mentions this one.", null);
+        LinkSection("Linked from", backlinks, byId, null);
 
         // Notes already listed above are not repeated here
-        var similar = new RelatedIndex(notes).RelatedTo(note.Id, excluding: linked.Concat(backlinks).ToHashSet());
         if (similar.Count > 0)
         {
             _linksList.Children.Add(SectionTitle("Related"));
@@ -385,17 +394,10 @@ internal sealed class EditorView : UserControl
     private static TextBlock SectionTitle(string title) =>
         Ui.Text(title, 12, FontWeight.SemiBold, "WcagSecondaryText").With(t => t.Margin = new Thickness(4, 12, 0, 2));
 
-    private void LinkSection(string title, IReadOnlyList<Guid> ids, Dictionary<Guid, Note> byId, string empty, Dictionary<Guid, NoteLink>? makeLink)
+    private void LinkSection(string title, IReadOnlyList<Guid> ids, Dictionary<Guid, Note> byId, Dictionary<Guid, NoteLink>? makeLink)
     {
+        if (ids.Count == 0) return;
         _linksList.Children.Add(SectionTitle(title));
-        if (ids.Count == 0)
-        {
-            _linksList.Children.Add(Ui.Text(empty, 12, brushKey: "WcagSecondaryText").With(t =>
-            {
-                t.TextWrapping = TextWrapping.Wrap;
-                t.Margin = new Thickness(4, 2);
-            }));
-        }
         foreach (var id in ids)
         {
             if (!byId.TryGetValue(id, out var other)) continue;
@@ -408,6 +410,10 @@ internal sealed class EditorView : UserControl
     {
         var text = new StackPanel { Spacing = 1, VerticalAlignment = VerticalAlignment.Center };
         text.Children.Add(Ui.Text(other.DisplayTitle, 13).With(t => t.TextTrimming = TextTrimming.CharacterEllipsis));
+        if (other.CategoryType == CategoryType.Project && !string.IsNullOrEmpty(other.TargetName))
+            text.Children.Add(Ui.Text(other.TargetName, 11, FontWeight.Medium, "WcagPurple").With(t => t.TextTrimming = TextTrimming.CharacterEllipsis));
+        else if (other.CategoryType == CategoryType.Inbox)
+            text.Children.Add(Ui.Text("Inbox", 11, FontWeight.Medium, "WcagOrange"));
         if (why is not null) text.Children.Add(Ui.Text(why, 11, brushKey: "WcagSecondaryText").With(t => t.TextTrimming = TextTrimming.CharacterEllipsis));
         var open = new Button
         {
