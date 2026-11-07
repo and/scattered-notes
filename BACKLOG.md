@@ -155,6 +155,14 @@ Structure the app as levels, and make every Esc go up one level:
 - Tests: two entries a day apart, a gap over the limit, entries out of order, a line with no stamp, a `#break` override, a day that crosses midnight, a stamp with another UTC offset.
 - Open questions: should the person mark breaks by a tag instead of guessing from words? Should a summary be shareable, for example as text to paste into a report?
 
+### Reminders: a notification for what is due
+- [ ] The apps never alert on their own: a to-do or dated line shows on the Dashboard only when the app is opened. Send a notification, on the iPhone first and then Mac, Windows and Android, when an item is due today or overdue, so "call the bank tomorrow" reaches the person without opening the app.
+- Open questions: at what time of day for a line that has a day but no time? A daily summary or one alert per item? Tapping an alert should open the note at that line. Done items and snoozed ones must not alert.
+
+### Calendar integration
+- [ ] Connect the Dashboard to the calendar directly. Two directions to weigh: show calendar events beside the dated lines on the Dashboard, and write a dated line or to-do into a calendar (Apple Calendar through EventKit on Mac and iPhone; Google and Outlook calendars later, and Windows and Android through their own calendar APIs).
+- Open questions: read only, or write too? One calendar for Scattered Notes or the person's choice? A line with no time becomes an all-day event. Keep the note as the source: a changed event in the calendar must not rewrite the note without asking.
+
 ## Done
 
 _Nothing yet._
