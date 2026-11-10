@@ -155,6 +155,11 @@ Structure the app as levels, and make every Esc go up one level:
 - Tests: two entries a day apart, a gap over the limit, entries out of order, a line with no stamp, a `#break` override, a day that crosses midnight, a stamp with another UTC offset.
 - Open questions: should the person mark breaks by a tag instead of guessing from words? Should a summary be shareable, for example as text to paste into a report?
 
+### Autocomplete for projects, tags and people
+- [ ] Typing `+`, `#` or `@` in a note or in Quick Capture opens a short list of matching names, filtered as you type: projects after `+`, existing tags after `#`, people already mentioned after `@`. ↑↓ choose, Return or Tab completes the name, Esc closes the list and leaves the text as typed.
+- Covers the "Quick Capture: pick a project inline" item above for `+`; do the two together, with one shared list of suggestions for the Mac editor, Quick Capture and the iPhone.
+- Open questions: should the list show how many notes use a tag or name? Should a new name, one with no match, be offered as "Create"? Should the log editor offer it too?
+
 ### Reminders: a notification for what is due
 - [ ] The apps never alert on their own: a to-do or dated line shows on the Dashboard only when the app is opened. Send a notification, on the iPhone first and then Mac, Windows and Android, when an item is due today or overdue, so "call the bank tomorrow" reaches the person without opening the app.
 - Open questions: at what time of day for a line that has a day but no time? A daily summary or one alert per item? Tapping an alert should open the note at that line. Done items and snoozed ones must not alert.
