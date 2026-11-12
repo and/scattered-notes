@@ -48,15 +48,36 @@ public struct Note: Identifiable, Hashable, Sendable {
         let lines = content.components(separatedBy: .newlines)
         for line in lines {
             // The dates the app writes into lines are for the dashboard, not for a title
-            var trimmed = AgendaExtractor.withoutMarkers(line).trimmingCharacters(in: .whitespaces)
+            var trimmed = Self.withoutProjectMarks(AgendaExtractor.withoutMarkers(line)).trimmingCharacters(in: .whitespaces)
             if trimmed.hasPrefix("#") {
                 trimmed = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "# " ))
             }
             if !trimmed.isEmpty {
-                return trimmed
+                return Self.concise(trimmed)
             }
         }
         return "Untitled Note"
+    }
+
+    /// `text` without its `+project` marks: the project is shown on its own, so it is not part of a title
+    static func withoutProjectMarks(_ text: String) -> String {
+        var result = text
+        for mark in Mentions.marks(in: text).reversed() where mark.kind == .project {
+            result.removeSubrange(mark.range)
+        }
+        return result.split(separator: " ", omittingEmptySubsequences: true).joined(separator: " ")
+    }
+
+    /// A title taken from a line of text stops at the last whole word within `maxTitleLength` characters
+    static let maxTitleLength = 60
+
+    static func concise(_ line: String) -> String {
+        guard line.count > maxTitleLength else { return line }
+        let cut = line.prefix(maxTitleLength)
+        if let space = cut.lastIndex(of: " "), cut.distance(from: cut.startIndex, to: space) > maxTitleLength / 2 {
+            return String(cut[..<space])
+        }
+        return String(cut)
     }
     
     public var previewExcerpt: String {

@@ -3,6 +3,8 @@ import SwiftUI
 public struct QuickCaptureView: View {
     @ObservedObject var storageManager = NoteStorageManager.shared
     @ObservedObject var settings = AppSettings.shared
+    /// Which panel this view is in: with several panels open, only its own closing files its note
+    let token: UUID
     var onDismiss: () -> Void
     
     @State private var noteContent: String = ""
@@ -14,7 +16,8 @@ public struct QuickCaptureView: View {
     @State private var autoSaveTimer: Timer?
     @FocusState private var isEditorFocused: Bool
     
-    public init(onDismiss: @escaping () -> Void) {
+    public init(token: UUID = UUID(), onDismiss: @escaping () -> Void) {
+        self.token = token
         self.onDismiss = onDismiss
     }
 
@@ -55,6 +58,8 @@ public struct QuickCaptureView: View {
                             .foregroundColor(destinationColor)
                         Text(destination ?? "Inbox")
                             .font(.system(size: 13, weight: .semibold))
+                            .lineLimit(1)
+                            .fixedSize()
                             .foregroundColor(destinationColor)
                         Image(systemName: "chevron.up.chevron.down")
                             .font(.system(size: 9, weight: .bold))
@@ -98,19 +103,34 @@ public struct QuickCaptureView: View {
                         .allowsHitTesting(false)
                 }
                 
-                TextEditor(text: $noteContent)
-                    .accessibilityIdentifier("quickNoteText")
-                    .font(.system(size: 15))
-                    .lineSpacing(4)
-                    .focused($isEditorFocused)
-                    .scrollContentBackground(.hidden)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .onChange(of: noteContent) { _, _ in
-                        scheduleAutoSave()
+                // A note that starts with "Log -" is a log: monospaced, and Return starts the next line with the time
+                Group {
+                    if isLogNote {
+                        LogEditorView(content: $noteContent, fontSize: 15)
+                    } else {
+                        TextEditor(text: $noteContent)
+                            .accessibilityIdentifier("quickNoteText")
+                            .font(.system(size: 15))
+                            .lineSpacing(4)
+                            .focused($isEditorFocused)
+                            .scrollContentBackground(.hidden)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
                     }
+                }
+                .onChange(of: noteContent) { _, _ in
+                    scheduleAutoSave()
+                }
+                .onChange(of: isLogNote) { _, isLog in
+                    // Typing "Log -" swaps the editor, which loses the cursor: put it back at the end of what was typed
+                    DispatchQueue.main.async {
+                        if isLog { Self.focusTextView(endingAt: noteContent) } else { isEditorFocused = true }
+                    }
+                }
             }
-            .frame(minHeight: 250, maxHeight: .infinity)
+            .frame(minHeight: 0, maxHeight: .infinity)
+            // A lighter sheet for the writing, so it stands apart from the bars above and below
+            .background(Color(NSColor.textBackgroundColor).opacity(0.85))
             
             Divider()
                 .opacity(0.4)
@@ -134,7 +154,7 @@ public struct QuickCaptureView: View {
                     Button(action: { saveNote() }) {
                         HStack(spacing: 6) {
                             Image(systemName: "arrow.up.circle.fill")
-                            Text("Save Note")
+                            Text("Save Note").lineLimit(1).fixedSize()
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -147,16 +167,19 @@ public struct QuickCaptureView: View {
                     .disabled(isBlank)
                 }
             }
+            // When the panel is narrower than the bar, the end is cut off: the bar keeps its height
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .clipped()
             .background(Color(NSColor.windowBackgroundColor).opacity(0.4))
         }
-        .frame(minWidth: 660, minHeight: 390)
+        .frame(minWidth: 0, minHeight: 0)
         .onAppear {
             isEditorFocused = true
         }
-        .onReceive(NotificationCenter.default.publisher(for: QuickCapturePanel.willHideNotification)) { _ in
-            panelWillHide()
+        .onReceive(NotificationCenter.default.publisher(for: QuickCapturePanel.willHideNotification)) { notification in
+            if notification.userInfo?["token"] as? UUID == token { panelWillHide() }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
             // Quitting with Quick Note open files the note as closing it would
@@ -168,6 +191,22 @@ public struct QuickCaptureView: View {
                 pickedProject = createdName
             }
         }
+    }
+
+    private var isLogNote: Bool { LogLines.isLog(title: "", content: noteContent) }
+
+    /// Puts the cursor at the end of the text in the log editor of the key window
+    private static func focusTextView(endingAt text: String) {
+        guard let window = NSApp.keyWindow, let view = window.contentView,
+              let textView = logTextView(in: view) else { return }
+        window.makeFirstResponder(textView)
+        textView.setSelectedRange(NSRange(location: (text as NSString).length, length: 0))
+    }
+
+    private static func logTextView(in view: NSView) -> NSTextView? {
+        if let textView = view as? NSTextView { return textView }
+        for sub in view.subviews { if let found = logTextView(in: sub) { return found } }
+        return nil
     }
 
     private var isBlank: Bool {
@@ -186,12 +225,16 @@ public struct QuickCaptureView: View {
             Label(pending ? "Saving…" : "Saved to \(draft?.destinationDisplay ?? "Inbox")",
                   systemImage: pending ? "ellipsis.circle" : "checkmark.circle.fill")
                 .font(.system(size: 12, weight: .medium))
+                .lineLimit(1)
+                .fixedSize()
                 .foregroundColor(pending ? .wcagSecondaryText : .wcagGreen)
                 .help("Quick Note saves as you type. Close it or press Esc when you're done.")
                 .accessibilityIdentifier("quickNoteStatus")
         } else {
             Text("Saves as you type")
                 .font(.system(size: 12))
+                .lineLimit(1)
+                .fixedSize()
                 .foregroundColor(.wcagSecondaryText)
         }
     }
@@ -255,20 +298,23 @@ public struct QuickCaptureView: View {
         onDismiss()
     }
 
-    /// Files the note in its destination, creating a new project if needed, without the
-    /// `+project` mark. Updates `existing` when auto-save already wrote the note.
+    /// Files the note in its destination, creating a new project if needed. Updates `existing` when auto-save already wrote the note.
     private func file(content: String, replacing existing: Note?) {
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         let project = destination
         if let project, !storageManager.projects.contains(where: { $0.name.caseInsensitiveCompare(project) == .orderedSame }) {
             storageManager.createProject(name: project)
         }
-        let cleaned = Note.removeProjectTag(from: trimmed, targetName: project)
-        let finalContent = cleaned.isEmpty ? (project ?? trimmed) : cleaned
+        // The `+project` stays in the text, so a sentence ending in it still reads whole; the title leaves it out.
+        // A note that is only the mark takes the project's name as its text.
+        let onlyMark = Note.removeProjectTag(from: trimmed, targetName: project).isEmpty
+        let finalContent = onlyMark ? (project ?? trimmed) : trimmed
         let category: CategoryType = project == nil ? .inbox : .project
 
         if var note = existing {
             note.content = finalContent
+            // A title taken from the text while auto-saving may still hold the `+project`: take it again
+            note.title = ""
             note.tags = Note.tags(in: finalContent)
             note.categoryType = category
             note.targetName = project
@@ -325,6 +371,8 @@ public struct ShortcutBadge: View {
         HStack(spacing: 4) {
             Text(key)
                 .font(.system(size: 11, weight: .bold, design: .rounded))
+                .lineLimit(1)
+                .fixedSize()
                 .foregroundColor(.primary)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
@@ -333,6 +381,8 @@ public struct ShortcutBadge: View {
                 .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.wcagBorder, lineWidth: 1))
             Text(label)
                 .font(.system(size: 11, weight: .medium))
+                .lineLimit(1)
+                .fixedSize()
                 .foregroundColor(.wcagSecondaryText)
         }
     }

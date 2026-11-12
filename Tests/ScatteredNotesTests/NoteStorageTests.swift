@@ -60,6 +60,20 @@ final class NoteStorageTests: XCTestCase {
         XCTAssertEqual(stats?.total, 4)
     }
     
+    func testDerivedTitleLeavesOutProjectMarkAndStaysShort() {
+        XCTAssertEqual(Note(title: "", content: "+dsa in a graph, how does depth first traversal work?").displayTitle,
+                       "in a graph, how does depth first traversal work?")
+        XCTAssertEqual(Note(title: "", content: "How does it work +dsa today?").displayTitle, "How does it work today?")
+        // A line that is only the mark gives way to the next line
+        XCTAssertEqual(Note(title: "", content: "+dsa\nGraph notes").displayTitle, "Graph notes")
+        let long = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen"
+        let title = Note(title: "", content: long).displayTitle
+        XCTAssertLessThanOrEqual(title.count, 60)
+        XCTAssertTrue(long.hasPrefix(title))
+        // A title the person wrote is kept as it is
+        XCTAssertEqual(Note(title: "+dsa " + long, content: "x").displayTitle, "+dsa " + long)
+    }
+
     func testFallbackDisplayTitle() {
         let noteWithoutTitle = Note(
             title: "",

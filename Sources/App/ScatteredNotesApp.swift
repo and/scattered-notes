@@ -38,7 +38,7 @@ struct ScatteredNotesApp: App {
             }
             CommandGroup(after: .newItem) {
                 ShortcutMenuButton("Quick Capture...", shortcut: settings.quickCaptureShortcut) {
-                    QuickCapturePanel.shared.showPanel()
+                    QuickCapturePanel.present()
                 }
                 ShortcutMenuButton("Search All Notes...", shortcut: settings.searchShortcut) {
                     AppRouter.showSearch()

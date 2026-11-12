@@ -430,7 +430,10 @@ public struct NoteDetailEditorView: View {
         .alert("Delete Note?", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
+                let id = note.id
                 storageManager.delete(note: note)
+                // The editor falls back to the note it opened with, so the window must close it
+                NotificationCenter.default.post(name: .noteDeleted, object: nil, userInfo: ["id": id])
             }
         } message: {
             Text("Are you sure you want to delete \"\(note.displayTitle)\"? This will remove the file from disk.")

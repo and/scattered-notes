@@ -20,6 +20,7 @@
 		1872E7E92C3CF73C6B017248 /* HotKeyShortcut.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03D20E702B0BC2FDE2CFB3E2 /* HotKeyShortcut.swift */; };
 		1D34C31FA778B6831038AEAB /* MarkdownRendererView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4CCC19D990F14AD784DEA18 /* MarkdownRendererView.swift */; };
 		1EF2683DABB00DCFD918E027 /* DateChangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E1E4C847117A4B5FB07431C /* DateChangeTests.swift */; };
+		288636FAFF8C01C5324E5174 /* MentionSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25BE36F9F44B39E2B4A36736 /* MentionSuggestions.swift */; };
 		2E9AA846D54A62AA43D50C0C /* EscapeToClose.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F12A0D2E17C2710B8D65D87 /* EscapeToClose.swift */; };
 		341991C0F36CD8363C043A86 /* LogEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74345D6F5E63BF7428571121 /* LogEditorView.swift */; };
 		3483249CAB3A137BF2610A1C /* DateChangeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 902E2C1B11CC5833814D1547 /* DateChangeLog.swift */; };
@@ -65,6 +66,7 @@
 		C71F96560F7401D47A4C82C4 /* RecentNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1663FB998C240137E1E14F9 /* RecentNotes.swift */; };
 		C7A6F4DDF1ECF5089012A199 /* NoteListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 202431C403B4EE6DC8459AFA /* NoteListView.swift */; };
 		CBE177BC02CC684AAC4A5BC9 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AD0995BDF9BB09527A428A5 /* DashboardView.swift */; };
+		CC6DE34F730B4BA9BD9F6298 /* MentionCompleter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9B29C37FE68652DE745DF8C /* MentionCompleter.swift */; };
 		D2009F65079FAFFE30ABC90E /* SuggestedNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 447ADB681941C88A36E68380 /* SuggestedNotes.swift */; };
 		D74320944DAC68EB643B94CB /* HotKeyShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C433EEA1D6AD573F06C1EF /* HotKeyShortcutTests.swift */; };
 		D8D237A04D13BF8DE6792BFE /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = B889F6C7CEFC77B495D6B9EF /* Note.swift */; };
@@ -73,6 +75,7 @@
 		DF9B73C808CF70126D7B9F72 /* GoToTargetsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E1F87265BFD4EA2FC02BF7 /* GoToTargetsTests.swift */; };
 		E2267CCBBB615C692CE7FBEF /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491DCCFBF499B26B1D779C28 /* SidebarView.swift */; };
 		E479A56499A04DF6CAB8FB39 /* Agenda.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93BD501F2CA7D78018D55F8E /* Agenda.swift */; };
+		E6EEFBF03CB44B9FB83BA56C /* MentionSuggestionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0260760D9FD9012B9EABDE3 /* MentionSuggestionsTests.swift */; };
 		EFC81B64E1028A15F96663F3 /* LogNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8414B67AA268B0882567B3CF /* LogNotes.swift */; };
 		F149166311926455470F93BC /* Mentions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E1FFEF5A7BA337A5A309572 /* Mentions.swift */; };
 		F372E6C07FB37F89B90A6184 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 97843A3D2B3A3C64BE0C4BE1 /* AppIcon.icns */; };
@@ -114,6 +117,7 @@
 		1B34D2E0C09DC2BD854A8F38 /* NoteStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStorageTests.swift; sourceTree = "<group>"; };
 		202431C403B4EE6DC8459AFA /* NoteListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteListView.swift; sourceTree = "<group>"; };
 		254C136DED09B4C7C19ED46E /* NoteSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteSearchTests.swift; sourceTree = "<group>"; };
+		25BE36F9F44B39E2B4A36736 /* MentionSuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MentionSuggestions.swift; sourceTree = "<group>"; };
 		2E1E4C847117A4B5FB07431C /* DateChangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateChangeTests.swift; sourceTree = "<group>"; };
 		344441BC7B12B0A0E93F4577 /* RelatedNotes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelatedNotes.swift; sourceTree = "<group>"; };
 		34B14D0E8F2DBAA7519142E2 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
@@ -178,7 +182,9 @@
 		D8E1F87265BFD4EA2FC02BF7 /* GoToTargetsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoToTargetsTests.swift; sourceTree = "<group>"; };
 		E9CD20AE23EA70422AE47AC4 /* ScatteredNotesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScatteredNotesApp.swift; sourceTree = "<group>"; };
 		EEC4876ED3B6A6C20056A98A /* GoToTargets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoToTargets.swift; sourceTree = "<group>"; };
+		F0260760D9FD9012B9EABDE3 /* MentionSuggestionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MentionSuggestionsTests.swift; sourceTree = "<group>"; };
 		F1663FB998C240137E1E14F9 /* RecentNotes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentNotes.swift; sourceTree = "<group>"; };
+		F9B29C37FE68652DE745DF8C /* MentionCompleter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MentionCompleter.swift; sourceTree = "<group>"; };
 		FAA8DB7BC71F2EC7F36226CB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -247,6 +253,7 @@
 				374310DE4DD88F63CBA00541 /* LastPlace.swift */,
 				8414B67AA268B0882567B3CF /* LogNotes.swift */,
 				8E1FFEF5A7BA337A5A309572 /* Mentions.swift */,
+				25BE36F9F44B39E2B4A36736 /* MentionSuggestions.swift */,
 				C02A45CF1F1A2277EBA71592 /* NewNoteDraft.swift */,
 				B889F6C7CEFC77B495D6B9EF /* Note.swift */,
 				8A73F051FEC348027263F2B8 /* NoteLinks.swift */,
@@ -290,6 +297,7 @@
 				11611F4CE500E91CAD3E994E /* LoadTimeTests.swift */,
 				1865BE45238895FAB5EE3D0E /* LogNotesTests.swift */,
 				3B12D3C8D1EE610F2BCD601B /* MentionsTests.swift */,
+				F0260760D9FD9012B9EABDE3 /* MentionSuggestionsTests.swift */,
 				C38B9F7A466F072C18EDA54C /* NewNoteDraftTests.swift */,
 				435B83CDB4B5B48DC8BBD82A /* NoteDragTests.swift */,
 				752DE5E2829669EACA4B7918 /* NoteLinksTests.swift */,
@@ -343,6 +351,7 @@
 				170DD4DE854F67793DE1C60B /* EditorFocus.swift */,
 				74345D6F5E63BF7428571121 /* LogEditorView.swift */,
 				C4CCC19D990F14AD784DEA18 /* MarkdownRendererView.swift */,
+				F9B29C37FE68652DE745DF8C /* MentionCompleter.swift */,
 				5D02043D9ABD795220D6229E /* NoteDetailEditorView.swift */,
 				8B0A3E44B46D9520DE3ADB62 /* NoteLinksPanel.swift */,
 			);
@@ -569,6 +578,8 @@
 				EFC81B64E1028A15F96663F3 /* LogNotes.swift in Sources */,
 				F83DBA831F68E107C3442BBD /* MainSplitView.swift in Sources */,
 				1D34C31FA778B6831038AEAB /* MarkdownRendererView.swift in Sources */,
+				CC6DE34F730B4BA9BD9F6298 /* MentionCompleter.swift in Sources */,
+				288636FAFF8C01C5324E5174 /* MentionSuggestions.swift in Sources */,
 				F149166311926455470F93BC /* Mentions.swift in Sources */,
 				5C4963482F909A41C7279613 /* MenuBarView.swift in Sources */,
 				46BA841BEA73FFD4D0BD209E /* NewNoteDraft.swift in Sources */,
@@ -613,6 +624,7 @@
 				D74320944DAC68EB643B94CB /* HotKeyShortcutTests.swift in Sources */,
 				142BBA093243EB781E6637F4 /* LoadTimeTests.swift in Sources */,
 				40CBCD53AA637C5BF2C3F396 /* LogNotesTests.swift in Sources */,
+				E6EEFBF03CB44B9FB83BA56C /* MentionSuggestionsTests.swift in Sources */,
 				78C4FC5DAC45F87BB5E09115 /* MentionsTests.swift in Sources */,
 				72A93EFD96C6A2FB7AF61647 /* NewNoteDraftTests.swift in Sources */,
 				11E541442BC18D7DFC24C08F /* NoteDragTests.swift in Sources */,

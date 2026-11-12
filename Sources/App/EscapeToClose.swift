@@ -28,6 +28,8 @@ enum EscapeToClose {
 
     /// Returns true when the event closed a window and should not be delivered further.
     private static func handle(_ event: NSEvent) -> Bool {
+        // Esc closes the name list of a +project, #tag or @person first
+        if MentionCompleter.shared.isShowing { return false }
         guard event.keyCode == 53,
               event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty,
               !isRecordingShortcut,

@@ -3,6 +3,8 @@ import SwiftUI
 extension Notification.Name {
     /// Asks the main window to open the note whose id is in `userInfo["id"]`
     static let openNote = Notification.Name("ScatteredNotes.openNote")
+    /// Tells the main window that the editor deleted the note whose id is in `userInfo["id"]`
+    static let noteDeleted = Notification.Name("ScatteredNotes.noteDeleted")
 }
 
 /// Right-margin column of the editor: the notes this note mentions, and the notes that mention it.

@@ -7,6 +7,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     public func applicationDidFinishLaunching(_ notification: Notification) {
         EscapeToClose.install()
+        MentionCompleter.shared.install()
         // Remember the size and place of the main window, so it opens as it was left
         NotificationCenter.default.addObserver(self, selector: #selector(windowBecameKey(_:)),
                                                name: NSWindow.didBecomeKeyNotification, object: nil)
@@ -19,7 +20,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         let hotKeys = GlobalHotKeyManager.shared
         let settings = AppSettings.shared
 
-        hotKeys.setAction(.quickCapture) { QuickCapturePanel.shared.toggle() }
+        hotKeys.setAction(.quickCapture) { QuickCapturePanel.present() }
         hotKeys.setAction(.search) { AppRouter.showSearch() }
 
         // @Published emits on willSet, so hop to the next main-queue turn to read the new values

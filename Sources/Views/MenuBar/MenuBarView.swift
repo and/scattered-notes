@@ -10,7 +10,7 @@ public struct MenuBarView: View {
     public var body: some View {
         VStack {
             Button(action: {
-                QuickCapturePanel.shared.showPanel()
+                QuickCapturePanel.present()
             }) {
                 Label("Quick Capture...  \(settings.quickCaptureShortcut.displayString)", systemImage: "bolt.fill")
             }

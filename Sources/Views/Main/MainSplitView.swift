@@ -31,7 +31,7 @@ public struct MainSplitView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 Button(action: {
-                    QuickCapturePanel.shared.showPanel()
+                    QuickCapturePanel.present()
                 }) {
                     Label("Quick Capture (\(settings.quickCaptureShortcut.displayString))", systemImage: "bolt.fill")
                 }
@@ -66,6 +66,13 @@ public struct MainSplitView: View {
                   let note = storageManager.notes.first(where: { $0.id == id }) else { return }
             selectedNote = note
             if !sidebarSelection.listScope.contains(note) { sidebarSelection = .all }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .noteDeleted)) { notification in
+            // Close the deleted note; a Dashboard scope shows its Dashboard, the others show the empty pane
+            if let id = notification.userInfo?["id"] as? UUID, selectedNote?.id == id {
+                selectedNote = nil
+                if case .note = sidebarSelection { sidebarSelection = .all }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .showGoTo)) { _ in
             showingGoTo = true
