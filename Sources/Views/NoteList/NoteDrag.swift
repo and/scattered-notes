@@ -26,9 +26,16 @@ struct NoteDropTarget: ViewModifier {
     let selection: SidebarSelection
     @Binding var highlighted: SidebarSelection?
     let onDrop: (UUID, SidebarSelection) -> Bool
+    /// How far past its text a row takes a drop
+    private static let reach: CGFloat = 6
 
     func body(content: Content) -> some View {
         content
+            // The row's content is only as tall as its text, so the drop area is widened to the whole row:
+            // padded out to the row's edges here, then pulled back so the layout stays as it was
+            .padding(.vertical, Self.reach)
+            .padding(.horizontal, Self.reach)
+            .contentShape(Rectangle())
             .dropDestination(for: String.self) { payloads, _ in
                 guard let id = payloads.lazy.compactMap(NoteDrag.noteID).first else { return false }
                 return onDrop(id, selection)
@@ -39,6 +46,8 @@ struct NoteDropTarget: ViewModifier {
                     highlighted = nil
                 }
             }
+            .padding(.vertical, -Self.reach)
+            .padding(.horizontal, -Self.reach)
             .overlay(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .strokeBorder(Color.wcagBlue, lineWidth: 2)
