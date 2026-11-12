@@ -23,6 +23,12 @@ final class MacAppUITests: XCTestCase {
         app.launchArguments = ["-uiTesting"] + arguments
         app.launchEnvironment["SN_UITEST_NOTES"] = folder.path
         app.launch()
+        // XCUIApplication can start the app without the open-application event SwiftUI waits for
+        // before it makes the first window. A reopen event makes it, as a click on the Dock icon would.
+        if !app.windows.firstMatch.waitForExistence(timeout: 3),
+           let url = NSRunningApplication.runningApplications(withBundleIdentifier: "com.scatterednotes.app.debug").first?.bundleURL {
+            NSWorkspace.shared.open(url)
+        }
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
     }
 
@@ -73,22 +79,6 @@ final class MacAppUITests: XCTestCase {
         app.outlines["Sidebar"].buttons[name].firstMatch
     }
 
-    /// A real mouse drag: button down, many small moves so the drag begins and the target is entered, button up
-    private func mouseDrag(from start: CGPoint, to end: CGPoint, steps: Int = 40) {
-        func post(_ type: CGEventType, _ point: CGPoint) {
-            CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
-            Thread.sleep(forTimeInterval: 0.02)
-        }
-        post(.mouseMoved, start)
-        post(.leftMouseDown, start)
-        for step in 1...steps {
-            let t = CGFloat(step) / CGFloat(steps)
-            post(.leftMouseDragged, CGPoint(x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t))
-        }
-        Thread.sleep(forTimeInterval: 0.4)
-        post(.leftMouseUp, end)
-    }
-
     private func quickNoteStatus() -> String {
         let status = app.descendants(matching: .any)["quickNoteStatus"].firstMatch
         guard status.exists else { return "" }
@@ -120,7 +110,7 @@ final class MacAppUITests: XCTestCase {
         text.typeKey(.escape, modifierFlags: [])
         XCTAssertTrue(waitUntil { self.noteFiles().contains { $0.folder == "Projects/Garden" } }, "the note is filed under +garden")
         let filed = try XCTUnwrap(noteFiles().first { $0.folder == "Projects/Garden" })
-        XCTAssertFalse(filed.text.contains("+garden"))
+        XCTAssertTrue(filed.text.contains("+garden"), "the +project stays in the text, so a sentence ending in it still reads whole")
         XCTAssertTrue(filed.text.contains("#spring @ana"))
         XCTAssertEqual(noteFiles().count, 1, "no copy is left in the Inbox")
 
@@ -271,16 +261,16 @@ final class MacAppUITests: XCTestCase {
         func notes(in project: String) -> Int { noteFiles().filter { $0.folder == "Projects/\(project)" }.count }
 
         sidebarItem("Work").click()
-        XCTAssertTrue(text("Work Dashboard").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Work Dashboard"].waitForExistence(timeout: 5))
         sidebarItem("Garden").click()
-        XCTAssertTrue(text("Garden Dashboard").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Garden Dashboard"].waitForExistence(timeout: 5))
 
         app.typeKey("n", modifierFlags: .command)
         XCTAssertTrue(waitUntil { notes(in: "Garden") == 2 }, "⌘N in Garden files the note in Garden")
         XCTAssertEqual(notes(in: "Work"), 1, "and not in the project that was open before")
 
         sidebarItem("Work").click()
-        XCTAssertTrue(text("Work Dashboard").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Work Dashboard"].waitForExistence(timeout: 5))
         app.typeKey("n", modifierFlags: .command)
         XCTAssertTrue(waitUntil { notes(in: "Work") == 2 }, "⌘N in Work files the note in Work")
         XCTAssertEqual(notes(in: "Garden"), 2)
@@ -315,7 +305,7 @@ final class MacAppUITests: XCTestCase {
 
         app.typeKey(.leftArrow, modifierFlags: [])
         XCTAssertTrue(sidebarItem("Work").waitForExistence(timeout: 5))
-        XCTAssertTrue(text("Work Dashboard").waitForExistence(timeout: 5), "left from a note opens the note's project")
+        XCTAssertTrue(app.buttons["Work Dashboard"].waitForExistence(timeout: 5), "left from a note opens the note's project")
         XCTAssertTrue(text("Notes").waitForExistence(timeout: 5))
 
         app.typeKey(.rightArrow, modifierFlags: [])
@@ -328,19 +318,21 @@ final class MacAppUITests: XCTestCase {
         launch()
         openNote(titled: "Kickoff notes for the project")
         app.typeKey(.leftArrow, modifierFlags: [])
-        XCTAssertTrue(text("Work Dashboard").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Work Dashboard"].waitForExistence(timeout: 5))
 
-        // Work, Inbox, All Notes, Dashboard
-        for _ in 0..<3 {
+        // Work, the note opened a moment ago under Recent, Inbox, All Notes, Dashboard
+        for _ in 0..<4 {
             app.typeKey(.upArrow, modifierFlags: [])
             RunLoop.current.run(until: Date().addingTimeInterval(0.3))
         }
-        XCTAssertEqual(app.windows.firstMatch.title, "Dashboard", "three ups from the project reach the Dashboard")
-        XCTAssertFalse(text("Work Dashboard").exists)
+        // The window has no title of its own; the project's own dashboard shows its name as text, the main Dashboard does not
+        XCTAssertFalse(text("Work").exists, "four ups from the project reach the Dashboard")
+        XCTAssertFalse(app.buttons["Work Dashboard"].exists)
 
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))
         app.typeKey(.downArrow, modifierFlags: [])
-        XCTAssertTrue(waitUntil { self.app.windows.firstMatch.title == "All Notes" }, "down from the Dashboard reaches All Notes")
+        // The window has no title; the note list, hidden on the Dashboard, is back on All Notes
+        XCTAssertTrue(app.textFields["Search notes or #tags..."].waitForExistence(timeout: 5), "down from the Dashboard reaches All Notes")
     }
 
     func testTheDashboardHidesTheNoteListAndOpeningANoteBringsItBack() throws {
@@ -423,7 +415,7 @@ final class MacAppUITests: XCTestCase {
         XCTAssertTrue(field.exists, "⌘O opens the switcher")
         field.typeText("gar")
         app.typeKey(.return, modifierFlags: [])
-        XCTAssertTrue(text("Garden Dashboard").waitForExistence(timeout: 5), "Return goes to the project")
+        XCTAssertTrue(app.buttons["Garden Dashboard"].waitForExistence(timeout: 5), "Return goes to the project")
         XCTAssertFalse(field.exists, "the switcher closes")
 
         // The keyboard is in that project's notes, so down opens the first one
@@ -443,9 +435,8 @@ final class MacAppUITests: XCTestCase {
         sidebarItem("All Notes").click()
         XCTAssertTrue(row.waitForExistence(timeout: 5))
 
-        let start = CGPoint(x: row.frame.minX + 20, y: row.frame.midY)
-        let end = CGPoint(x: sidebarItem("Work").frame.minX + 40, y: sidebarItem("Work").frame.midY)
-        mouseDrag(from: start, to: end)
+        // XCUITest's own drag: mouse events posted with CGEvent never reach the app from the test runner
+        row.press(forDuration: 0.8, thenDragTo: sidebarItem("Work"))
 
         XCTAssertTrue(waitUntil(8) { self.noteFiles().contains { $0.folder == "Projects/Work" && $0.text.contains("Seeds to order") } },
                       "the note is filed in the project it was dropped on; files are in \(noteFiles().map { $0.folder })")

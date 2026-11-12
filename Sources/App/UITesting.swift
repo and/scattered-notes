@@ -18,5 +18,7 @@ enum UITesting {
         settings.quickNoteAutoSave = !ProcessInfo.processInfo.arguments.contains("-manualQuickNote")
         UserDefaults.standard.removeObject(forKey: "dashboard.showCompleted")
         UserDefaults.standard.removeObject(forKey: "dashboard.completedExpanded")
+        // The Links toggle is saved between runs, so a test that clicks it would hide the column on every second run
+        UserDefaults.standard.removeObject(forKey: "showLinksPanel")
     }
 }

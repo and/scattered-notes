@@ -135,6 +135,8 @@ public struct NoteListView: View {
                             .foregroundColor(.wcagSecondaryText)
                     }
                     .menuStyle(.borderlessButton)
+                    // The arrow icon says it is a menu; the extra chevron was drawn over it in a 24 pt frame
+                    .menuIndicator(.hidden)
                     .frame(width: 24)
                     .help("Sort by")
                     
@@ -187,11 +189,12 @@ public struct NoteListView: View {
                                         isHighlighted: note.id == highlight.noteID)
                                 .id(note.id)
                                 .contentShape(Rectangle())
-                                .draggable(NoteDrag.payload(for: note))
                                 .onTapGesture {
                                     selectedNote = note
                                     listFocused = true
                                 }
+                                // Not `.draggable`: on a List row next to the tap gesture it never started a drag
+                                .onDrag { NSItemProvider(object: NoteDrag.payload(for: note) as NSString) }
                                 .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
                                 .listRowSeparator(.hidden)
                                 .contextMenu {
