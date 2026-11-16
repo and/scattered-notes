@@ -18,6 +18,7 @@
 		3E3A053231165064ADF7AFC7 /* NotesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F89A6234F19D44FE0CBB5C54 /* NotesScreen.swift */; };
 		40A07774F0C2482491AC15EB /* NoteLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 237E5603C54C78C9B26AD019 /* NoteLinks.swift */; };
 		425D856627D328B3A710779B /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9239C823B200641C2208AC33 /* AppSettings.swift */; };
+		4894ED19DE02E5DEFD461CAC /* MentionSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AFAF0DA46305CCD13BA3299 /* MentionSuggestions.swift */; };
 		49DB0D1035128C08EE69DBED /* RelatedNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86491A3D4FC176BABD36DEDD /* RelatedNotes.swift */; };
 		4DDDDF31159C12D46CE55400 /* LogNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BDC9E9F3C99F76DF54CBF56 /* LogNotes.swift */; };
 		50F240A1AF5524E67951EDD0 /* Agenda.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38D1F8C22FD49142B075ACA2 /* Agenda.swift */; };
@@ -73,6 +74,7 @@
 		5327CF0E0274516F4DB4628F /* NoteEditorScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorScreen.swift; sourceTree = "<group>"; };
 		5B3F1CF6D489A827D197852B /* ScatteredNotesiOSTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ScatteredNotesiOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5FEC646301993D8BE35DEF35 /* ScatteredNotesiOSUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ScatteredNotesiOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6AFAF0DA46305CCD13BA3299 /* MentionSuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MentionSuggestions.swift; sourceTree = "<group>"; };
 		6B03FDB52ACFFD7EC8DCE1BC /* LogTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTextEditor.swift; sourceTree = "<group>"; };
 		6E81A5377DB18C4501D70848 /* AgendaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaTests.swift; sourceTree = "<group>"; };
 		7125F8351E4EF3DC0D9E3F64 /* NoteSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteSearch.swift; sourceTree = "<group>"; };
@@ -141,6 +143,7 @@
 				13DFFE65BCD8BD908F47B56A /* LastPlace.swift */,
 				3BDC9E9F3C99F76DF54CBF56 /* LogNotes.swift */,
 				137CF5D5728347FBF63F20E7 /* Mentions.swift */,
+				6AFAF0DA46305CCD13BA3299 /* MentionSuggestions.swift */,
 				A9099280E14BB102C0B47431 /* Note.swift */,
 				237E5603C54C78C9B26AD019 /* NoteLinks.swift */,
 				7125F8351E4EF3DC0D9E3F64 /* NoteSearch.swift */,
@@ -349,6 +352,7 @@
 				D5F851901FEDEEAA696BB5C8 /* LastPlace.swift in Sources */,
 				4DDDDF31159C12D46CE55400 /* LogNotes.swift in Sources */,
 				6E329076DCE158C7F51F6F3F /* LogTextEditor.swift in Sources */,
+				4894ED19DE02E5DEFD461CAC /* MentionSuggestions.swift in Sources */,
 				B89E5C8DFAC59A2593D80A4D /* Mentions.swift in Sources */,
 				6D2DFAC4DE2D5C16B4E33D2D /* Note.swift in Sources */,
 				2804231FC3DD5FF47E0B7538 /* NoteEditorScreen.swift in Sources */,
