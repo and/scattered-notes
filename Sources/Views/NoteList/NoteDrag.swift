@@ -27,8 +27,8 @@ struct NoteDropTarget: ViewModifier {
     @Binding var highlighted: SidebarSelection?
     let onDrop: (UUID, SidebarSelection) -> Bool
     /// How far a sidebar row reaches past its label to its edges: the space the list leaves around it
-    private static let reachX: CGFloat = 9
-    private static let reachY: CGFloat = 4
+    private static let reachX: CGFloat = 8
+    private static let reachY: CGFloat = 7.5
 
     func body(content: Content) -> some View {
         content
