@@ -103,10 +103,6 @@ Structure the app as levels, and make every Esc go up one level:
 ### New notes made inside a project belong to it
 - [ ] Covered for the ✎ button. Cover every way to create a note (⌘N, the menu, Quick Capture with a project open) with one shared code path and a test per entry point. See the ⌘N item above.
 
-### iPhone: browse projects, people and tags
-- [ ] The iPhone app has no list of projects or people. Projects show only on each note row and in Quick Capture's destination picker. `@name` mentions are found only by typing them in search. Add a Browse screen, opened from a button on the Notes tab (or as a tab), listing Inbox, each project, each person and each tag with its note count. Tapping one shows its notes. Same levels as the navigation item above.
-- [ ] Reuse the Mac sidebar's counting logic (`people(in:)` and the tag lists in `NoteStorageManager`) so both apps agree.
-
 ### Project kanban view with a work-in-progress limit
 - [ ] Make the Projects section clickable to show a kanban board.
 - Columns by status (for example Next, In progress, Done). In progress is capped (default 3). The person can raise it to 4, 5 or more.
@@ -170,5 +166,10 @@ Structure the app as levels, and make every Esc go up one level:
 - Open questions: read only, or write too? One calendar for Scattered Notes or the person's choice? A line with no time becomes an all-day event. Keep the note as the source: a changed event in the calendar must not rewrite the note without asking.
 
 ## Done
+
+### iPhone: browse projects, people and tags
+- [x] Shipped in 1.3.7 (`dadc11f`) as an Apple Notes style Folders list. The iPhone app had no list of projects or people. Projects show only on each note row and in Quick Capture's destination picker. `@name` mentions are found only by typing them in search. Add a Browse screen, opened from a button on the Notes tab (or as a tab), listing Inbox, each project, each person and each tag with its note count. Tapping one shows its notes. Same levels as the navigation item above.
+- [x] Reuse the Mac sidebar's counting logic (`people(in:)` and the tag lists in `NoteStorageManager`) so both apps agree.
+
 
 _Nothing yet._
