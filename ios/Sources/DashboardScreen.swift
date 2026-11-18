@@ -5,6 +5,9 @@ struct DashboardScreen: View {
     @ObservedObject private var storage = NoteStorageManager.shared
     @State private var isCapturing = false
     @State private var query = ""
+    /// True for the moments after launch while iCloud hands over the notes, so an empty list is not
+    /// taken for "nothing planned"
+    @State private var isSettling = true
     /// Everything ticked earlier starts folded away
     @AppStorage("dashboard.completedExpanded") private var completedExpanded = false
 
@@ -33,6 +36,10 @@ struct DashboardScreen: View {
 
                 if snapshot.isEmpty && !terms.isEmpty {
                     ContentUnavailableView.search(text: query)
+                        .listRowBackground(Color.clear)
+                } else if snapshot.isEmpty && isSettling && storage.notes.isEmpty {
+                    ProgressView("Loading notes")
+                        .frame(maxWidth: .infinity)
                         .listRowBackground(Color.clear)
                 } else if snapshot.isEmpty {
                     ContentUnavailableView(
@@ -78,6 +85,7 @@ struct DashboardScreen: View {
                 }
             }
             .navigationTitle("Dashboard")
+            .task { try? await Task.sleep(for: .seconds(3)); isSettling = false }
             .searchable(text: $query, prompt: "Search the dashboard")
             .navigationDestination(for: Note.ID.self) { NoteEditorScreen(noteID: $0) }
             .refreshable { NotesFolder.refresh() }

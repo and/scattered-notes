@@ -43,6 +43,10 @@ enum NotesFolder {
         if !ICloudFolder.contains(settings.notesDirectoryURL) {
             settings.notesDirectoryURL = AppSettings.defaultNotesDirectoryURL
         }
+        // iCloud only lets the app see its folder once the container has been asked for, and a first
+        // read before that finds no notes. Asking starts now, off the main thread, rather than after
+        // the first screen is drawn
+        Task.detached(priority: .userInitiated) { _ = FileManager.default.url(forUbiquityContainerIdentifier: ICloudFolder.containerID) }
         // Runs after launch, once the storage manager exists
         Task { await useICloud(settings: settings) }
     }
