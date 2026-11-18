@@ -103,8 +103,9 @@ Structure the app as levels, and make every Esc go up one level:
 ### New notes made inside a project belong to it
 - [ ] Covered for the ✎ button. Cover every way to create a note (⌘N, the menu, Quick Capture with a project open) with one shared code path and a test per entry point. See the ⌘N item above.
 
-### iPhone: see projects
-- [ ] The iPhone app has no way to browse projects (Quick Capture can file into one). Add a Projects section on the Notes screen or as a tab, listing each project with its note count; tapping one shows its notes. Same levels as the navigation item above.
+### iPhone: browse projects, people and tags
+- [ ] The iPhone app has no list of projects or people. Projects show only on each note row and in Quick Capture's destination picker. `@name` mentions are found only by typing them in search. Add a Browse screen, opened from a button on the Notes tab (or as a tab), listing Inbox, each project, each person and each tag with its note count. Tapping one shows its notes. Same levels as the navigation item above.
+- [ ] Reuse the Mac sidebar's counting logic (`people(in:)` and the tag lists in `NoteStorageManager`) so both apps agree.
 
 ### Project kanban view with a work-in-progress limit
 - [ ] Make the Projects section clickable to show a kanban board.
