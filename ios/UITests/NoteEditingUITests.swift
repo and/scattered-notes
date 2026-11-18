@@ -12,6 +12,11 @@ final class NoteEditingUITests: XCTestCase {
         app.tabBars.buttons["Notes"].tap()
     }
 
+    /// The Notes tab opens on the list of folders; the notes themselves are behind "All Notes"
+    private func openAllNotes() {
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'All Notes'")).firstMatch.tap()
+    }
+
     func testANewNoteStaysOpenWhileNothingIsTyped() {
         app.buttons["New Note"].tap()
         // Longer than the editor waits before saving
@@ -26,6 +31,7 @@ final class NoteEditingUITests: XCTestCase {
         app.textViews.firstMatch.typeText("Buy oat milk")
         sleep(2)
         app.navigationBars.buttons.firstMatch.tap()
+        openAllNotes()
         XCTAssertTrue(app.staticTexts["Buy oat milk"].waitForExistence(timeout: 3))
     }
 
@@ -46,6 +52,7 @@ final class NoteEditingUITests: XCTestCase {
         app.buttons["New Note"].tap()
         sleep(2)
         app.navigationBars.buttons.firstMatch.tap()
+        openAllNotes()
         XCTAssertTrue(app.staticTexts["No notes yet"].waitForExistence(timeout: 3))
     }
 
@@ -59,6 +66,7 @@ final class NoteEditingUITests: XCTestCase {
         sleep(2)
         XCTAssertTrue(app.textFields["Title"].exists, "the note stays open while it is empty")
         app.navigationBars.buttons.firstMatch.tap()
+        openAllNotes()
         XCTAssertTrue(app.staticTexts["No notes yet"].waitForExistence(timeout: 3))
     }
 

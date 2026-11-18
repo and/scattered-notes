@@ -6,6 +6,8 @@ struct NoteEditorScreen: View {
     @ObservedObject private var storage = NoteStorageManager.shared
     @Environment(\.dismiss) private var dismiss
     let noteID: Note.ID?
+    /// The folder, person or tag a new note is started from, which decides where it is filed
+    var startsIn: NoteBrowse.Place?
 
     @State private var title = ""
     @State private var content = ""
@@ -56,9 +58,9 @@ struct NoteEditorScreen: View {
                 }
                 .onAppear {
                     guard !loaded else { return }
-                    if let note { load(note) }
+                    if let note { load(note) } else if let starter = startsIn?.starterText { content = starter }
                     loaded = true
-                    if content.isEmpty { editorFocused = true }
+                    if isNew || content.isEmpty { editorFocused = true }
                 }
                 .onChange(of: [note?.title, note?.content]) { _, _ in
                     // A version saved on another device shows unless something was typed here
@@ -110,11 +112,15 @@ struct NoteEditorScreen: View {
     /// removed when leaving it rather than kept as a blank file.
     private func save(leaving: Bool) {
         guard loaded else { return }
-        let isBlank = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        // The mark a note under a person or tag begins with is not something typed
+        let starter = startsIn?.starterText?.trimmingCharacters(in: .whitespaces)
+        let typed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isBlank = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (typed.isEmpty || typed == starter)
         if isNew {
             guard !isBlank else { return }
-            createdID = storage.createNote(title: title, content: content, tags: Note.tags(in: content)).id
+            let destination = startsIn?.destination
+            createdID = storage.createNote(title: title, content: content, category: destination?.category ?? .inbox,
+                                           targetName: destination?.targetName, tags: Note.tags(in: content)).id
             syncedTitle = title
             syncedContent = content
             return

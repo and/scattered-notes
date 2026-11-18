@@ -80,6 +80,7 @@ targets:
     sources:
       - path: ../Tests/ScatteredNotesTests/AgendaTests.swift
       - path: ../Tests/ScatteredNotesTests/NoteSearchTests.swift
+      - path: ../Tests/ScatteredNotesTests/NoteBrowseTests.swift
     dependencies:
       - target: ScatteredNotesiOS
     settings:
