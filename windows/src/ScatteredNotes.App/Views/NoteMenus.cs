@@ -22,7 +22,7 @@ internal static class NoteMenus
 
         if (note.FilePath is { } path)
         {
-            var reveal = new MenuItem { Header = OperatingSystem.IsWindows() ? "Show in File Explorer" : "Reveal in Finder", Icon = Ui.Icon(Symbol.FolderOpen) };
+            var reveal = new MenuItem { Header = RevealLabel, Icon = Ui.Icon(Symbol.FolderOpen) };
             reveal.Click += (_, _) => RevealFile(path);
             menu.Items.Add(reveal);
         }
@@ -77,5 +77,13 @@ internal static class NoteMenus
             Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = false });
         else if (OperatingSystem.IsMacOS())
             Process.Start("open", ["-R", path]);
+        else if (OperatingSystem.IsLinux())
+            Platform.LinuxDesktop.Reveal(path);
     }
+
+    /// <summary>What the file manager is called on this system.</summary>
+    public static string RevealLabel =>
+        OperatingSystem.IsWindows() ? "Show in File Explorer" :
+        OperatingSystem.IsLinux() ? "Show in Files" :
+        "Reveal in Finder";
 }

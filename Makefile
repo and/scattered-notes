@@ -1,4 +1,4 @@
-.PHONY: project build run test e2e-test ui-test clean
+.PHONY: project build run test e2e-test ui-test clean linux-run linux-test linux-install
 
 project:
 	xcodegen generate
@@ -20,3 +20,15 @@ run: build
 
 clean:
 	rm -rf ./build/DerivedData
+
+# Linux: the Avalonia app in windows/ runs on Ubuntu too. Needs the .NET 10 SDK.
+DOTNET ?= $(shell command -v dotnet || echo $(HOME)/.dotnet/dotnet)
+
+linux-run:
+	DOTNET_ROOT=$(dir $(DOTNET)) $(DOTNET) run --project windows/src/ScatteredNotes.App
+
+linux-test:
+	$(DOTNET) test windows
+
+linux-install:
+	scripts/install-linux.sh

@@ -69,7 +69,7 @@ The screen tests (`UITests`) go through Quick Note, the editor and the dashboard
 | `scripts` | Release script and app icon generator |
 | `ios` | iPhone and iPad app (SwiftUI), sharing `Sources/Models` and `Sources/Storage` |
 | `android` | Android app (Kotlin, Jetpack Compose) |
-| `windows` | Windows app (.NET, Avalonia) |
+| `windows` | Windows and Linux app (.NET, Avalonia) |
 
 ## iPhone and iPad app
 
@@ -93,6 +93,31 @@ Running on a device signs with the team in `ios/project.yml`. The icon is drawn 
 swift scripts/generate_icon.swift --ios ios/Resources/Assets.xcassets/AppIcon.appiconset/icon_1024.png
 sips -s format jpeg icon_1024.png --out /tmp/icon.jpg && sips -s format png /tmp/icon.jpg --out icon_1024.png
 ```
+
+## Linux app
+
+The Windows app in `windows/` (C#, .NET 10, Avalonia) also runs on Linux; there is no separate Linux code base. The Linux-only parts are in `windows/src/ScatteredNotes.App`:
+
+| Part | Linux |
+| :--- | :--- |
+| One running copy (`SingleInstance.cs`) | A lock file and a Unix socket in `$XDG_RUNTIME_DIR`. A later launch passes `--quick-capture`, `--search` or "show" to the running copy and exits |
+| Global shortcuts (`Platform/GnomeShortcuts.cs`) | Wayland doesn't let apps grab keys, so they are GNOME custom shortcuts (set with `gsettings`) that run the app with `--quick-capture` or `--search` |
+| Start at sign-in (`Platform/StartAtLogin.cs`) | `~/.config/autostart/scattered-notes.desktop` |
+| Show in Files (`Platform/LinuxDesktop.cs`) | `org.freedesktop.FileManager1.ShowItems` over D-Bus, else `xdg-open` on the folder |
+| Updates | Not in place: an update opens the release page |
+
+Requirements: the .NET 10 SDK. Ubuntu's own packages may not have it yet; `dotnet-install.sh` installs it in `~/.dotnet` without root:
+
+```bash
+curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0
+export PATH=$HOME/.dotnet:$PATH
+
+make linux-test      # Core tests (same suite as Windows)
+make linux-run       # run a development build
+make linux-install   # scripts/install-linux.sh: self-contained build in ~/.local/share/scattered-notes, plus a launcher
+```
+
+The global shortcuts run whichever copy registered them last. A development build needs .NET on the path to start, which a GNOME shortcut doesn't have, so test the shortcuts with the installed copy (`make linux-install`).
 
 ## Android app
 

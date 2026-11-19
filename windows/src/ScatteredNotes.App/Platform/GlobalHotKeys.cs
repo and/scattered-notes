@@ -13,7 +13,9 @@ public enum HotKeyAction
 /// <summary>
 /// System-wide shortcuts through Win32 <c>RegisterHotKey</c>. Hot keys belong to the thread that registers
 /// them, so a dedicated thread owns them and runs a message loop; other threads post work to it.
-/// On other systems nothing is registered and every registration reports failure.
+/// On Linux the shortcuts are GNOME custom shortcuts (see <see cref="GnomeShortcuts"/>); their key presses
+/// arrive through <see cref="SingleInstance.CommandReceived"/>, not <see cref="Pressed"/>. On a Mac nothing is
+/// registered and every registration reports failure.
 /// </summary>
 internal sealed partial class GlobalHotKeys : IDisposable
 {
@@ -41,6 +43,7 @@ internal sealed partial class GlobalHotKeys : IDisposable
     /// <summary>Registers (or re-registers) a shortcut. Returns false when Windows or another app already uses it.</summary>
     public Task<bool> RegisterAsync(HotKeyAction action, HotKeyShortcut shortcut)
     {
+        if (OperatingSystem.IsLinux()) return Task.Run(() => GnomeShortcuts.Register(action, shortcut));
         if (_thread is null) return Task.FromResult(false);
         var done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         Post(() =>
@@ -52,7 +55,11 @@ internal sealed partial class GlobalHotKeys : IDisposable
         return done.Task;
     }
 
-    public void Unregister(HotKeyAction action) => Post(() => UnregisterHotKey(IntPtr.Zero, (int)action));
+    public void Unregister(HotKeyAction action)
+    {
+        if (OperatingSystem.IsLinux()) GnomeShortcuts.Unregister(action);
+        else if (_thread is not null) Post(() => UnregisterHotKey(IntPtr.Zero, (int)action));
+    }
 
     private void Post(Action work)
     {

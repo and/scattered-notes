@@ -39,7 +39,7 @@ public partial class App : Application
             _hotKeys.Pressed += action => Dispatcher.UIThread.Post(() => OnHotKey(action));
             SettingsWindow.ReapplyHotKeys = RegisterHotKeysAsync;
             _ = RegisterHotKeysAsync();
-            SingleInstance.ShowRequested += () => Dispatcher.UIThread.Post(ShowMain);
+            SingleInstance.CommandReceived += command => Dispatcher.UIThread.Post(() => OnCommand(command));
 
             _updater = new Updater(settings);
             SettingsWindow.CheckForUpdates = () => CheckForUpdatesAsync(userInitiated: true);
@@ -62,7 +62,10 @@ public partial class App : Application
                 store.Dispose();
             };
 
-            if (!args.Contains(StartAtLogin.BackgroundArgument)) ShowMain();
+            // A GNOME shortcut that started the app opens Quick Capture or search straight away
+            var command = SingleInstance.CommandFor(args);
+            if (command != InstanceCommand.Show) OnCommand(command);
+            else if (!args.Contains(StartAtLogin.BackgroundArgument)) ShowMain();
             // Development aid for screenshots: open a note whose title contains the text
             if (Arg("--open-note") is { } title && store.Notes.FirstOrDefault(n => n.DisplayTitle.Contains(title, StringComparison.OrdinalIgnoreCase)) is { } note)
                 _state.OpenNote(note);
@@ -83,6 +86,13 @@ public partial class App : Application
     {
         if (_state is null) return;
         SearchPalette.Show(_state, _main);
+    }
+
+    private void OnCommand(InstanceCommand command)
+    {
+        if (command == InstanceCommand.QuickCapture) ShowCapture();
+        else if (command == InstanceCommand.Search) ShowSearch();
+        else ShowMain();
     }
 
     private void OnHotKey(HotKeyAction action)

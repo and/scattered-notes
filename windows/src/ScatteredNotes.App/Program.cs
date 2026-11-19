@@ -23,7 +23,7 @@ internal static class Program
         }
         Platform.Updater.CleanUpAfterUpdate();
 
-        using var instance = SingleInstance.TryStart();
+        using var instance = SingleInstance.TryStart(args);
         if (instance is null) return;
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args, Avalonia.Controls.ShutdownMode.OnExplicitShutdown);
     }

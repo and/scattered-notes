@@ -54,10 +54,11 @@ internal sealed class SettingsWindow : Window
         _folder = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 12, Classes = { "WcagSecondaryText" } };
         var choose = new Button { Content = "Choose Folder…" };
         choose.Click += async (_, _) => await ChooseFolderAsync();
-        var openFolder = new Button { Content = OperatingSystem.IsWindows() ? "Open in File Explorer" : "Reveal in Finder" };
+        var openFolder = new Button { Content = OperatingSystem.IsWindows() ? "Open in File Explorer" : NoteMenus.RevealLabel };
         openFolder.Click += (_, _) =>
         {
-            if (Directory.Exists(_state.Store.InboxPath)) NoteMenus.RevealFile(_state.Store.InboxPath);
+            var folder = Directory.Exists(_state.Store.InboxPath) ? _state.Store.InboxPath : _state.Store.RootPath;
+            if (Directory.Exists(folder)) NoteMenus.RevealFile(folder);
         };
         var folderCard = Card("Notes folder", Symbol.Folder,
             _folder,
@@ -145,7 +146,11 @@ internal sealed class SettingsWindow : Window
         {
             var reason = OperatingSystem.IsWindows()
                 ? $"{current.DisplayString} is already used by Windows or another app. Pick another shortcut."
-                : "Global shortcuts only work on Windows.";
+                : OperatingSystem.IsLinux() && GnomeShortcuts.IsAvailable
+                    ? $"{current.DisplayString} is already used by another custom shortcut. Pick another shortcut."
+                    : OperatingSystem.IsLinux()
+                        ? "Global shortcuts need GNOME. On other desktops, bind a key to run ScatteredNotes --quick-capture or --search."
+                        : "Global shortcuts only work on Windows and Linux.";
             row.Children.Add(Ui.Row(6, Ui.Icon(Symbol.Warning, 14, "WcagOrange"), new TextBlock { Text = reason, FontSize = 12, TextWrapping = TextWrapping.Wrap, Classes = { "WcagOrange" } }));
         }
         return row;
