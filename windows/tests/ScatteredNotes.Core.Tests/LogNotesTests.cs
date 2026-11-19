@@ -74,51 +74,38 @@ public class LogNotesTests
     }
 
     [Fact]
-    public void TheDashboardDoesNotReadLogTimesAsPlans()
+    public void OnlyACheckboxPutsALogLineOnTheDashboard()
     {
         var log = new Note
         {
             Title = "Orders Log",
-            Content = "# Orders Log\n\n- 2026-11-19 11:46 — PROPOSED BUY 1 TECHM\n- 2026-11-19 12:00 — renew token tomorrow\n",
+            Content = "# Orders Log\n\n- 2026-11-19 11:46 — PROPOSED BUY 1 TECHM\n- 2026-11-19 11:50 — check the fills\n- 2026-11-19 12:00 — renew token tomorrow\n"
+                + "- 2026-11-19 12:05 — You bought 1 TECHM today\n- 2026-11-19 12:10 — [ ] renew token 2026-11-20\n",
             UpdatedAt = Now,
         };
         var items = AgendaExtractor.Items(log, TempStore.Kolkata);
-        // The order line has no date of its own once its time is taken off; a relative word still counts
-        Assert.DoesNotContain(items, i => i.Text.Contains("TECHM"));
-        Assert.Contains(items, i => i.Text.Contains("renew token") && i.Date == new DateOnly(2026, 11, 20));
+        var only = Assert.Single(items);
+        Assert.True(only.IsTodo);
+        Assert.Contains("renew token", only.Text);
+        Assert.Equal(new DateOnly(2026, 11, 20), only.Date);
 
-        // The same lines in a note that isn't a log are dated as before
-        var plain = log with { Title = "Orders", Content = log.Content.Replace("# Orders Log", "# Orders") };
-        Assert.Contains(AgendaExtractor.Items(plain, TempStore.Kolkata), i => i.Text.Contains("TECHM") && i.Date == new DateOnly(2026, 11, 19));
+        // The same lines in a note that isn't a log are read as before
+        var plain = new Note { Title = "Orders", Content = "# Orders\n\n- check the fills\nrenew token tomorrow\n", UpdatedAt = Now };
+        var plainItems = AgendaExtractor.Items(plain, TempStore.Kolkata);
+        Assert.Contains(plainItems, i => i.Text.Contains("check the fills") && i.IsTodo);
+        Assert.Contains(plainItems, i => i.Text.Contains("renew token") && i.Date == new DateOnly(2026, 11, 20));
     }
 
     [Fact]
-    public void AnEntryThatReadsLikeAPlanIsNotATodoInALog()
-    {
-        var log = new Note
-        {
-            Title = "Orders Log",
-            Content = "# Orders Log\n\n- 2026-11-19 11:46 — check the fills\n- 2026-11-19 12:00 — [ ] renew token\n- 2026-11-19 12:10 — send report tomorrow\n",
-            UpdatedAt = Now,
-        };
-        var items = AgendaExtractor.Items(log, TempStore.Kolkata);
-        Assert.DoesNotContain(items, i => i.Text.Contains("check the fills"));
-        Assert.Contains(items, i => i.Text.Contains("send report") && i.Date == new DateOnly(2026, 11, 20));
-
-        // In a note that isn't a log a plain "check the fills" is an open to-do
-        var plain = log with { Title = "Orders", Content = "# Orders\n\n- check the fills\n" };
-        Assert.Contains(AgendaExtractor.Items(plain, TempStore.Kolkata), i => i.Text.Contains("check the fills") && i.IsTodo);
-    }
-
-    [Fact]
-    public void ADailyNoteDoesNotListItsOwnDateOrTimedEntries()
+    public void ADailyNoteListsNothingButItsCheckboxes()
     {
         var daily = new Note
         {
             Title = "2026-11-19",
-            Content = "2026-11-19\n\n- 2026-11-19 09:30 — standup\n- 2026-11-19 10:00 - Created the doc\n09:45 started work\nStatic IP registered\n",
+            Content = "2026-11-19\n\n- 2026-11-19 09:30 — standup\nYou placed your first two real trades today:\n3. You bought 1 TECHM today at ₹1,719.70\nCreated: 2026-11-19\n- [ ] call the bank\n",
             UpdatedAt = Now,
         };
-        Assert.Empty(AgendaExtractor.Items(daily, TempStore.Kolkata));
+        var item = Assert.Single(AgendaExtractor.Items(daily, TempStore.Kolkata));
+        Assert.Equal("call the bank", item.Text);
     }
 }

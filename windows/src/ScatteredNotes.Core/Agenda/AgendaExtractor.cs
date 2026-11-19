@@ -47,18 +47,18 @@ public static class AgendaExtractor
         {
             var trimmed = LineText.TrimWhitespace(isLog ? LogNotes.WithoutStamp(lines[index].Text) : lines[index].Text);
             if (trimmed.Length == 0 || trimmed.StartsWith('#')) continue;
-            // A daily note's own date line ("2026-11-19") names the note; it isn't something planned for that day
-            if (isLog && LogNotes.IsDateOnly(trimmed)) continue;
 
             var checklist = Checklist.State(trimmed);
+            // A log records what happened, so its sentences ("bought 1 TECHM today", "check the fills") aren't plans:
+            // only a checkbox puts a log line on the Dashboard
+            if (isLog && checklist is null) continue;
             var marks = Markers(trimmed);
             var date = marks.Due ?? ParseDate(WithoutMarkers(trimmed), reference, previous);
             if (date is not null) previous = date;
 
             var text = DisplayText(trimmed);
             if (text.Length == 0) continue;
-            // A log line records what happened ("check the fills"), so without a checkbox or a day it isn't a plan
-            var isTodo = checklist is not null || (IsPlannedAction(text) && (!isLog || date is not null));
+            var isTodo = checklist is not null || IsPlannedAction(text);
             if (!isTodo && date is null) continue;
             // "Created: 2026-11-19" says something was done on that day: a completed task, not an open one
             var happened = !isTodo && IsCompletedStatement(text);
