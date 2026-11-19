@@ -91,4 +91,34 @@ public class LogNotesTests
         var plain = log with { Title = "Orders", Content = log.Content.Replace("# Orders Log", "# Orders") };
         Assert.Contains(AgendaExtractor.Items(plain, TempStore.Kolkata), i => i.Text.Contains("TECHM") && i.Date == new DateOnly(2026, 11, 19));
     }
+
+    [Fact]
+    public void AnEntryThatReadsLikeAPlanIsNotATodoInALog()
+    {
+        var log = new Note
+        {
+            Title = "Orders Log",
+            Content = "# Orders Log\n\n- 2026-11-19 11:46 — check the fills\n- 2026-11-19 12:00 — [ ] renew token\n- 2026-11-19 12:10 — send report tomorrow\n",
+            UpdatedAt = Now,
+        };
+        var items = AgendaExtractor.Items(log, TempStore.Kolkata);
+        Assert.DoesNotContain(items, i => i.Text.Contains("check the fills"));
+        Assert.Contains(items, i => i.Text.Contains("send report") && i.Date == new DateOnly(2026, 11, 20));
+
+        // In a note that isn't a log a plain "check the fills" is an open to-do
+        var plain = log with { Title = "Orders", Content = "# Orders\n\n- check the fills\n" };
+        Assert.Contains(AgendaExtractor.Items(plain, TempStore.Kolkata), i => i.Text.Contains("check the fills") && i.IsTodo);
+    }
+
+    [Fact]
+    public void ADailyNoteDoesNotListItsOwnDateOrTimedEntries()
+    {
+        var daily = new Note
+        {
+            Title = "2026-11-19",
+            Content = "2026-11-19\n\n- 2026-11-19 09:30 — standup\n- 2026-11-19 10:00 - Created the doc\n09:45 started work\nStatic IP registered\n",
+            UpdatedAt = Now,
+        };
+        Assert.Empty(AgendaExtractor.Items(daily, TempStore.Kolkata));
+    }
 }
