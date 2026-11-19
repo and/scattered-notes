@@ -69,7 +69,7 @@ Go to the [latest release](https://github.com/and/scattered-notes/releases/lates
 
 **Requirements:** Ubuntu 24.04 or later with the standard GNOME desktop, on Intel, AMD or Arm. Nothing else needs to be installed.
 
-Download it from the [Linux preview release](https://github.com/and/scattered-notes/releases/tag/v1.3.7-linux). Pick `amd64` / `x64` for Intel and AMD PCs, `arm64` for Arm.
+Download it from the [Linux preview release](https://github.com/and/scattered-notes/releases/tag/v1.3.8-linux). Pick `amd64` / `x64` for Intel and AMD PCs, `arm64` for Arm.
 
 - **The .deb (recommended):** download `scattered-notes_<version>_amd64.deb` and open it, or run `sudo apt install ./scattered-notes_*_amd64.deb`. It installs for every user of the computer, in `/opt/scattered-notes`, and asks for your password. Remove it with `sudo apt remove scattered-notes`.
 - **Without admin rights:** download `ScatteredNotes-<version>-linux-x64.tar.gz`, then run `tar -xzf ScatteredNotes-*-linux-*.tar.gz` and `ScatteredNotes-*-linux-*/install.sh`. It installs for you only, in `~/.local/share/scattered-notes`. The unpacked folder can be deleted afterwards.
