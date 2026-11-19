@@ -3,12 +3,14 @@
 #   ~/.local/share/scattered-notes/ScatteredNotes        self-contained, no .NET needed to run it
 #   ~/.local/share/applications/scattered-notes.desktop  shows it in the app grid
 #   ~/.local/share/icons/hicolor/256x256/apps/scattered-notes.png
-# Building needs the .NET 10 SDK (see DEVELOPMENT.md). Run it again to update; notes and settings are kept.
+# In the repo it builds first, which needs the .NET 10 SDK (see DEVELOPMENT.md). In an unpacked release download
+# (ScatteredNotes-<version>-linux-<cpu>.tar.gz) it installs the ScatteredNotes file next to it; nothing else is
+# needed. Run it again to update; notes and settings are kept.
 #
-# Usage: scripts/install-linux.sh             build and install
-#        scripts/install-linux.sh --uninstall remove the app, its launcher and its GNOME shortcuts
+# Usage: install.sh               build (in the repo) and install
+#        install.sh --uninstall   remove the app, its launcher and its GNOME shortcuts
 set -euo pipefail
-cd "$(dirname "$0")/.."
+HERE="$(cd "$(dirname "$0")" && pwd)"
 
 DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 APP_DIR="$DATA/scattered-notes"
@@ -42,18 +44,26 @@ if [[ "${1:-}" == "--uninstall" ]]; then
     exit 0
 fi
 
-DOTNET="$(command -v dotnet || echo "$HOME/.dotnet/dotnet")"
-[[ -x "$DOTNET" ]] || { echo "The .NET 10 SDK is needed to build. See DEVELOPMENT.md." >&2; exit 1; }
-
-OUT="windows/artifacts/$RID"
-"$DOTNET" publish windows/src/ScatteredNotes.App -c Release -r "$RID" -o "$OUT"
+if [[ -x "$HERE/ScatteredNotes" ]]; then
+    # A release download: the app and its icon are next to this script
+    BINARY="$HERE/ScatteredNotes"
+    ICON_SOURCE="$HERE/scattered-notes.png"
+else
+    cd "$HERE/.."
+    DOTNET="$(command -v dotnet || echo "$HOME/.dotnet/dotnet")"
+    [[ -x "$DOTNET" ]] || { echo "The .NET 10 SDK is needed to build. See DEVELOPMENT.md." >&2; exit 1; }
+    OUT="windows/artifacts/$RID"
+    "$DOTNET" publish windows/src/ScatteredNotes.App -c Release -r "$RID" -o "$OUT"
+    BINARY="$PWD/$OUT/ScatteredNotes"
+    ICON_SOURCE="$PWD/windows/src/ScatteredNotes.App/Assets/AppIcon.png"
+fi
 
 # Quit a running copy so its file can be replaced
 pkill -f "^$APP_DIR/ScatteredNotes( |$)" && sleep 1 || true
 mkdir -p "$APP_DIR" "$(dirname "$DESKTOP_FILE")" "$(dirname "$ICON")"
-install -m 755 "$OUT/ScatteredNotes" "$APP_DIR/ScatteredNotes.new"
+install -m 755 "$BINARY" "$APP_DIR/ScatteredNotes.new"
 mv -f "$APP_DIR/ScatteredNotes.new" "$APP_DIR/ScatteredNotes"
-install -m 644 windows/src/ScatteredNotes.App/Assets/AppIcon.png "$ICON"
+install -m 644 "$ICON_SOURCE" "$ICON"
 
 cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]

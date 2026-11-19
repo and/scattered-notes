@@ -187,6 +187,7 @@ Release steps. All apps share one version number; the build number (`CFBundleVer
    - `scripts/release.sh` (Mac). Use `SKIP_NOTARIZE=1 scripts/release.sh` to sign only.
    - `scripts/release-android.sh` (Android APK and Play bundle)
    - `cd windows && dotnet publish src/ScatteredNotes.App -c Release -r win-x64 -o <dir>`, then rename `ScatteredNotes.exe` to `ScatteredNotes-X.Y.Z-windows.exe`
+   - Linux, for `linux-x64` and `linux-arm64`: `dotnet publish src/ScatteredNotes.App -c Release -r <rid> -o <dir>`, then put `ScatteredNotes`, `src/ScatteredNotes.App/Assets/AppIcon.png` renamed to `scattered-notes.png` and `scripts/install-linux.sh` renamed to `install.sh` in a folder `ScatteredNotes-X.Y.Z-<rid>`, packed as `ScatteredNotes-X.Y.Z-<rid>.tar.gz`
 5. Tag and publish on GitHub:
 
    ```bash
