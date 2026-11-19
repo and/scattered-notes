@@ -59,7 +59,11 @@ internal sealed class DashboardView : UserControl
         _panel.Children.Clear();
         _panel.Children.Add(Header(dashboard));
 
-        if (dashboard.IsEmpty) return;
+        if (dashboard.IsEmpty)
+        {
+            if (focused >= 0) _state.RequestFocus(FocusTarget.Sidebar);
+            return;
+        }
 
         if (dashboard.Overdue.Count > 0)
             _panel.Children.Add(Section("Overdue", Symbol.ErrorCircle, "WcagOrange",

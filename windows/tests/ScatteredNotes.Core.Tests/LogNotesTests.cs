@@ -21,6 +21,16 @@ public class LogNotesTests
     [InlineData("Journal", false)]
     public void TellsALogByItsName(string title, bool isLog) => Assert.Equal(isLog, LogNotes.IsLogName(title));
 
+    [Theory]
+    [InlineData("2026-11-19", true)]
+    [InlineData("2026/11/19", true)]
+    [InlineData("19-11-2026", true)]
+    [InlineData("2026-11-19 09:30", true)]
+    [InlineData("2026-11-19 standup", false)]
+    [InlineData("Plans for 2026-11-19", false)]
+    [InlineData("2026", false)]
+    public void ATitleThatIsOnlyADateMakesALog(string title, bool isLog) => Assert.Equal(isLog, LogNotes.IsLog(title, "some text"));
+
     [Fact]
     public void TheFirstLineCanMakeALogToo()
     {

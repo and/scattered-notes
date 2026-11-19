@@ -10,6 +10,7 @@ namespace ScatteredNotes.Core.Models;
 /// <list type="bullet">
 /// <item>A title ending in the word "Log" ("Orders Log", "Workout Log") also makes a log, besides one starting
 /// with "Log -". "Backlog" and "Changelog" don't count.</item>
+/// <item>A title that is only a date ("2026-11-19", a daily note) also makes a log.</item>
 /// <item>A new line copies the time style of the note's last timed line, e.g. <c>- 2026-11-19 11:46 — </c>, so
 /// lines typed in the app look like the tool's. Without one it is the app's own <c>2026-11-19T11:46:07+05:30 </c>.</item>
 /// </list>
@@ -27,8 +28,16 @@ public static partial class LogNotes
     [GeneratedRegex(@"^(?<lead>[ \t]*(?:[-*+][ \t]+)?)(?<date>\d{4}-\d{2}-\d{2})(?<sep>[T ])(?<time>\d{2}:\d{2})(?<sec>:\d{2})?(?<zone>Z|[+-]\d{2}:?\d{2})?(?<gap>[ \t]*[-–—][ \t]+|[ \t]+|$)")]
     private static partial Regex LeadingStamp();
 
-    /// <summary>Whether a note is a log: its title, or the first line of its text, names it one.</summary>
-    public static bool IsLog(string title, string content) => IsLogName(title) || IsLogName(FirstLine(content));
+    /// <summary>A title that is only a date, as in daily notes: 2026-11-19, 19-11-2026, 2026/11/19, 2026.11.19, optionally with a time.</summary>
+    [GeneratedRegex(@"^\s*#*\s*(\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{4})([T ]\d{1,2}[:.]\d{2}([:.]\d{2})?)?\s*$")]
+    private static partial Regex DateOnly();
+
+    /// <summary>Whether a note is a log: its title or the first line of its text names it one, or its title is only a date.</summary>
+    public static bool IsLog(string title, string content) =>
+        IsLogName(title) || IsDateOnly(title) || IsLogName(FirstLine(content));
+
+    /// <summary>A title made of just a date (and maybe a time), like a daily note's.</summary>
+    public static bool IsDateOnly(string? title) => DateOnly().IsMatch(title ?? "");
 
     public static bool IsLog(Note note) => IsLog(note.Title, note.Content);
 
