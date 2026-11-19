@@ -45,7 +45,7 @@ internal sealed class SettingsWindow : Window
     {
         _state = state;
         Title = "Settings";
-        Width = 560;
+        Width = 880;
         SizeToContent = SizeToContent.Height;
         CanResize = false;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -98,9 +98,23 @@ internal sealed class SettingsWindow : Window
             Labeled($"Version {Updater.CurrentVersion}", checkNow),
             Note($"{lastCheck}When a new version is out, Scattered Notes shows what changed and asks before installing it."));
 
-        var stack = new StackPanel { Spacing = 14, Margin = new Thickness(20) };
-        stack.Children.AddRange([folderCard, editorCard, shortcutsCard, startupCard, updatesCard]);
-        Content = new ScrollViewer { Content = stack };
+        // Two columns, so the window is wide rather than tall and fits a small screen
+        var left = new StackPanel { Spacing = 14 };
+        left.Children.AddRange([folderCard, editorCard, startupCard]);
+        var right = new StackPanel { Spacing = 14 };
+        right.Children.AddRange([shortcutsCard, updatesCard]);
+        var columns = new Grid { Margin = new Thickness(20), ColumnSpacing = 14, ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Star) } };
+        Grid.SetColumn(right, 1);
+        columns.Children.AddRange([left, right]);
+        Content = new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = columns };
+
+        // Never taller or wider than the screen; what doesn't fit scrolls
+        Opened += (_, _) =>
+        {
+            if (Screens.ScreenFromWindow(this) is not { } screen) return;
+            MaxHeight = screen.WorkingArea.Height / screen.Scaling - 24;
+            MaxWidth = screen.WorkingArea.Width / screen.Scaling - 24;
+        };
 
         KeyDown += (_, e) =>
         {
