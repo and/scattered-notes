@@ -148,7 +148,7 @@ internal sealed class MainWindow : Window
     private bool HasFocus(FocusTarget target) =>
         target == FocusTarget.Sidebar ? _sidebar.IsKeyboardFocusWithin
         : _state.Selection.Kind == SidebarKind.Dashboard ? _detail.Content is DashboardView { IsKeyboardFocusWithin: true }
-        : _list.IsKeyboardFocusWithin;
+        : _list.ListHasFocus; // not the search box, which is in the same pane
 
     private void ApplyFocus(FocusTarget target)
     {

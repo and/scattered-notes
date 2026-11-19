@@ -34,20 +34,22 @@ internal sealed class NoteListView : UserControl
 
         _search = new TextBox { PlaceholderText = "Search notes or #tags…", InnerLeftContent = Ui.Icon(Symbol.Search, 14, "WcagSecondaryText"), Padding = new Thickness(6, 5) };
         _search.TextChanged += (_, _) => Refresh();
-        _search.KeyDown += (_, e) =>
+        // Tunnelling: the text box uses Down itself (and marks it handled) before a bubbling handler would see it
+        _search.AddHandler(KeyDownEvent, (_, e) =>
         {
-            if (e.Key == Key.Down && _list!.ItemCount > 0)
+            if (e.KeyModifiers != KeyModifiers.None) return;
+            if (e.Key == Key.Down)
             {
-                // Back into the list
-                _list.Focus();
-                if (_list.SelectedItem is null) _list.SelectedIndex = 0;
+                // Back into the list: the Dashboard's first row when it is open, else the open note or the first one
+                _state.RequestFocus(FocusTarget.Content);
                 e.Handled = true;
-                return;
             }
-            if (e.Key != Key.Enter) return;
-            OpenFirstMatch();
-            e.Handled = true;
-        };
+            else if (e.Key == Key.Enter)
+            {
+                OpenFirstMatch();
+                e.Handled = true;
+            }
+        }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
 
         var sortButton = Ui.IconButton(Symbol.ArrowSort, "Sort by", () => { });
         sortButton.Flyout = SortMenu();
@@ -150,6 +152,9 @@ internal sealed class NoteListView : UserControl
     }
 
     public void FocusSearch() => _search.Focus();
+
+    /// <summary>Whether the keyboard is in the list of notes itself, not in the search box above it.</summary>
+    public bool ListHasFocus => _list.IsKeyboardFocusWithin;
 
     private MenuFlyout SortMenu()
     {
