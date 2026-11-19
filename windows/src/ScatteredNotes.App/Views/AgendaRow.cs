@@ -8,11 +8,14 @@ using ScatteredNotes.Core.Models;
 
 namespace ScatteredNotes.App.Views;
 
-/// <summary>One agenda line with a completion circle, used by the dashboard and the editor's agenda column.</summary>
+/// <summary>
+/// One agenda line with a completion circle, used by the dashboard and the editor's agenda column. With
+/// <c>singleLine</c> (the dashboard) a long line is cut to one line with "…", and hovering it shows the whole text.
+/// </summary>
 internal static class AgendaRow
 {
     public static Control Build(AgendaItem item, Action onToggle, string? dateLabel = null, Note? note = null,
-        Action<Note>? onOpenNote = null, IReadOnlyList<string>? details = null)
+        Action<Note>? onOpenNote = null, IReadOnlyList<string>? details = null, bool singleLine = false)
     {
         var toggle = new Button
         {
@@ -30,11 +33,21 @@ internal static class AgendaRow
         var text = new SelectableTextBlock
         {
             Text = item.Text,
-            TextWrapping = TextWrapping.Wrap,
+            TextWrapping = singleLine ? TextWrapping.NoWrap : TextWrapping.Wrap,
+            TextTrimming = singleLine ? TextTrimming.CharacterEllipsis : TextTrimming.None,
             VerticalAlignment = VerticalAlignment.Center,
             TextDecorations = item.IsDone ? TextDecorations.Strikethrough : null,
         };
         if (item.IsDone) text.Classes.Add("WcagSecondaryText");
+        if (singleLine)
+        {
+            ToolTip.SetTip(text, new TextBlock { Text = item.Text, TextWrapping = TextWrapping.Wrap, MaxWidth = 480 });
+            // Only a line that was cut short needs its full text shown
+            text.AddHandler(ToolTip.ToolTipOpeningEvent, (_, e) =>
+            {
+                if (!text.TextLayout.TextLines.Any(line => line.HasCollapsed)) e.Cancel = true;
+            });
+        }
 
         var middle = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
         middle.Children.Add(text);

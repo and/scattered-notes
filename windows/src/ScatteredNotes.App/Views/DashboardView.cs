@@ -189,5 +189,6 @@ internal sealed class DashboardView : UserControl
             () => _state.Store.ToggleChecklistItem(item.NoteId, item.LineIndex),
             dateLabel,
             showNote ? notes.GetValueOrDefault(item.NoteId) : null,
-            note => _state.OpenNote(note));
+            note => _state.OpenNote(note),
+            singleLine: true);
 }
