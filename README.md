@@ -217,6 +217,7 @@ Use `Ctrl` where the table above says `⌘`.
 | `↑` / `↓` | In the sidebar, move through Dashboard, All Notes, Inbox, projects, people and tags as one list; in the notes list, between notes; on the Dashboard, between items |
 | `→` | Sidebar: go on to the notes list (or the first Dashboard item). Notes list: open the note in the editor |
 | `←` | Notes list or Dashboard: back to the sidebar (from All Notes, onto the open note's project) |
+| `←` | In the note's text, with the cursor before the first character: back to the notes list, the note still selected (`Esc` goes back to the Dashboard) |
 | `Space` | On a Dashboard item, tick it or untick it |
 | `↵` | On a Dashboard item, open its note |
 | `Ctrl + Q` | Quit |

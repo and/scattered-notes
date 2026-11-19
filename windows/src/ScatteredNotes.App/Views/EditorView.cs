@@ -313,9 +313,17 @@ internal sealed class EditorView : UserControl
         else _text.ClearValue(TextBox.FontFamilyProperty);
     }
 
-    /// <summary>In a log note, Return starts the new line with the time, in the style of the note's last timed line.</summary>
+    /// <summary>Left at the very start goes back to the notes list. In a log note, Return starts the new line with the time, in the style of the note's last timed line.</summary>
     private void OnTextKeyDown(object? sender, KeyEventArgs e)
     {
+        // As on the Mac: left arrow with the cursor before the first character goes back to the notes list,
+        // the open note still selected, the way left goes from the list to the sidebar
+        if (e.Key == Key.Left && e.KeyModifiers == KeyModifiers.None && _text.SelectionStart == 0 && _text.SelectionEnd == 0)
+        {
+            _state.RequestFocus(FocusTarget.Content);
+            e.Handled = true;
+            return;
+        }
         if (!_isLog || e.Key != Key.Enter || (e.KeyModifiers & ~KeyModifiers.Shift) != KeyModifiers.None) return;
         var text = _text.Text ?? "";
         var start = Math.Min(_text.SelectionStart, _text.SelectionEnd);
