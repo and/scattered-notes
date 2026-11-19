@@ -108,4 +108,16 @@ public class LogNotesTests
         var item = Assert.Single(AgendaExtractor.Items(daily, TempStore.Kolkata));
         Assert.Equal("call the bank", item.Text);
     }
+
+    [Fact]
+    public void ATableRowIsNotAnAgendaItem()
+    {
+        var note = new Note
+        {
+            Title = "Progress",
+            Content = "| Concept | Next review |\n|---|---|\n| Delivery (CNC) vs Intraday (MIS) | 2026-11-20 |\n",
+            UpdatedAt = Now,
+        };
+        Assert.Empty(AgendaExtractor.Items(note, TempStore.Kolkata));
+    }
 }

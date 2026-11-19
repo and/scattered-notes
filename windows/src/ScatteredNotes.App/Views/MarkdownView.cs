@@ -5,6 +5,7 @@ using Avalonia.Controls.Documents;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Markdig;
+using Markdig.Extensions.Tables;
 using Markdig.Extensions.TaskLists;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -67,6 +68,8 @@ internal sealed class MarkdownView : UserControl
                 foreach (var child in quote) inner.Children.Add(BlockView(child));
                 return new Border { BorderThickness = new Thickness(3, 0, 0, 0), Padding = new Thickness(12, 2), Child = inner }
                     .Themed(Border.BorderBrushProperty, "WcagBorder");
+            case Table table:
+                return TableView(table);
             case ThematicBreakBlock:
                 return new Border { Height = 1, Margin = new Thickness(0, 4) }.Themed(Border.BackgroundProperty, "CardBorder");
             case ContainerBlock container:
@@ -78,6 +81,43 @@ internal sealed class MarkdownView : UserControl
             default:
                 return new Border();
         }
+    }
+
+    /// <summary>A pipe table as a grid with cell borders, a bold shaded header row and the columns' alignment, as Obsidian draws it.</summary>
+    private Control TableView(Table table)
+    {
+        var rows = table.OfType<TableRow>().ToList();
+        var columns = rows.Count == 0 ? 0 : rows.Max(r => r.Count);
+        var grid = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
+        for (var c = 0; c < columns; c++) grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto) { MaxWidth = 360 });
+        for (var r = 0; r < rows.Count; r++)
+        {
+            grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            var cells = rows[r].OfType<TableCell>().ToList();
+            for (var c = 0; c < cells.Count; c++)
+            {
+                var cell = cells[c];
+                var text = Inlines((cell.FirstOrDefault() as LeafBlock)?.Inline, 14, rows[r].IsHeader ? FontWeight.SemiBold : FontWeight.Normal);
+                var alignment = c < table.ColumnDefinitions.Count ? table.ColumnDefinitions[c].Alignment : null;
+                text.TextAlignment = alignment switch
+                {
+                    TableColumnAlign.Center => TextAlignment.Center,
+                    TableColumnAlign.Right => TextAlignment.Right,
+                    _ => TextAlignment.Left,
+                };
+                var box = new Border
+                {
+                    BorderThickness = new Thickness(c == 0 ? 1 : 0, r == 0 ? 1 : 0, 1, 1),
+                    Padding = new Thickness(10, 6),
+                    Child = text,
+                }.Themed(Border.BorderBrushProperty, "WcagBorder");
+                if (rows[r].IsHeader) box.Themed(Border.BackgroundProperty, "WcagBadgeBackground");
+                Grid.SetRow(box, r);
+                Grid.SetColumn(box, c);
+                grid.Children.Add(box);
+            }
+        }
+        return new ScrollViewer { HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled, Content = grid };
     }
 
     private Control ListView(ListBlock list)

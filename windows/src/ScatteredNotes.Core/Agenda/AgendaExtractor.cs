@@ -46,7 +46,8 @@ public static class AgendaExtractor
         for (var index = 0; index < lines.Count; index++)
         {
             var trimmed = LineText.TrimWhitespace(isLog ? LogNotes.WithoutStamp(lines[index].Text) : lines[index].Text);
-            if (trimmed.Length == 0 || trimmed.StartsWith('#')) continue;
+            // A row of a table is data, not something planned (`| Delivery | 2026-11-19 | 0 |`)
+            if (trimmed.Length == 0 || trimmed.StartsWith('#') || trimmed.StartsWith('|')) continue;
 
             var checklist = Checklist.State(trimmed);
             // A log records what happened, so its sentences ("bought 1 TECHM today", "check the fills") aren't plans:
