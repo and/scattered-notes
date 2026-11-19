@@ -79,9 +79,19 @@ internal static class AgendaRow
         middle.Margin = new Thickness(8, 0, 0, 0);
         row.Children.Add(middle);
 
-        var hover = new Border { CornerRadius = new CornerRadius(8), Child = row, Background = Brushes.Transparent };
-        hover.PointerEntered += (_, _) => hover.Themed(Border.BackgroundProperty, "HoverBackground");
-        hover.PointerExited += (_, _) => hover.Background = Brushes.Transparent;
+        // Focusable, so the Dashboard can be walked with the arrow keys; the keyboard row looks like the hovered one
+        var hover = new Border { CornerRadius = new CornerRadius(8), Child = row, Background = Brushes.Transparent, Focusable = true };
+        Avalonia.Automation.AutomationProperties.SetName(hover, item.Text);
+        bool pointer = false, focused = false;
+        void Highlight()
+        {
+            if (pointer || focused) hover.Themed(Border.BackgroundProperty, "HoverBackground");
+            else hover.Background = Brushes.Transparent;
+        }
+        hover.PointerEntered += (_, _) => { pointer = true; Highlight(); };
+        hover.PointerExited += (_, _) => { pointer = false; Highlight(); };
+        hover.GotFocus += (_, e) => { focused = e.Source == hover; Highlight(); };
+        hover.LostFocus += (_, _) => { focused = hover.IsFocused; Highlight(); };
         return hover;
     }
 

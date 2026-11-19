@@ -69,8 +69,10 @@ internal sealed class NoteListView : UserControl
         {
             if (!_syncing && _list.SelectedItem is Note note) _state.SelectNote(note);
         };
-        _list.KeyDown += (_, e) =>
+        // Tunnelling, so left and right reach this before the list uses them for its own navigation
+        _list.AddHandler(KeyDownEvent, (_, e) =>
         {
+            if (e.KeyModifiers != KeyModifiers.None) return;
             if (e.Key == Key.Up && _list.SelectedIndex <= 0)
             {
                 // Up from the first note goes to the search box
@@ -78,10 +80,17 @@ internal sealed class NoteListView : UserControl
                 e.Handled = true;
                 return;
             }
-            if (e.Key != Key.Enter || _state.SelectedNote is not { } note) return;
+            if (e.Key == Key.Left)
+            {
+                MoveToSidebar();
+                e.Handled = true;
+                return;
+            }
+            // Return and the right arrow both go on into the note's text
+            if (e.Key is not (Key.Enter or Key.Right) || _state.SelectedNote is not { } note) return;
             _state.OpenNote(note, NoteSearch.Terms(_search.Text ?? ""));
             e.Handled = true;
-        };
+        }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         _list.ContextRequested += (_, e) =>
         {
             if ((e.Source as Control)?.FindAncestorOfType<ListBoxItem>(true)?.DataContext is not Note note) return;
@@ -115,13 +124,32 @@ internal sealed class NoteListView : UserControl
         Refresh();
     }
 
-    public void FocusSearch() => _search.Focus();
+    /// <summary>
+    /// Left from the list goes to the sidebar. From All Notes it lands on the open note's project, as on the Mac,
+    /// so the arrows move on among that project's neighbours.
+    /// </summary>
+    private void MoveToSidebar()
+    {
+        if (_state.Selection.Kind == SidebarKind.All && _state.SelectedNote is { CategoryType: CategoryType.Project, TargetName: { } project })
+            _state.Selection = new SidebarSelection(SidebarKind.Project, project);
+        _state.RequestFocus(FocusTarget.Sidebar);
+    }
 
+    /// <summary>Puts the keyboard in the list, on the open note, or on the first note when none of this list is open.</summary>
     public void FocusList()
     {
-        _list.Focus();
-        if (_list.SelectedItem is null && _list.ItemCount > 0) _list.SelectedIndex = 0;
+        if (_list.ItemCount == 0)
+        {
+            _search.Focus();
+            return;
+        }
+        if (_list.SelectedIndex < 0) _list.SelectedIndex = 0;
+        _list.ScrollIntoView(_list.SelectedIndex);
+        if (_list.ContainerFromIndex(_list.SelectedIndex) is { } row) row.Focus(NavigationMethod.Directional);
+        else _list.Focus(NavigationMethod.Directional);
     }
+
+    public void FocusSearch() => _search.Focus();
 
     private MenuFlyout SortMenu()
     {

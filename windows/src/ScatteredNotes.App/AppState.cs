@@ -41,6 +41,16 @@ public sealed record SidebarSelection(SidebarKind Kind, string? Name = null)
     };
 }
 
+/// <summary>
+/// Where the keyboard goes when moving between panes: the sidebar, or the pane right of it, which is the notes
+/// list, or the Dashboard's items when the Dashboard is open.
+/// </summary>
+public enum FocusTarget
+{
+    Sidebar,
+    Content,
+}
+
 /// <summary>A request to put the cursor in a note's text: after the searched word, or at the end.</summary>
 public sealed record EditorFocusRequest(Guid NoteId, IReadOnlyList<string> Terms);
 
@@ -56,9 +66,16 @@ public sealed class AppState
     /// <summary>Brings the main window forward; set by the app.</summary>
     public Action? ShowMainWindow { get; set; }
 
+    /// <summary>Saves and quits the app (Ctrl+Q); set by the app.</summary>
+    public Action? Quit { get; set; }
+
     public event Action? SelectionChanged;
     public event Action? SelectedNoteChanged;
     public event Action<EditorFocusRequest>? FocusEditorRequested;
+    public event Action<FocusTarget>? FocusRequested;
+
+    /// <summary>Moves the keyboard to a pane of the main window.</summary>
+    public void RequestFocus(FocusTarget target) => FocusRequested?.Invoke(target);
 
     public AppState(AppSettings settings, NoteStore store)
     {
@@ -75,7 +92,10 @@ public sealed class AppState
         {
             if (_selection == value) return;
             _selection = value;
+            // An open note that isn't in the new place is closed, so the editor doesn't keep showing a note the list doesn't
+            if (SelectedNote is { } open && !value.Includes(open)) _selectedNoteId = null;
             SelectionChanged?.Invoke();
+            if (_selectedNoteId is null) SelectedNoteChanged?.Invoke();
         }
     }
 

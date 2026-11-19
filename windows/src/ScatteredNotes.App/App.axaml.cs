@@ -31,7 +31,7 @@ public partial class App : Application
             string? Arg(string name) => Array.IndexOf(args, name) is var i and >= 0 && i + 1 < args.Length ? args[i + 1] : null;
             var settings = new AppSettings(Arg("--settings") ?? AppSettings.DefaultSettingsPath, Arg("--notes-folder"));
             var store = new NoteStore(settings);
-            _state = new AppState(settings, store) { ShowMainWindow = ShowMain };
+            _state = new AppState(settings, store) { ShowMainWindow = ShowMain, Quit = Quit };
             _main = new MainWindow(_state);
 
             SetUpTrayIcon();

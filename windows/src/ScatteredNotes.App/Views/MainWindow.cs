@@ -16,6 +16,7 @@ internal sealed class MainWindow : Window
     private readonly AppState _state;
     private readonly Grid _grid;
     private readonly NoteListView _list;
+    private readonly SidebarView _sidebar;
     private readonly ContentControl _detail = new();
     private readonly GridSplitter _listSplitter;
 
@@ -34,7 +35,7 @@ internal sealed class MainWindow : Window
         // Mica on Windows 11, plain background elsewhere
         TransparencyLevelHint = [WindowTransparencyLevel.Mica, WindowTransparencyLevel.None];
 
-        var sidebar = new SidebarView(state);
+        var sidebar = _sidebar = new SidebarView(state);
         _list = new NoteListView(state);
         _grid = new Grid { ColumnDefinitions = new ColumnDefinitions("230,1,300,1,*") };
         Grid.SetColumn(sidebar, 0);
@@ -53,6 +54,7 @@ internal sealed class MainWindow : Window
         this.Themed(BackgroundProperty, "CardBackground");
 
         _state.SelectionChanged += ApplySelectionLayout;
+        _state.FocusRequested += OnFocusRequested;
         _state.SelectedNoteChanged += UpdateDetail;
         _state.Store.Changed += (_, _) => UpdateDetail();
         _state.Store.SaveFailed += async (_, error) =>
@@ -60,6 +62,7 @@ internal sealed class MainWindow : Window
                 $"Your text is still in the editor and will be saved again with your next change.\n\n{error.Message}");
 
         KeyDown += OnKeyDown;
+
         Closing += (_, e) =>
         {
             if (AllowClose) return;
@@ -123,6 +126,37 @@ internal sealed class MainWindow : Window
         return stack;
     }
 
+    private int _focusRequest;
+
+    /// <summary>
+    /// Moves the keyboard to a pane. A window that has just been activated, such as this one when a palette closes,
+    /// puts the keyboard back where it was a moment later, which would undo the move. So the pane is asked again
+    /// for a short while, until it has the keyboard. A newer request cancels the older one.
+    /// </summary>
+    private void OnFocusRequested(FocusTarget target)
+    {
+        var request = ++_focusRequest;
+        foreach (var delay in new[] { 0, 60, 150, 300, 600 })
+        {
+            Avalonia.Threading.DispatcherTimer.RunOnce(() =>
+            {
+                if (request == _focusRequest && !HasFocus(target)) ApplyFocus(target);
+            }, TimeSpan.FromMilliseconds(delay), Avalonia.Threading.DispatcherPriority.Background);
+        }
+    }
+
+    private bool HasFocus(FocusTarget target) =>
+        target == FocusTarget.Sidebar ? _sidebar.IsKeyboardFocusWithin
+        : _state.Selection.Kind == SidebarKind.Dashboard ? _detail.Content is DashboardView { IsKeyboardFocusWithin: true }
+        : _list.IsKeyboardFocusWithin;
+
+    private void ApplyFocus(FocusTarget target)
+    {
+        if (target == FocusTarget.Sidebar) _sidebar.FocusSelection();
+        else if (_state.Selection.Kind == SidebarKind.Dashboard) (_detail.Content as DashboardView)?.FocusFirstItem();
+        else _list.FocusList();
+    }
+
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         var ctrl = e.KeyModifiers.HasFlag(OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control);
@@ -151,6 +185,15 @@ internal sealed class MainWindow : Window
                 break;
             case Key.F when ctrl && _state.Selection.Kind != SidebarKind.Dashboard:
                 _list.FocusSearch();
+                e.Handled = true;
+                break;
+            case Key.O when ctrl:
+                FlushEditor();
+                GoToPalette.Show(_state, this);
+                e.Handled = true;
+                break;
+            case Key.Q when ctrl:
+                _state.Quit?.Invoke();
                 e.Handled = true;
                 break;
             case Key.OemComma when ctrl:

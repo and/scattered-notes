@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using FluentIcons.Common;
@@ -57,7 +58,53 @@ internal sealed class SidebarView : UserControl
 
         _state.Store.Changed += (_, _) => Refresh();
         _state.SelectionChanged += SyncSelection;
+        // Tunnelling, so up and down cross from one group to the next instead of stopping at its end
+        AddHandler(KeyDownEvent, OnKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         Refresh();
+    }
+
+    private IEnumerable<ListBox> Lists => new[] { _main, _projects, _people, _tags }.Where(l => l.IsVisible);
+
+    /// <summary>
+    /// The arrow keys walk the sidebar as one list: Dashboard, All Notes, Inbox, projects, people, tags.
+    /// Right goes on to the notes list, or to the Dashboard's items.
+    /// </summary>
+    private void OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyModifiers != KeyModifiers.None || e.Source is TextBox) return;
+        switch (e.Key)
+        {
+            case Key.Down or Key.Up:
+                var items = Lists.SelectMany(l => l.ItemsSource?.Cast<SidebarSelection>() ?? []).ToList();
+                if (items.Count == 0) return;
+                var index = items.IndexOf(_state.Selection);
+                var next = index < 0 ? 0 : Math.Clamp(index + (e.Key == Key.Down ? 1 : -1), 0, items.Count - 1);
+                _state.Selection = items[next];
+                FocusSelection();
+                break;
+            case Key.Right:
+                _state.RequestFocus(FocusTarget.Content);
+                break;
+            default:
+                return;
+        }
+        e.Handled = true;
+    }
+
+    /// <summary>Puts the keyboard on the selected row.</summary>
+    public void FocusSelection()
+    {
+        foreach (var list in Lists)
+        {
+            if (list.ItemsSource?.Cast<SidebarSelection>().ToList() is not { } items) continue;
+            var index = items.IndexOf(_state.Selection);
+            if (index < 0) continue;
+            list.ScrollIntoView(index);
+            if (list.ContainerFromIndex(index) is { } row) row.Focus(NavigationMethod.Directional);
+            else list.Focus(NavigationMethod.Directional);
+            return;
+        }
+        _main.Focus(NavigationMethod.Directional);
     }
 
     private ListBox MakeList()

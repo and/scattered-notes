@@ -1,6 +1,7 @@
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -20,10 +21,14 @@ internal sealed class DashboardView : UserControl
     /// <summary>The list of everything ticked earlier starts folded away.</summary>
     private bool _completedExpanded;
 
+    /// <summary>The item rows in the order they appear on the page, for walking them with the arrow keys.</summary>
+    private readonly List<(Control Row, AgendaItem Item)> _rows = [];
+
     public DashboardView(AppState state)
     {
         _state = state;
         Content = new ScrollViewer { Content = _panel };
+        KeyDown += OnKeyDown;
         _state.Store.Changed += OnChanged;
         // Roll "today" over at midnight while the window stays open
         _midnight.Tick += (_, _) =>
@@ -48,6 +53,9 @@ internal sealed class DashboardView : UserControl
         var notes = _state.Store.Notes;
         var byId = notes.ToDictionary(n => n.Id);
         var dashboard = Dashboard.Build(notes, _state.Store.AgendaItems(), today);
+        // Keep the keyboard on the same place in the list when the page is redrawn, e.g. after Space ticks an item
+        var focused = _rows.FindIndex(r => r.Row.IsFocused);
+        _rows.Clear();
         _panel.Children.Clear();
         _panel.Children.Add(Header(dashboard));
 
@@ -88,6 +96,50 @@ internal sealed class DashboardView : UserControl
         }
 
         if (dashboard.Completed.Count > 0) _panel.Children.Add(CompletedSection(dashboard, byId, today));
+        if (focused >= 0)
+        {
+            // Nothing left to stand on (the last item was ticked): the keyboard goes back to the sidebar
+            if (_rows.Count == 0) _state.RequestFocus(FocusTarget.Sidebar);
+            else Dispatcher.UIThread.Post(() => FocusRow(Math.Min(focused, _rows.Count - 1)));
+        }
+    }
+
+    /// <summary>Puts the keyboard on the first item, when coming from the sidebar.</summary>
+    public void FocusFirstItem()
+    {
+        if (_rows.Count > 0) FocusRow(0);
+    }
+
+    private void FocusRow(int index)
+    {
+        var row = _rows[index].Row;
+        row.Focus(NavigationMethod.Directional);
+        row.BringIntoView();
+    }
+
+    /// <summary>Up and down walk the items, left goes back to the sidebar, Return opens the item's note, Space ticks it.</summary>
+    private void OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyModifiers != KeyModifiers.None) return;
+        var index = _rows.FindIndex(r => r.Row.IsFocused);
+        switch (e.Key)
+        {
+            case Key.Down or Key.Up when _rows.Count > 0:
+                FocusRow(index < 0 ? 0 : Math.Clamp(index + (e.Key == Key.Down ? 1 : -1), 0, _rows.Count - 1));
+                break;
+            case Key.Left:
+                _state.RequestFocus(FocusTarget.Sidebar);
+                break;
+            case Key.Enter when index >= 0 && _state.Store.Notes.FirstOrDefault(n => n.Id == _rows[index].Item.NoteId) is { } note:
+                _state.OpenNote(note);
+                break;
+            case Key.Space when index >= 0:
+                _state.Store.ToggleChecklistItem(_rows[index].Item.NoteId, _rows[index].Item.LineIndex);
+                break;
+            default:
+                return;
+        }
+        e.Handled = true;
     }
 
     /// <summary>Everything ticked that the sections above do not show, folded away until asked for.</summary>
@@ -184,11 +236,15 @@ internal sealed class DashboardView : UserControl
     private static Control GroupLabel(string text) =>
         new TextBlock { Text = text, FontSize = 12, FontWeight = FontWeight.SemiBold, Margin = new Thickness(10, 10, 0, 2), Classes = { "WcagSecondaryText" } };
 
-    private Control Row(AgendaItem item, Dictionary<Guid, Note> notes, string? dateLabel, bool showNote = true) =>
-        AgendaRow.Build(item,
+    private Control Row(AgendaItem item, Dictionary<Guid, Note> notes, string? dateLabel, bool showNote = true)
+    {
+        var row = AgendaRow.Build(item,
             () => _state.Store.ToggleChecklistItem(item.NoteId, item.LineIndex),
             dateLabel,
             showNote ? notes.GetValueOrDefault(item.NoteId) : null,
             note => _state.OpenNote(note),
             singleLine: true);
+        _rows.Add((row, item));
+        return row;
+    }
 }

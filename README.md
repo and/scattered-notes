@@ -206,3 +206,17 @@ Scattered Notes collects no data. See [PRIVACY.md](PRIVACY.md).
 | `⌘ + Q` | Quit application |
 
 Both global shortcuts can be changed in **Settings → Global Shortcuts**.
+
+### Keyboard navigation on Windows and Ubuntu
+
+Use `Ctrl` where the table above says `⌘`.
+
+| Shortcut | Action |
+| :--- | :--- |
+| `Ctrl + O` | Go to a project, person or tag (`#` for tags only, `@` for people only); `↵` goes there and leaves the keyboard in its notes |
+| `↑` / `↓` | In the sidebar, move through Dashboard, All Notes, Inbox, projects, people and tags as one list; in the notes list, between notes; on the Dashboard, between items |
+| `→` | Sidebar: go on to the notes list (or the first Dashboard item). Notes list: open the note in the editor |
+| `←` | Notes list or Dashboard: back to the sidebar (from All Notes, onto the open note's project) |
+| `Space` | On a Dashboard item, tick it or untick it |
+| `↵` | On a Dashboard item, open its note |
+| `Ctrl + Q` | Quit |
