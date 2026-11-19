@@ -92,3 +92,7 @@ gtk-update-icon-cache -q "$DATA/icons/hicolor" 2>/dev/null || true
 touch "$DATA/icons/hicolor"
 
 echo "Installed to $APP_DIR. Open Scattered Notes from the app grid, or run: $APP_DIR/ScatteredNotes"
+if [[ -d /opt/scattered-notes ]]; then
+    echo "Note: the .deb is installed too (/opt/scattered-notes). This copy takes its place in the app grid;"
+    echo "use one or the other (sudo apt remove scattered-notes, or install.sh --uninstall)."
+fi

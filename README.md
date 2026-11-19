@@ -69,15 +69,12 @@ Go to the [latest release](https://github.com/and/scattered-notes/releases/lates
 
 **Requirements:** Ubuntu 24.04 or later with the standard GNOME desktop, on Intel, AMD or Arm. Nothing else needs to be installed.
 
-1. From the [Linux preview release](https://github.com/and/scattered-notes/releases/tag/v1.3.7-linux), download `ScatteredNotes-<version>-linux-x64.tar.gz` (Intel and AMD) or `-linux-arm64.tar.gz` (Arm).
-2. Unpack it and run its installer:
+Download it from the [Linux preview release](https://github.com/and/scattered-notes/releases/tag/v1.3.7-linux). Pick `amd64` / `x64` for Intel and AMD PCs, `arm64` for Arm.
 
-   ```bash
-   tar -xzf ScatteredNotes-*-linux-*.tar.gz
-   ScatteredNotes-*-linux-*/install.sh
-   ```
+- **The .deb (recommended):** download `scattered-notes_<version>_amd64.deb` and open it, or run `sudo apt install ./scattered-notes_*_amd64.deb`. It installs for every user of the computer, in `/opt/scattered-notes`, and asks for your password. Remove it with `sudo apt remove scattered-notes`.
+- **Without admin rights:** download `ScatteredNotes-<version>-linux-x64.tar.gz`, then run `tar -xzf ScatteredNotes-*-linux-*.tar.gz` and `ScatteredNotes-*-linux-*/install.sh`. It installs for you only, in `~/.local/share/scattered-notes`. The unpacked folder can be deleted afterwards.
 
-This installs the app in `~/.local/share/scattered-notes` and adds **Scattered Notes** to the app grid. The unpacked folder can be deleted afterwards.
+Either way, **Scattered Notes** appears in the app grid. Use one or the other: if you switch to the .deb, first run `install.sh --uninstall`, because a copy installed for you takes the place of the .deb's in the app grid.
 
 To build it from source instead, install the .NET 10 SDK (`curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0`), clone the repo and run `PATH=$HOME/.dotnet:$PATH scripts/install-linux.sh`.
 
@@ -86,9 +83,9 @@ To build it from source instead, install the .NET 10 SDK (`curl -sSL https://dot
 - Notes are saved in `~/Documents/ScatteredNotes`. To share notes with a Mac or PC, choose **Settings → Notes folder → Choose Folder…** and pick a folder a sync app (for example Syncthing, Dropbox or Nextcloud) keeps in step.
 - Closing the window keeps the app running in the top bar, so the shortcuts open it straight away. Use **Quit Scattered Notes** in its menu to stop it. **Settings → Startup** starts it when you sign in.
 
-**Updating:** download the new version and run its `install.sh`, or with a clone, run `scripts/install-linux.sh` again after `git pull`. The app doesn't update itself on Linux yet.
+**Updating:** install the new version's .deb, or run the new version's `install.sh`. With a clone, run `scripts/install-linux.sh` again after `git pull`. The app doesn't update itself on Linux yet.
 
-**Uninstalling:** `install.sh --uninstall` (or `scripts/install-linux.sh --uninstall`) removes the app, its launcher and its shortcuts. Your notes stay in the notes folder. Settings are in `~/.config/ScatteredNotes`.
+**Uninstalling:** `sudo apt remove scattered-notes` for the .deb. For the other install, `install.sh --uninstall` (or `scripts/install-linux.sh --uninstall`) removes the app, its launcher and its shortcuts. The GNOME shortcuts stay listed in **Settings → Keyboard** after `apt remove`; delete them there. Your notes stay in the notes folder. Settings are in `~/.config/ScatteredNotes`.
 
 ### iPhone and iPad (preview)
 
