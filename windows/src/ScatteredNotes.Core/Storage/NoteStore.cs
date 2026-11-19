@@ -83,23 +83,43 @@ public sealed class NoteStore : IDisposable
     /// <summary>Where areas were kept before tags replaced them; see <see cref="MoveAreaNotesToInbox"/>.</summary>
     public string AreasPath => Path.Combine(RootPath, "Areas");
 
-    public void SetupDirectories()
-    {
-        foreach (var dir in new[] { InboxPath, ProjectsPath }) Directory.CreateDirectory(dir);
-    }
+    /// <summary>The app's own folders, never read as loose project folders.</summary>
+    private static readonly string[] AppFolders = ["Inbox", "Projects", "Areas"];
+
+    /// <summary>
+    /// Top-level folders of the notes folder that hold notes but aren't the app's own, as an Obsidian vault has.
+    /// Each shows as a project of the same name and its notes stay where they are.
+    /// </summary>
+    private HashSet<string> _looseFolders = new(StringComparer.FromComparison(PathComparison));
+
+    /// <summary>
+    /// Creates only the notes folder. Inbox/ and Projects/ are made when a note or project first needs them, so
+    /// a folder shared with Obsidian doesn't fill up with empty folders.
+    /// </summary>
+    public void SetupDirectories() => Directory.CreateDirectory(RootPath);
 
     // MARK: Loading
 
     public void LoadAll()
     {
         SetupDirectories();
-        Projects = DiscoverFolders(ProjectsPath, CategoryType.Project);
+        var projects = DiscoverFolders(ProjectsPath, CategoryType.Project);
         var areas = DiscoverFolders(AreasPath, CategoryType.Area);
+        var loose = DiscoverLooseFolders();
+        _looseFolders = loose.Select(p => p.Name).ToHashSet(StringComparer.FromComparison(PathComparison));
+        // A loose folder named like a project in Projects/ shows once; its notes still load
+        Projects = projects.Concat(loose.Where(l => !projects.Any(p => string.Equals(p.Name, l.Name, StringComparison.OrdinalIgnoreCase))))
+            .OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
 
         var loaded = new List<Note>();
         loaded.AddRange(LoadNotes(InboxPath, CategoryType.Inbox, null));
-        foreach (var project in Projects)
+        // Notes at the top of the notes folder, as in an Obsidian vault, show in the Inbox
+        loaded.AddRange(LoadNotes(RootPath, CategoryType.Inbox, null));
+        foreach (var project in projects)
             loaded.AddRange(LoadNotes(Path.Combine(ProjectsPath, project.Name), CategoryType.Project, project.Name));
+        foreach (var folder in loose)
+            loaded.AddRange(LoadNotes(Path.Combine(RootPath, folder.Name), CategoryType.Project, folder.Name));
         foreach (var area in areas)
             loaded.AddRange(LoadNotes(Path.Combine(AreasPath, area.Name), CategoryType.Area, area.Name));
 
@@ -166,6 +186,16 @@ public sealed class NoteStore : IDisposable
             .Where(dir => !IsHidden(dir))
             .Select(dir => new ProjectArea(Path.GetFileName(dir), type, ReadIcon(dir)))
             .OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+    }
+
+    private List<ProjectArea> DiscoverLooseFolders()
+    {
+        if (!Directory.Exists(RootPath)) return [];
+        return Directory.EnumerateDirectories(RootPath)
+            .Where(dir => !IsHidden(dir) && !AppFolders.Contains(Path.GetFileName(dir), StringComparer.OrdinalIgnoreCase))
+            .Where(dir => Directory.EnumerateFiles(dir, "*.md").Any(f => !IsHidden(f)))
+            .Select(dir => new ProjectArea(Path.GetFileName(dir), CategoryType.Project, ReadIcon(dir)))
             .ToList();
     }
 
@@ -270,7 +300,7 @@ public sealed class NoteStore : IDisposable
 
         string? stale = null;
         string filePath;
-        if (updated.FilePath is { } current && SamePath(Path.GetDirectoryName(current), destination))
+        if (updated.FilePath is { } current && IsHomeFolder(Path.GetDirectoryName(current), updated.CategoryType, updated.TargetName))
         {
             filePath = current;
         }
@@ -286,7 +316,7 @@ public sealed class NoteStore : IDisposable
         IgnoreOwnEvents();
         try
         {
-            Directory.CreateDirectory(destination);
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
             AtomicFile.WriteAllText(filePath, NoteFormat.Serialize(updated));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -377,7 +407,26 @@ public sealed class NoteStore : IDisposable
     /// <summary>Creates a project folder and returns the name it got, which may differ to be valid on Windows.</summary>
     public string? CreateProject(string name, string? icon = null) => CreateFolder(ProjectsPath, name, icon);
 
-    public void DeleteProject(string name) => DeleteFolder(Path.Combine(ProjectsPath, name));
+    public void DeleteProject(string name)
+    {
+        if (!Directory.Exists(Path.Combine(ProjectsPath, name)) && _looseFolders.Contains(name))
+            DeleteLooseFolderNotes(Path.Combine(RootPath, name));
+        else
+            DeleteFolder(Path.Combine(ProjectsPath, name));
+    }
+
+    /// <summary>
+    /// A loose folder may hold more than notes (an Obsidian vault keeps images and attachments beside them), so
+    /// only its notes are deleted, and the folder only when nothing else is left in it.
+    /// </summary>
+    private void DeleteLooseFolderNotes(string dir)
+    {
+        IgnoreOwnEvents();
+        foreach (var file in Directory.EnumerateFiles(dir, "*.md").Where(f => !IsHidden(f)).ToList())
+            AtomicFile.WithRetry(() => File.Delete(file));
+        if (!Directory.EnumerateFileSystemEntries(dir).Any()) Directory.Delete(dir);
+        LoadAll();
+    }
 
     private string? CreateFolder(string parent, string name, string? icon)
     {
@@ -520,6 +569,9 @@ public sealed class NoteStore : IDisposable
         var name = Path.GetFileName(e.FullPath);
         // Temporary files from atomic writes are the app's own
         if (name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase)) return;
+        // Hidden folders such as .obsidian and .git change often and hold no notes
+        var relative = Path.GetRelativePath(RootPath, e.FullPath);
+        if (relative.Split(Path.DirectorySeparatorChar).Any(part => part.StartsWith('.') && part is not "." and not "..")) return;
         _debounce?.Change(TimeSpan.FromMilliseconds(400), Timeout.InfiniteTimeSpan);
     }
 
@@ -542,11 +594,27 @@ public sealed class NoteStore : IDisposable
         return folder.Length == 0 ? null : folder;
     }
 
+    /// <summary>Whether a note in <paramref name="directory"/> belongs where it is, so saving it keeps the file in place.</summary>
+    private bool IsHomeFolder(string? directory, CategoryType category, string? targetName)
+    {
+        if (SamePath(directory, TargetDirectory(category, targetName))) return true;
+        var name = string.IsNullOrWhiteSpace(targetName) ? "General" : targetName.Trim();
+        return category switch
+        {
+            CategoryType.Inbox => SamePath(directory, RootPath),
+            CategoryType.Project => _looseFolders.Contains(name) && SamePath(directory, Path.Combine(RootPath, name)),
+            _ => false,
+        };
+    }
+
     private string TargetDirectory(CategoryType category, string? targetName)
     {
         var name = string.IsNullOrWhiteSpace(targetName) ? "General" : targetName.Trim();
         return category switch
         {
+            // A note moved into a loose folder's project goes into that folder, unless Projects/ has one too
+            CategoryType.Project when _looseFolders.Contains(name) && !Directory.Exists(Path.Combine(ProjectsPath, name)) =>
+                Path.Combine(RootPath, name),
             CategoryType.Project => Path.Combine(ProjectsPath, name),
             CategoryType.Area => Path.Combine(AreasPath, name),
             _ => InboxPath,

@@ -217,7 +217,7 @@ public class DataSafetyTests
     public void LoadingNeverRewritesExistingFiles()
     {
         using var temp = new TempStore();
-        var inbox = temp.Store.InboxPath;
+        var inbox = Directory.CreateDirectory(temp.Store.InboxPath).FullName;
         var samples = new Dictionary<string, byte[]>
         {
             ["no-frontmatter.md"] = Encoding.UTF8.GetBytes("just text\n--- \nmore"),
@@ -243,7 +243,7 @@ public class DataSafetyTests
     public void UnreadableFileSurvivesOtherNotesBeingSaved()
     {
         using var temp = new TempStore();
-        var garbled = Path.Combine(temp.Store.InboxPath, "2026-01-01_garbled.md");
+        var garbled = Path.Combine(Directory.CreateDirectory(temp.Store.InboxPath).FullName, "2026-01-01_garbled.md");
         byte[] garbage = [0xFF, 0xFE, 0xFD, 0xC3, 0x28];
         File.WriteAllBytes(garbled, garbage);
 

@@ -56,8 +56,10 @@ public class NoteStoreTests
     {
         using var temp = new TempStore();
         var store = temp.Store;
-        Assert.True(Directory.Exists(store.InboxPath));
-        Assert.True(Directory.Exists(store.ProjectsPath));
+        Assert.True(Directory.Exists(store.RootPath));
+        // Inbox/ and Projects/ are made when first needed, not on launch
+        Assert.False(Directory.Exists(store.InboxPath));
+        Assert.False(Directory.Exists(store.ProjectsPath));
         // Areas were replaced by tags, so no Areas folder is made
         Assert.False(Directory.Exists(store.AreasPath));
 

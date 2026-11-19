@@ -132,6 +132,7 @@ public static class NoteFormat
     {
         var id = Guid.NewGuid();
         var title = "";
+        var hasTitle = false;
         var category = CategoryType.Inbox;
         string? target = null;
         DateTimeOffset? created = null;
@@ -182,6 +183,7 @@ public static class NoteFormat
                         break;
                     case "title":
                         title = val;
+                        hasTitle = true;
                         break;
                     case "type":
                         if (CategoryTypeExtensions.FromRawValue(val) is { } type) category = type;
@@ -234,6 +236,9 @@ public static class NoteFormat
             IsPinned = pinned,
             ExtraFrontmatter = string.Join("\n", extra),
         };
+        // A note without a title of its own, as Obsidian writes them, is named by its file, as in Obsidian
+        if (!hasTitle && filePath is not null && Path.GetFileNameWithoutExtension(filePath).Trim() is { Length: > 0 } stem)
+            return note with { Title = stem };
         return note.Title.Length == 0 ? note with { Title = note.DisplayTitle } : note;
     }
 }
