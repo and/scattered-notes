@@ -46,7 +46,10 @@ public static class Checklist
             toggled = line.Replace(from, to, StringComparison.Ordinal);
             break;
         }
-        toggled ??= CompletingPlainLine(line);
+        // A plain line already read as done ("Created: 2026-11-19") is unticked into an open to-do
+        toggled ??= Agenda.AgendaExtractor.IsCompletedStatement(Agenda.AgendaExtractor.DisplayText(LineText.TrimWhitespace(line)))
+            ? CompletingPlainLine(line)?.Replace("- [x] ", "- [ ] ", StringComparison.Ordinal)
+            : CompletingPlainLine(line);
         if (toggled is null) return content;
 
         lines[lineIndex] = lines[lineIndex] with { Text = toggled };

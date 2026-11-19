@@ -70,7 +70,11 @@ internal sealed class EditorView : UserControl
             VerticalContentAlignment = VerticalAlignment.Center,
         };
         Avalonia.Automation.AutomationProperties.SetName(_title, "Note title");
-        _title.TextChanged += (_, _) => ScheduleSave();
+        _title.TextChanged += (_, _) =>
+        {
+            ScheduleSave();
+            RefreshLogStyle();
+        };
         _title.KeyDown += (_, e) =>
         {
             if (e.Key != Key.Enter && e.Key != Key.Down) return;
@@ -110,7 +114,7 @@ internal sealed class EditorView : UserControl
         };
 
         _pin = Ui.IconButton(Symbol.Pin, "Pin Note", () => _state.Store.TogglePin(CurrentNote()));
-        var reveal = Ui.IconButton(Symbol.FolderOpen, OperatingSystem.IsWindows() ? "Show in File Explorer" : "Reveal in Finder", () =>
+        var reveal = Ui.IconButton(Symbol.FolderOpen, NoteMenus.RevealLabel, () =>
         {
             if (_note.FilePath is { } path) NoteMenus.RevealFile(path);
         });
@@ -143,7 +147,10 @@ internal sealed class EditorView : UserControl
         {
             ScheduleSave();
             RefreshStatus();
+            RefreshLogStyle();
         };
+        // Tunnelling, so a log note's Return is handled before the TextBox inserts a plain line break
+        _text.AddHandler(KeyDownEvent, OnTextKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
 
         _preview = new MarkdownView(lineIndex =>
         {
@@ -291,6 +298,31 @@ internal sealed class EditorView : UserControl
         if (e.PropertyName != nameof(Core.Storage.AppSettings.EditorFontSize)) return;
         _text.FontSize = _state.Settings.EditorFontSize;
         _text.LineHeight = _state.Settings.EditorFontSize * 1.5;
+    }
+
+    private static readonly FontFamily MonospaceFont = new("Cascadia Mono, Consolas, Ubuntu Mono, DejaVu Sans Mono, Menlo, monospace");
+    private bool _isLog;
+
+    /// <summary>A log note (see <see cref="LogNotes"/>) is shown in a monospaced font, as a log file is.</summary>
+    private void RefreshLogStyle()
+    {
+        var isLog = LogNotes.IsLog(_title.Text ?? "", _text.Text ?? "");
+        if (isLog == _isLog) return;
+        _isLog = isLog;
+        if (isLog) _text.FontFamily = MonospaceFont;
+        else _text.ClearValue(TextBox.FontFamilyProperty);
+    }
+
+    /// <summary>In a log note, Return starts the new line with the time, in the style of the note's last timed line.</summary>
+    private void OnTextKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (!_isLog || e.Key != Key.Enter || (e.KeyModifiers & ~KeyModifiers.Shift) != KeyModifiers.None) return;
+        var text = _text.Text ?? "";
+        var start = Math.Min(_text.SelectionStart, _text.SelectionEnd);
+        var prefix = LogNotes.NewLinePrefix(text, start, DateTimeOffset.Now);
+        e.Handled = true;
+        // Typed as text input, so it replaces a selection and can be undone like typing
+        _text.RaiseEvent(new TextInputEventArgs { RoutedEvent = TextInputEvent, Text = _text.NewLine + prefix });
     }
 
     private void RefreshChrome()

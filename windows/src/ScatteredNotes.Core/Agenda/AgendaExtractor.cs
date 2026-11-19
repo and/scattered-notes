@@ -41,9 +41,11 @@ public static class AgendaExtractor
         DateOnly? previous = null;
 
         var lines = LineText.Split(note.Content);
+        // In a log note the time at the start of a line is when it was written, not a day it plans for
+        var isLog = LogNotes.IsLog(note);
         for (var index = 0; index < lines.Count; index++)
         {
-            var trimmed = LineText.TrimWhitespace(lines[index].Text);
+            var trimmed = LineText.TrimWhitespace(isLog ? LogNotes.WithoutStamp(lines[index].Text) : lines[index].Text);
             if (trimmed.Length == 0 || trimmed.StartsWith('#')) continue;
 
             var checklist = Checklist.State(trimmed);
@@ -55,9 +57,11 @@ public static class AgendaExtractor
             if (text.Length == 0) continue;
             var isTodo = checklist is not null || IsPlannedAction(text);
             if (!isTodo && date is null) continue;
+            // "Created: 2026-11-19" says something was done on that day: a completed task, not an open one
+            var happened = !isTodo && IsCompletedStatement(text);
 
-            result.Add(new AgendaItem(note.Id, index, text, isTodo, checklist ?? false, date, reference,
-                checklist == true ? marks.Done : null));
+            result.Add(new AgendaItem(note.Id, index, text, isTodo || happened, checklist ?? happened, date, reference,
+                checklist == true ? marks.Done : happened ? date : null));
         }
         return result;
     }
@@ -208,6 +212,54 @@ public static class AgendaExtractor
     /// </summary>
     public static bool IsPlannedAction(string text) =>
         !text.EndsWith('?') && !text.EndsWith(':') && PlannedAction.IsMatch(text);
+
+    /// <summary>Past forms that don't end in "-ed".</summary>
+    private static readonly string[] IrregularPastVerbs =
+    [
+        "began", "bought", "brought", "built", "caught", "chose", "did", "done", "drew", "drove", "fed", "felt",
+        "found", "gave", "got", "had", "heard", "held", "kept", "knew", "led", "lent", "lost", "made", "meant",
+        "met", "paid", "ran", "said", "sang", "sat", "saw", "sent", "slept", "sold", "spent", "spoke", "stood",
+        "taught", "thought", "told", "took", "understood", "went", "woke", "won", "wore", "wrote", "written",
+    ];
+
+    /// <summary>Words ending in "-ed" that aren't a verb's past form.</summary>
+    private static readonly string[] NotPastVerbs = ["hundred", "kindred", "naked", "sacred", "wicked", "bed", "red", "shed", "wed"];
+
+    /// <summary>A date at the start of a line, as in "2026-11-19: v1 built", which isn't part of the sentence.</summary>
+    private static readonly Regex LeadingDate = new(@"^\s*@?\d{4}-\d{2}-\d{2}\s*[:\-–—]?\s*", RegexOptions.CultureInvariant);
+
+    private static readonly Regex Word = new(@"[\p{L}\p{N}'’]+", RegexOptions.CultureInvariant);
+
+    /// <summary>Words after which a past form isn't the sentence's verb: "meeting with shared team", "to be signed".</summary>
+    private static readonly HashSet<string> NotBeforeVerb =
+    [
+        "a", "an", "the", "with", "of", "for", "in", "on", "at", "by", "from", "about", "and", "or",
+        "to", "be", "been", "being", "will", "would", "should", "must", "can", "could", "may", "might",
+        "need", "needs", "want", "wants", "get", "gets",
+    ];
+
+    /// <summary>
+    /// Whether a plain line states that something was done: a verb's past form among its first three words, after
+    /// a date that starts the line. "Created: 2026-11-19", "2026-11-19: v1 built", "Static IP registered" and
+    /// "Report was sent" count. Words ending in "eed" (need, feed, speed) don't, nor a past form after words such
+    /// as "with" or "to", nor questions. Lines that read as plans are to-dos before this is asked.
+    /// </summary>
+    public static bool IsCompletedStatement(string text)
+    {
+        if (text.TrimEnd().EndsWith('?')) return false;
+        var words = Word.Matches(LeadingDate.Replace(text, "", 1)).Take(3).Select(m => m.Value.ToLowerInvariant()).ToList();
+        for (var i = 0; i < words.Count; i++)
+        {
+            if (i > 0 && NotBeforeVerb.Contains(words[i - 1])) continue;
+            if (IsPastForm(words[i])) return true;
+        }
+        return false;
+    }
+
+    private static bool IsPastForm(string word) =>
+        IrregularPastVerbs.Contains(word) ||
+        (word.Length >= 5 && word.EndsWith("ed", StringComparison.Ordinal) && !word.EndsWith("eed", StringComparison.Ordinal)
+            && !NotPastVerbs.Contains(word) && word.All(char.IsLetter));
 
     private static readonly Regex IsoDateToken = new(@"\s*@?\b\d{4}-\d{2}-\d{2}\b");
 
