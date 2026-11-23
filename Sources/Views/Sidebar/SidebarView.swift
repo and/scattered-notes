@@ -137,7 +137,7 @@ public struct SidebarView: View {
                     Label {
                         Text("All Notes")
                     } icon: {
-                        Image(systemName: "tray.2.fill")
+                        Image(systemName: "doc.on.doc.fill")
                             .prominenceAwareColor(.wcagBlue)
                     }
                     .badge(storageManager.notes.count)
@@ -308,7 +308,7 @@ private struct RecentNoteRow: View {
                 Label {
                     Text(note.displayTitle).lineLimit(1)
                 } icon: {
-                    Image(systemName: note.categoryType.iconName)
+                    Image(systemName: "doc.text")
                         .foregroundColor(.wcagSecondaryText)
                 }
                 Spacer(minLength: 0)

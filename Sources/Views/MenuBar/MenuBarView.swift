@@ -34,7 +34,7 @@ public struct MenuBarView: View {
                             AppRouter.showMainWindow()
                         }) {
                             HStack {
-                                Image(systemName: note.categoryType.iconName)
+                                Image(systemName: "doc.text")
                                 Text(note.displayTitle)
                             }
                         }

@@ -18,7 +18,7 @@ enum GoToTargets {
     static func all(projects: [ProjectArea], notes: [Note]) -> [GoToTarget] {
         var targets = [
             GoToTarget(selection: .dashboard, title: "Dashboard", count: nil, icon: "square.grid.2x2.fill"),
-            GoToTarget(selection: .all, title: "All Notes", count: notes.count, icon: "tray.2.fill"),
+            GoToTarget(selection: .all, title: "All Notes", count: notes.count, icon: "doc.on.doc.fill"),
             GoToTarget(selection: .inbox, title: "Inbox", count: notes.filter { $0.categoryType == .inbox }.count, icon: "tray.fill"),
         ]
         for project in projects {

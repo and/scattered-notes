@@ -170,7 +170,7 @@ private struct LinkRow: View {
             NotificationCenter.default.post(name: .openNote, object: nil, userInfo: ["id": note.id])
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: note.categoryType.iconName)
+                Image(systemName: "doc.text")
                     .foregroundColor(.wcagSecondaryText)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(note.displayTitle)
