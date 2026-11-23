@@ -26,8 +26,8 @@ targets:
       properties:
         CFBundleDisplayName: "Scattered Notes"
         CFBundleIdentifier: "$(PRODUCT_BUNDLE_IDENTIFIER)"
-        CFBundleShortVersionString: "1.3.6"
-        CFBundleVersion: "18"
+        CFBundleShortVersionString: "1.3.9"
+        CFBundleVersion: "20"
         CFBundleIconFile: "AppIcon"
         LSMinimumSystemVersion: "14.0"
         NSHighResolutionCapable: true

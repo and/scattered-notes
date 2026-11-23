@@ -165,6 +165,10 @@ Structure the app as levels, and make every Esc go up one level:
 - [ ] Connect the Dashboard to the calendar directly. Two directions to weigh: show calendar events beside the dated lines on the Dashboard, and write a dated line or to-do into a calendar (Apple Calendar through EventKit on Mac and iPhone; Google and Outlook calendars later, and Windows and Android through their own calendar APIs).
 - Open questions: read only, or write too? One calendar for Scattered Notes or the person's choice? A line with no time becomes an all-day event. Keep the note as the source: a changed event in the calendar must not rewrite the note without asking.
 
+### Repeating to-dos on Windows, Linux and Android
+- [ ] Mac and iPhone read `🔁 every day` and show one Dashboard item for each day not yet ticked (see README, "To-dos that repeat"). Port `Recurrence` and the item expansion, the tick that writes a ticked copy, and the "N earlier days" fold to `windows/src/ScatteredNotes.Core` and `android/.../core/AgendaExtractor.kt`, with the same test cases as `Tests/ScatteredNotesTests/RecurrenceTests.swift`. Until then those apps show the line as one plain to-do and leave the `🔁` text alone.
+- Open questions: should the editor checkbox tick today or the oldest open day (today now)? Is 7 days the right fold? Skip a day without doing it?
+
 ## Done
 
 ### iPhone: browse projects, people and tags

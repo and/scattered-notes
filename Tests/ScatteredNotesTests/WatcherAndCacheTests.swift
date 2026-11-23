@@ -39,6 +39,7 @@ final class WatcherAndCacheTests: XCTestCase {
 
         // As iCloud or OneDrive would deliver a note written on another device
         let synced = Note(title: "From the PC", content: "- [ ] call bank tomorrow")
+        try FileManager.default.createDirectory(at: manager.inboxURL, withIntermediateDirectories: true)
         try synced.serializeToMarkdown().write(to: manager.inboxURL.appendingPathComponent("2026-10-27_From-the-PC.md"), atomically: true, encoding: .utf8)
         XCTAssertTrue(waitUntil { manager.notes.contains { $0.id == synced.id } }, "new note in Inbox/ not picked up")
         XCTAssertEqual(manager.agendaItems.map(\.text), ["call bank tomorrow"])

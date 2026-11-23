@@ -8,9 +8,25 @@ import Foundation
 final class FolderWatcher: @unchecked Sendable {
     private var stream: FSEventStreamRef?
     private let onChange: @MainActor () -> Void
+    /// The folder as given and as FSEvents reports it (symlinks resolved, e.g. /var is /private/var)
+    private let rootPaths: [String]
+
+    /// Whether a changed path is inside a hidden folder or is a hidden file, such as `.obsidian` or
+    /// `.git`, which change often and hold no notes
+    static func isHidden(_ path: String, below root: String) -> Bool {
+        let base = root.hasSuffix("/") ? String(root.dropLast()) : root
+        guard path.hasPrefix(base + "/") else { return false }
+        return path.dropFirst(base.count).split(separator: "/").contains { $0.hasPrefix(".") }
+    }
+
+    private func isHidden(_ path: String) -> Bool {
+        rootPaths.contains { Self.isHidden(path, below: $0) }
+    }
 
     init?(url: URL, latency: TimeInterval = 0.3, onChange: @escaping @MainActor () -> Void) {
         self.onChange = onChange
+        let resolved = url.resolvingSymlinksInPath().path
+        self.rootPaths = resolved == url.path ? [url.path] : [url.path, resolved]
         var context = FSEventStreamContext(
             version: 0,
             info: Unmanaged.passUnretained(self).toOpaque(),
@@ -18,13 +34,15 @@ final class FolderWatcher: @unchecked Sendable {
             release: nil,
             copyDescription: nil
         )
-        let callback: FSEventStreamCallback = { _, info, _, _, _, _ in
+        let callback: FSEventStreamCallback = { _, info, count, paths, _, _ in
             guard let info else { return }
             let watcher = Unmanaged<FolderWatcher>.fromOpaque(info).takeUnretainedValue()
+            let changed = Unmanaged<CFArray>.fromOpaque(paths).takeUnretainedValue() as? [String] ?? []
+            if count > 0, !changed.isEmpty, changed.allSatisfy({ watcher.isHidden($0) }) { return }
             // The stream is scheduled on the main queue, so this runs on the main thread
             MainActor.assumeIsolated { watcher.onChange() }
         }
-        let flags = FSEventStreamCreateFlags(kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagNoDefer)
+        let flags = FSEventStreamCreateFlags(kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagUseCFTypes)
         guard let stream = FSEventStreamCreate(
             nil, callback, &context, [url.path] as CFArray,
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow), latency, flags

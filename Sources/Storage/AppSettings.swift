@@ -21,6 +21,7 @@ public final class AppSettings: ObservableObject {
     private let storageKeySuggestNotes = "settings.suggestNotes"
     private let storageKeyLastNote = "settings.lastNoteID"
     private let storageKeyLastCursor = "settings.lastCursorOffset"
+    private let storageKeyCursorMemory = "settings.cursorMemory"
     
     // Injected so tests can use an isolated suite instead of the app's real preferences
     private let defaults: UserDefaults
@@ -74,6 +75,40 @@ public final class AppSettings: ObservableObject {
             defaults.set(newValue?.noteID.uuidString, forKey: storageKeyLastNote)
             defaults.set(newValue?.offset ?? 0, forKey: storageKeyLastCursor)
         }
+    }
+
+    /// The cursor position of each note last typed in, kept on this device. Held in memory and written a moment
+    /// after the last move, since it changes on every key press.
+    private var cursorMemoryStore: CursorMemory?
+    private var cursorSave: DispatchWorkItem?
+
+    private var cursorMemory: CursorMemory {
+        if let cursorMemoryStore { return cursorMemoryStore }
+        let loaded = defaults.data(forKey: storageKeyCursorMemory).flatMap { try? JSONDecoder().decode(CursorMemory.self, from: $0) } ?? CursorMemory()
+        cursorMemoryStore = loaded
+        return loaded
+    }
+
+    /// Where the cursor was in a note, or nil when it was never in it
+    public func cursorOffset(for noteID: UUID) -> Int? {
+        cursorMemory.offset(for: noteID)
+    }
+
+    public func rememberCursor(_ offset: Int, for noteID: UUID) {
+        var memory = cursorMemory
+        memory.remember(offset, for: noteID)
+        cursorMemoryStore = memory
+        cursorSave?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.flushCursorMemory() }
+        cursorSave = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: work)
+    }
+
+    public func flushCursorMemory() {
+        cursorSave?.cancel()
+        cursorSave = nil
+        guard let memory = cursorMemoryStore else { return }
+        defaults.set(try? JSONEncoder().encode(memory), forKey: storageKeyCursorMemory)
     }
 
     #if os(macOS)

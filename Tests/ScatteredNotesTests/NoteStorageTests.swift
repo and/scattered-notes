@@ -93,8 +93,10 @@ final class NoteStorageTests: XCTestCase {
         let settings = AppSettings(notesDirectoryURL: tempDirectory, defaults: UserDefaults(suiteName: "com.scatterednotes.app.tests.storage")!)
         let manager = NoteStorageManager(settings: settings, enableFileWatcher: false)
         
-        XCTAssertTrue(FileManager.default.fileExists(atPath: manager.inboxURL.path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: manager.projectsURL.path))
+        // Inbox/ and Projects/ are made when a note or project needs them
+        XCTAssertTrue(FileManager.default.fileExists(atPath: tempDirectory.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: manager.inboxURL.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: manager.projectsURL.path))
         // Areas were replaced by tags, so no Areas folder is made
         XCTAssertFalse(FileManager.default.fileExists(atPath: manager.areasURL.path))
         

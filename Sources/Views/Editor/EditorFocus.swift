@@ -80,6 +80,23 @@ enum EditorFocus {
         }
     }
 
+    /// Puts the cursor where it was left in a note without taking the keyboard from where it is, so the
+    /// arrow keys still move through the note list. The text view keeps the place until the person clicks
+    /// into the text or presses Return.
+    static func placeCursor(showing text: String, atOffset offset: Int, attemptsLeft: Int = 16) {
+        if let window = NSApp.mainWindow ?? NSApp.keyWindow, !(window is NSPanel),
+           let textView = editorTextView(in: window.contentView, showing: text) {
+            let range = NSRange(location: min(offset, (textView.string as NSString).length), length: 0)
+            textView.setSelectedRange(range)
+            textView.scrollRangeToVisible(range)
+            return
+        }
+        guard attemptsLeft > 0 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
+            placeCursor(showing: text, atOffset: offset, attemptsLeft: attemptsLeft - 1)
+        }
+    }
+
     /// Replaces `range` of the open note's text with `replacement` through the text view, as if typed, so ⌘Z undoes it
     /// and the editor's own text and saving follow. False when the text view is not on screen showing `text`.
     @discardableResult
@@ -161,6 +178,8 @@ private final class PlaceTracker: NSObject {
               let textView = notification.object as? NSTextView,
               textView.isEditable, !textView.isFieldEditor,
               let window = textView.window, !(window is NSPanel), window.firstResponder === textView else { return }
-        AppSettings.shared.lastPlace = LastPlace(noteID: id, offset: textView.selectedRange().location)
+        let offset = textView.selectedRange().location
+        AppSettings.shared.lastPlace = LastPlace(noteID: id, offset: offset)
+        AppSettings.shared.rememberCursor(offset, for: id)
     }
 }

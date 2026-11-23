@@ -2,7 +2,11 @@ import Foundation
 
 /// A single line pulled out of a note for the dashboard: a checklist item, a dated plan, or both.
 public struct AgendaItem: Identifiable, Hashable, Sendable {
-    public var id: String { "\(noteID.uuidString)-\(lineIndex)" }
+    /// A repeating to-do has one item for each day, so its id holds the day
+    public var id: String {
+        if recurrence != nil, !isDone, let date { return "\(noteID.uuidString)-\(lineIndex)-\(Int(date.timeIntervalSince1970))" }
+        return "\(noteID.uuidString)-\(lineIndex)"
+    }
     public let noteID: UUID
     public let lineIndex: Int
     public let text: String
@@ -14,6 +18,21 @@ public struct AgendaItem: Identifiable, Hashable, Sendable {
     public let writtenOn: Date
     /// Start of the day a checked line was ticked, from its ✅ marker
     public let doneOn: Date?
+    /// The rule of a repeating to-do ("every day"), on each of its days and on the record of a ticked day
+    public let recurrence: String?
+
+    public init(noteID: UUID, lineIndex: Int, text: String, isTodo: Bool, isDone: Bool, date: Date?,
+                writtenOn: Date, doneOn: Date?, recurrence: String? = nil) {
+        self.noteID = noteID
+        self.lineIndex = lineIndex
+        self.text = text
+        self.isTodo = isTodo
+        self.isDone = isDone
+        self.date = date
+        self.writtenOn = writtenOn
+        self.doneOn = doneOn
+        self.recurrence = recurrence
+    }
 }
 
 /// Scans note content for checklist lines, plain lines that read as plans (see `isPlannedAction(_:)`),
@@ -34,20 +53,43 @@ public struct AgendaItem: Identifiable, Hashable, Sendable {
 /// written on Monday means Tuesday even when read or edited later. A line without a `📅` marker,
 /// e.g. one written in another editor, resolves against the note's last update.
 public enum AgendaExtractor {
-    public static func items(from note: Note, calendar: Calendar = .current) -> [AgendaItem] {
+    public static func items(from note: Note, calendar: Calendar = .current, now: Date = Date()) -> [AgendaItem] {
         let fallback = calendar.startOfDay(for: note.updatedAt)
+        let today = calendar.startOfDay(for: now)
         var result: [AgendaItem] = []
         var previousDate: Date?
         // A log note's time markers are not part of what its lines say
         let content = LogLines.hasStamps(note.content) ? LogLines.parse(note.content, calendar: calendar).text : note.content
+        let lines = content.components(separatedBy: .newlines)
+        let ticked = tickedDays(in: lines, calendar: calendar)
 
-        for (index, rawLine) in content.components(separatedBy: .newlines).enumerated() {
+        for (index, rawLine) in lines.enumerated() {
             let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { continue }
 
             let checklist = checklistState(of: trimmed)
             let marks = markers(in: trimmed, calendar: calendar)
             let reference = fallback
+
+            // A repeating to-do is one item for each of its days not yet ticked
+            if let rule = seriesRule(of: trimmed), checklist != true {
+                let text = displayText(for: trimmed)
+                guard !text.isEmpty else { continue }
+                let start = marks.due ?? rule.firstDay(onOrAfter: reference, calendar: calendar)
+                let done = ticked[text] ?? []
+                var days = rule.days(from: start, through: today, calendar: calendar).filter { !done.contains($0) }
+                if let upcoming = rule.next(after: today, from: start, calendar: calendar), !done.contains(upcoming) {
+                    days.append(upcoming)
+                }
+                for day in days {
+                    result.append(AgendaItem(
+                        noteID: note.id, lineIndex: index, text: text, isTodo: true, isDone: false,
+                        date: day, writtenOn: reference, doneOn: nil, recurrence: rule.text))
+                }
+                previousDate = days.first ?? previousDate
+                continue
+            }
+
             let date = marks.due ?? parseDate(in: withoutMarkers(trimmed), reference: reference, previous: previousDate, calendar: calendar)
             if let date { previousDate = date }
 
@@ -64,7 +106,8 @@ public enum AgendaExtractor {
                 isDone: checklist ?? false,
                 date: date,
                 writtenOn: reference,
-                doneOn: (checklist ?? false) ? marks.done : nil
+                doneOn: (checklist ?? false) ? marks.done : nil,
+                recurrence: checklist == true ? repeatText(in: trimmed) : nil
             ))
         }
         return result
@@ -73,6 +116,9 @@ public enum AgendaExtractor {
     // MARK: - Date markers
     private static let dueMarkerRegex = try! NSRegularExpression(pattern: "\\s*📅\\s*(\\d{4})-(\\d{2})-(\\d{2})")
     private static let doneMarkerRegex = try! NSRegularExpression(pattern: "\\s*✅\\s*(\\d{4})-(\\d{2})-(\\d{2})")
+    /// `🔁 every day`: the rule of a repeating to-do, up to the next marker or the end of the line
+    private static let repeatMarkerRegex = try! NSRegularExpression(
+        pattern: "\\s*🔁\\s*((?:(?!📅|✅|\u{23F1}).)*?)\\s*(?=📅|✅|\u{23F1}|$)")
     /// The time marker of a log line (see `LogLines`), taken off wherever a line is read for what it says
     private static let logMarkerRegex = try! NSRegularExpression(pattern: "\\s*\u{23F1}\u{FE0F}?\\s*" + LogLines.stampPattern)
 
@@ -90,14 +136,14 @@ public enum AgendaExtractor {
 
     /// Whether a text can hold a marker at all; most lines cannot, and this is far cheaper than the patterns.
     private static func hasMarker(_ text: String) -> Bool {
-        text.unicodeScalars.contains { $0.value == 0x1F4C5 || $0.value == 0x2705 || $0.value == 0x23F1 }
+        text.unicodeScalars.contains { $0.value == 0x1F4C5 || $0.value == 0x2705 || $0.value == 0x23F1 || $0.value == 0x1F501 }
             || (LogLines.mayStartWithStamp(text) && LogLines.withoutStamp(text) != text)
     }
 
     /// The UTF-16 ranges of the `📅` and `✅` markers in a text, sorted.
     static func markerRanges(in text: String) -> [NSRange] {
         let whole = NSRange(text.startIndex..., in: text)
-        return [dueMarkerRegex, doneMarkerRegex]
+        return [dueMarkerRegex, doneMarkerRegex, repeatMarkerRegex]
             .flatMap { $0.matches(in: text, range: whole).map(\.range) }
             .sorted { $0.location < $1.location }
     }
@@ -111,10 +157,40 @@ public enum AgendaExtractor {
     static func withoutMarkers(_ line: String) -> String {
         guard hasMarker(line) else { return line }
         var text = LogLines.withoutStamp(line)
-        for regex in [dueMarkerRegex, doneMarkerRegex, logMarkerRegex] {
+        for regex in [dueMarkerRegex, doneMarkerRegex, repeatMarkerRegex, logMarkerRegex] {
             text = regex.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: "")
         }
         return text
+    }
+
+    /// The words of the `🔁` marker of a line, as written
+    static func repeatText(in line: String) -> String? {
+        guard hasMarker(line) else { return nil }
+        let ns = line as NSString
+        guard let m = repeatMarkerRegex.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)) else { return nil }
+        let words = ns.substring(with: m.range(at: 1)).trimmingCharacters(in: .whitespaces)
+        return words.isEmpty ? nil : words
+    }
+
+    /// The rule of a repeating to-do: the one in its `🔁` marker, or else one written in plain words on a
+    /// to-do line (an open checklist item, or a line that reads as something to do). nil for any other line.
+    static func seriesRule(of line: String) -> Recurrence? {
+        if let words = repeatText(in: line), let rule = Recurrence.find(in: words) { return rule }
+        let text = displayText(for: line)
+        guard checklistState(of: line) == false || (checklistState(of: line) == nil && isPlannedAction(text)) else { return nil }
+        return Recurrence.find(in: text)
+    }
+
+    /// The days already ticked for each repeating to-do: ticked lines that carry a `🔁` marker and a `📅`
+    /// day, by the words of the line
+    static func tickedDays(in lines: [String], calendar: Calendar) -> [String: Set<Date>] {
+        var result: [String: Set<Date>] = [:]
+        for raw in lines where raw.unicodeScalars.contains(where: { $0.value == 0x1F501 }) {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            guard checklistState(of: line) == true, let day = markers(in: line, calendar: calendar).due else { continue }
+            result[displayText(for: line), default: []].insert(day)
+        }
+        return result
     }
 
     private static func marker(_ symbol: String, _ day: Date, calendar: Calendar) -> String {
@@ -137,8 +213,10 @@ public enum AgendaExtractor {
         var lines = content.components(separatedBy: .newlines)
         guard lines.indices.contains(lineIndex) else { return content }
         let marks = markers(in: lines[lineIndex], calendar: calendar)
+        let rule = repeatText(in: lines[lineIndex])
         var text = withoutMarkers(lines[lineIndex])
         while let last = text.last, last.isWhitespace { text.removeLast() }
+        if let rule { text += " 🔁 " + rule }
         text += marker("📅", calendar.startOfDay(for: day), calendar: calendar)
         if let done = marks.done { text += marker("✅", done, calendar: calendar) }
         lines[lineIndex] = text
@@ -194,6 +272,19 @@ public enum AgendaExtractor {
             let old = known[key]?.isEmpty == false ? known[key]?.removeFirst() : nil
             let marks = markers(in: line, calendar: calendar)
 
+            // A repeating to-do keeps its rule and its first day in markers; its words are not read as a day
+            if let rule = seriesRule(of: line), checklistState(of: line) != true {
+                let start = marks.due ?? old?.due ?? rule.firstDay(onOrAfter: old == nil ? today : before, calendar: calendar)
+                if repeatText(in: line) != rule.text || marks.due != start || marks.done != nil {
+                    var text = withoutMarkers(lines[index])
+                    while let last = text.last, last.isWhitespace { text.removeLast() }
+                    text += " 🔁 " + rule.text + marker("📅", start, calendar: calendar)
+                    lines[index] = text
+                }
+                previousDate = start
+                continue
+            }
+
             var due = marks.due ?? old?.due
             let found = due == nil
                 ? parseDay(in: withoutMarkers(line), reference: old == nil ? today : before, previous: previousDate, calendar: calendar)
@@ -211,10 +302,55 @@ public enum AgendaExtractor {
             guard due != marks.due || done != marks.done else { continue }
             var text = withoutMarkers(lines[index])
             while let last = text.last, last.isWhitespace { text.removeLast() }
+            if let rule = repeatText(in: lines[index]) { text += " 🔁 " + rule }
             if let due { text += marker("📅", due, calendar: calendar) }
             if let done { text += marker("✅", done, calendar: calendar) }
             lines[index] = text
         }
+        return lines.joined(separator: "\n")
+    }
+
+    /// Ticks or unticks a repeating to-do, or nil when line `lineIndex` is not one (the caller then flips the
+    /// box as for any line).
+    ///
+    /// Ticking a day writes a ticked copy of the line under it: `- [x] log food 🔁 every day 📅 <that day> ✅ <today>`.
+    /// That is the shape the Obsidian Tasks plugin writes. When the day is the oldest one still open, the
+    /// first day on the open line moves to the next day, as that plugin does. `occurrence` is the day to tick;
+    /// without it, today is ticked, or else the oldest open day. Unticking a ticked copy removes the copy, so the
+    /// day is open again.
+    static func togglingRepeating(
+        _ lineIndex: Int, in content: String, occurrence: Date?, now: Date, calendar: Calendar
+    ) -> String? {
+        var lines = content.components(separatedBy: .newlines)
+        guard lines.indices.contains(lineIndex) else { return nil }
+        let line = lines[lineIndex]
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        if checklistState(of: trimmed) == true {
+            guard repeatText(in: trimmed) != nil else { return nil }
+            lines.remove(at: lineIndex)
+            return lines.joined(separator: "\n")
+        }
+        guard let rule = seriesRule(of: trimmed) else { return nil }
+
+        let today = calendar.startOfDay(for: now)
+        let key = displayText(for: trimmed)
+        let start = markers(in: trimmed, calendar: calendar).due ?? rule.firstDay(onOrAfter: today, calendar: calendar)
+        let done = tickedDays(in: lines, calendar: calendar)[key] ?? []
+        let open = rule.days(from: start, through: today, calendar: calendar).filter { !done.contains($0) }
+        let day: Date
+        if let occurrence { day = calendar.startOfDay(for: occurrence) }
+        else if open.contains(today) { day = today }
+        else if let oldest = open.first { day = oldest }
+        else { return content }
+        guard !done.contains(day) else { return content }
+
+        let indent = String(line.prefix { $0 == " " || $0 == "\t" })
+        let record = indent + "- [x] " + key + " 🔁 " + rule.text + marker("📅", day, calendar: calendar) + marker("✅", today, calendar: calendar)
+        let newStart = (open.first == day || (open.isEmpty && day == start)) ? (rule.next(after: day, from: start, calendar: calendar) ?? start) : start
+        var series = withoutMarkers(line)
+        while let last = series.last, last.isWhitespace { series.removeLast() }
+        lines[lineIndex] = series + " 🔁 " + rule.text + marker("📅", newStart, calendar: calendar)
+        lines.insert(record, at: lineIndex + 1)
         return lines.joined(separator: "\n")
     }
 

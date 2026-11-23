@@ -38,10 +38,13 @@ public final class NoteStorageManager: ObservableObject {
     private struct CachedAgenda {
         let content: String
         let updatedAt: Date
+        /// The day the items were made on: a repeating to-do has a different set of days each day
+        let day: Date
         let items: [AgendaItem]
     }
     private var agendaCache: [UUID: CachedAgenda] = [:]
     private var allAgendaItems: [AgendaItem]?
+    private var allAgendaDay: Date?
     private var linkIndexCache: NoteLinkIndex?
     private var relatedIndexCache: RelatedIndex?
 
@@ -122,14 +125,43 @@ public final class NoteStorageManager: ObservableObject {
     }
     
     
+    /// Creates only the notes folder. Inbox/ and Projects/ are made when a note or project first needs
+    /// them, so a folder shared with Obsidian doesn't fill up with empty folders.
     public func setupDirectories() {
         let fileManager = FileManager.default
-        let dirs = [inboxURL, projectsURL]
-        for dir in dirs {
-            if !fileManager.fileExists(atPath: dir.path) {
-                try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true, attributes: nil)
-            }
+        if !fileManager.fileExists(atPath: rootURL.path) {
+            try? fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true, attributes: nil)
         }
+    }
+
+    /// The app's own folders, never read as loose project folders
+    private static let appFolders: Set<String> = ["inbox", "projects", "areas"]
+
+    /// Top-level folders of the notes folder that hold notes but aren't the app's own, as an Obsidian
+    /// vault has. Each shows as a project of the same name and its notes stay where they are.
+    private var looseFolders: Set<String> = []
+
+    private func discoverLooseFolders() -> [ProjectArea] {
+        let fileManager = FileManager.default
+        guard let dirs = try? fileManager.contentsOfDirectory(at: rootURL, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) else {
+            return []
+        }
+        return dirs.compactMap { dir -> ProjectArea? in
+            guard (try? dir.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
+                  !Self.appFolders.contains(dir.lastPathComponent.lowercased()) else { return nil }
+            let files = (try? fileManager.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
+            guard files.contains(where: { $0.pathExtension.lowercased() == "md" }) else { return nil }
+            var icon: String?
+            if let data = try? Data(contentsOf: dir.appendingPathComponent(".metadata.json")),
+               let dict = try? JSONDecoder().decode([String: String].self, from: data) {
+                icon = dict["icon"]
+            }
+            return ProjectArea(name: dir.lastPathComponent, type: .project, customIcon: icon)
+        }
+    }
+
+    private func isLooseFolder(_ name: String) -> Bool {
+        looseFolders.contains(name.lowercased())
     }
     
     // MARK: - Loading & Discovery
@@ -172,6 +204,12 @@ public final class NoteStorageManager: ObservableObject {
                 }
             }
         }
+        let appProjects = discoveredProjects
+        let loose = discoverLooseFolders()
+        looseFolders = Set(loose.map { $0.name.lowercased() })
+        // A loose folder named like a project in Projects/ shows once; its notes still load
+        let taken = Set(appProjects.map { $0.name.lowercased() })
+        discoveredProjects += loose.filter { !taken.contains($0.name.lowercased()) }
         self.projects = discoveredProjects.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         
         // 2. Find folders left from areas, so their notes can be moved out (see migrateAreasToTags)
@@ -184,10 +222,17 @@ public final class NoteStorageManager: ObservableObject {
         // Load Inbox notes
         loadedNotes.append(contentsOf: loadNotesInDirectory(inboxURL, defaultCategory: .inbox, targetName: nil))
         
+        // Notes at the top of the notes folder, as in an Obsidian vault, show in the Inbox
+        loadedNotes.append(contentsOf: loadNotesInDirectory(rootURL, defaultCategory: .inbox, targetName: nil))
+        
         // Load Project notes
-        for project in self.projects {
+        for project in appProjects {
             let pDir = projectsURL.appendingPathComponent(project.name, isDirectory: true)
             loadedNotes.append(contentsOf: loadNotesInDirectory(pDir, defaultCategory: .project, targetName: project.name))
+        }
+        for folder in loose {
+            let pDir = rootURL.appendingPathComponent(folder.name, isDirectory: true)
+            loadedNotes.append(contentsOf: loadNotesInDirectory(pDir, defaultCategory: .project, targetName: folder.name))
         }
         
         // Load notes still in area folders
@@ -311,14 +356,11 @@ public final class NoteStorageManager: ObservableObject {
         
         let fileManager = FileManager.default
         let destinationDir = targetDirectory(for: updatedNote.categoryType, targetName: updatedNote.targetName)
-        if !fileManager.fileExists(atPath: destinationDir.path) {
-            try? fileManager.createDirectory(at: destinationDir, withIntermediateDirectories: true)
-        }
         
         // Determine file URL
         let fileURL: URL
         var staleURL: URL?
-        if let existing = updatedNote.filePath, existing.deletingLastPathComponent().path == destinationDir.path {
+        if let existing = updatedNote.filePath, isHomeFolder(existing.deletingLastPathComponent(), of: updatedNote, destination: destinationDir) {
             fileURL = existing
         } else {
             // Moved to a different directory or no file path yet. The old file goes only after the
@@ -329,6 +371,11 @@ public final class NoteStorageManager: ObservableObject {
             let fileName = generateUniqueFileName(for: updatedNote, in: destinationDir)
             fileURL = destinationDir.appendingPathComponent(fileName)
             updatedNote.filePath = fileURL
+        }
+        // Only the folder the file goes in is made, so a vault doesn't get empty Inbox/ and Projects/ folders
+        let fileFolder = fileURL.deletingLastPathComponent()
+        if !fileManager.fileExists(atPath: fileFolder.path) {
+            try? fileManager.createDirectory(at: fileFolder, withIntermediateDirectories: true)
         }
         
         isPerformingInternalFileOperation = true
@@ -383,9 +430,10 @@ public final class NoteStorageManager: ObservableObject {
         save(note: updatedNote)
     }
     
-    public func toggleChecklistItem(noteID: UUID, lineIndex: Int) {
+    /// `occurrence` is the day of a repeating to-do to tick; see `Note.togglingChecklistLine`
+    public func toggleChecklistItem(noteID: UUID, lineIndex: Int, occurrence: Date? = nil) {
         guard var note = notes.first(where: { $0.id == noteID }) else { return }
-        note.content = Note.togglingChecklistLine(lineIndex, in: note.content)
+        note.content = Note.togglingChecklistLine(lineIndex, in: note.content, occurrence: occurrence)
         save(note: note)
     }
     
@@ -427,11 +475,12 @@ public final class NoteStorageManager: ObservableObject {
 
     /// Checklist items and dated lines from every note, for the dashboard.
     public var agendaItems: [AgendaItem] {
-        if let allAgendaItems { return allAgendaItems }
+        if let allAgendaItems, allAgendaDay == Calendar.current.startOfDay(for: Date()) { return allAgendaItems }
         let started = CFAbsoluteTimeGetCurrent()
         let items = notes.flatMap { agendaItems(for: $0) }
         loadStats.agendaMilliseconds = (CFAbsoluteTimeGetCurrent() - started) * 1000
         allAgendaItems = items
+        allAgendaDay = Calendar.current.startOfDay(for: Date())
         return items
     }
     
@@ -445,11 +494,12 @@ public final class NoteStorageManager: ObservableObject {
 
     /// Checklist items and dated lines of one note, dated from when each line was first written.
     public func agendaItems(for note: Note) -> [AgendaItem] {
-        if let cached = agendaCache[note.id], cached.updatedAt == note.updatedAt, cached.content == note.content {
+        let day = Calendar.current.startOfDay(for: Date())
+        if let cached = agendaCache[note.id], cached.updatedAt == note.updatedAt, cached.content == note.content, cached.day == day {
             return cached.items
         }
         let items = AgendaExtractor.items(from: note)
-        agendaCache[note.id] = CachedAgenda(content: note.content, updatedAt: note.updatedAt, items: items)
+        agendaCache[note.id] = CachedAgenda(content: note.content, updatedAt: note.updatedAt, day: day, items: items)
         return items
     }
     
@@ -498,8 +548,26 @@ public final class NoteStorageManager: ObservableObject {
     
     public func deleteProject(name: String) {
         let dir = projectsURL.appendingPathComponent(name, isDirectory: true)
-        try? FileManager.default.removeItem(at: dir)
+        if !FileManager.default.fileExists(atPath: dir.path), isLooseFolder(name) {
+            deleteLooseFolderNotes(rootURL.appendingPathComponent(name, isDirectory: true))
+        } else {
+            try? FileManager.default.removeItem(at: dir)
+        }
         loadAll()
+    }
+
+    /// A loose folder may hold more than notes (an Obsidian vault keeps images and attachments beside
+    /// them), so only its notes are deleted, and the folder only when nothing else is left in it.
+    private func deleteLooseFolderNotes(_ dir: URL) {
+        let fileManager = FileManager.default
+        let files = (try? fileManager.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
+        for file in files where file.pathExtension.lowercased() == "md" {
+            try? fileManager.removeItem(at: file)
+        }
+        let rest = (try? fileManager.contentsOfDirectory(atPath: dir.path)) ?? []
+        if rest.allSatisfy({ $0 == ".DS_Store" || $0 == ".metadata.json" }) {
+            try? fileManager.removeItem(at: dir)
+        }
     }
     
     // MARK: - Areas
@@ -656,6 +724,15 @@ public final class NoteStorageManager: ObservableObject {
     }
 
     // MARK: - Helpers
+    /// Whether a note in `directory` belongs where it is, so saving it keeps the file in place
+    private func isHomeFolder(_ directory: URL, of note: Note, destination: URL) -> Bool {
+        // /var and /private/var are one folder, so compare where the folders really are
+        let here = directory.resolvingSymlinksInPath().path
+        if here == destination.resolvingSymlinksInPath().path { return true }
+        guard note.categoryType == .inbox else { return false }
+        return here == rootURL.resolvingSymlinksInPath().path
+    }
+
     private func targetDirectory(for category: CategoryType, targetName: String?) -> URL {
         switch category {
         case .inbox:
@@ -663,6 +740,10 @@ public final class NoteStorageManager: ObservableObject {
         case .project:
             let name = targetName?.trimmingCharacters(in: .whitespacesAndNewlines)
             if let name = name, !name.isEmpty {
+                // A note moved into a loose folder's project goes into that folder, unless Projects/ has one too
+                if isLooseFolder(name), !FileManager.default.fileExists(atPath: projectsURL.appendingPathComponent(name).path) {
+                    return rootURL.appendingPathComponent(name, isDirectory: true)
+                }
                 return projectsURL.appendingPathComponent(name, isDirectory: true)
             }
             return projectsURL.appendingPathComponent("General", isDirectory: true)

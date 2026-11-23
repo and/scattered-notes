@@ -21,6 +21,10 @@ public struct NoteDetailEditorView: View {
     @State private var editorMode: EditorMode = .edit
     @State private var saveDebounceTimer: Timer?
     @State private var showingDeleteAlert = false
+    /// Changes when a note starts or stops floating, so the header's float button redraws
+    @State private var floatTick = 0
+    @State private var showingOpacity = false
+    @State private var windowOpacity = FloatingNotePanel.opacity
     @AppStorage("showAgendaInspector") private var showAgendaInspector = true
     /// Off to begin with: most notes have no links, and the column takes room from the text
     @AppStorage("showLinksPanel") private var showLinksPanel = false
@@ -39,7 +43,14 @@ public struct NoteDetailEditorView: View {
         }
     }
     
-    public init(note: Note) {
+    /// Shown in a small window of its own that floats above other windows (see `FloatingNotePanel`): only the
+    /// title and the text, with a button that puts the note back
+    private let isFloating: Bool
+    private let onUnfloat: (() -> Void)?
+
+    public init(note: Note, isFloating: Bool = false, onUnfloat: (() -> Void)? = nil) {
+        self.isFloating = isFloating
+        self.onUnfloat = onUnfloat
         self.opened = note
         self._editableTitle = State(initialValue: note.title)
         self._editableContent = State(initialValue: note.content)
@@ -79,7 +90,7 @@ public struct NoteDetailEditorView: View {
         HStack(spacing: 0) {
             editorColumn
             // Agenda above Links in one column, so the window keeps three columns however many are open
-            if showsAgenda || showsLinks {
+            if !isFloating, showsAgenda || showsLinks {
                 Divider()
                 rightColumn
             }
@@ -128,7 +139,8 @@ public struct NoteDetailEditorView: View {
             items: agendaItems,
             onToggle: { item in
                 // Edit the live text so the toggle is not overwritten by the next autosave
-                editableContent = Note.togglingChecklistLine(item.lineIndex, in: editableContent)
+                editableContent = Note.togglingChecklistLine(
+                    item.lineIndex, in: editableContent, occurrence: item.recurrence != nil && !item.isDone ? item.date : nil)
                 scheduleSave()
             },
             history: { storageManager.dateHistory(for: $0) },
@@ -233,6 +245,7 @@ public struct NoteDetailEditorView: View {
                 
                 Spacer()
                 
+                if !isFloating {
                 // Destination / Project Selector Menu
                 Menu {
                     Button(action: { moveTo(category: .inbox, target: nil) }) {
@@ -278,6 +291,9 @@ public struct NoteDetailEditorView: View {
                 .pickerStyle(.segmented)
                 .frame(width: 100)
                 
+                }
+
+                if !isFloating {
                 // Agenda column toggle, only for notes that have agenda lines
                 if !agendaItems.isEmpty {
                     Button(action: { showAgendaInspector.toggle() }) {
@@ -297,6 +313,8 @@ public struct NoteDetailEditorView: View {
                 .help(showLinksPanel ? "Hide Links" : "Show Links")
                 .accessibilityIdentifier("linksToggle")
                 
+                }
+
                 // Pin Button
                 Button(action: {
                     storageManager.togglePin(note: note)
@@ -307,6 +325,40 @@ public struct NoteDetailEditorView: View {
                 .buttonStyle(.plain)
                 .help(note.isPinned ? "Unpin Note" : "Pin Note")
                 
+                if isFloating {
+                    Button(action: { showingOpacity.toggle() }) {
+                        Image(systemName: "circle.lefthalf.filled")
+                            .foregroundColor(.wcagSecondaryText)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Transparency of this window")
+                    .accessibilityLabel("Window transparency")
+                    .popover(isPresented: $showingOpacity, arrowEdge: .bottom) {
+                        VStack(spacing: 6) {
+                            Slider(value: $windowOpacity, in: FloatingNotePanel.minimumOpacity...1)
+                                .frame(width: 160)
+                                .accessibilityLabel("Window opacity")
+                                .onChange(of: windowOpacity) { _, value in FloatingNotePanel.opacity = value }
+                            Text("\(Int((windowOpacity * 100).rounded()))% solid")
+                                .font(.caption)
+                                .foregroundColor(.wcagSecondaryText)
+                        }
+                        .padding(12)
+                    }
+                }
+                
+                // Float: the note in a small window that stays above other windows, to write beside a browser
+                Button(action: {
+                    if isFloating { onUnfloat?() } else { FloatingNotePanel.present(note: note) }
+                }) {
+                    Image(systemName: isFloating ? "pip.exit" : "pip.enter")
+                        .foregroundColor(isFloating || (floatTick >= 0 && FloatingNotePanel.isFloating(note.id)) ? .wcagBlue : .wcagSecondaryText)
+                }
+                .buttonStyle(.plain)
+                .help(isFloating ? "Close this window; the note stays in the app" : "Float Note: open it in a small window above other windows")
+                .accessibilityLabel(isFloating ? "Stop floating this note" : "Float note")
+                
+                if !isFloating {
                 // Reveal in Finder
                 if let path = note.filePath {
                     Button(action: {
@@ -328,6 +380,7 @@ public struct NoteDetailEditorView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Delete Note")
+                }
             }
             .padding(.horizontal, 16)
             .frame(height: PaneHeader.height)
@@ -359,6 +412,7 @@ public struct NoteDetailEditorView: View {
                 }
             }
             
+            if !isFloating {
             Divider()
             
             // Status bar at bottom
@@ -400,7 +454,9 @@ public struct NoteDetailEditorView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
             .background(Color(NSColor.windowBackgroundColor).opacity(0.3))
+            }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .floatingNotesChanged)) { _ in floatTick += 1 }
         .onReceive(storageManager.$notes) { _ in updateSuggestions() }
         .onChange(of: showLinksPanel) { _, _ in updateSuggestions() }
         .onChange(of: settings.suggestNotes) { _, _ in updateSuggestions() }
@@ -409,6 +465,7 @@ public struct NoteDetailEditorView: View {
             EditorFocus.openNoteID = note.id
             syncFromNote()
             focusEditorIfRequested()
+            showRememberedCursor()
         }
         .onReceive(NotificationCenter.default.publisher(for: .focusNoteEditor)) { _ in
             focusEditorIfRequested()
@@ -419,10 +476,12 @@ public struct NoteDetailEditorView: View {
             flushPendingSave()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+            settings.flushCursorMemory()
             flushPendingSave()
         }
         .onChange(of: note.id) { _, _ in
             syncFromNote()
+            showRememberedCursor()
         }
         .onChange(of: [note.title, note.content]) { _, _ in
             takeNewerVersion()
@@ -483,7 +542,20 @@ public struct NoteDetailEditorView: View {
         EditorFocus.pending = nil
         if editorMode == .preview { editorMode = .edit }
         let text = editableContent
-        EditorFocus.focusTextView(showing: text, atOffset: request.offset ?? EditorFocus.cursorOffset(in: text, terms: request.terms))
+        // Search words win; otherwise the cursor goes where it was left in this note, or to the end of a note not typed in yet
+        let remembered = request.terms.isEmpty ? settings.cursorOffset(for: note.id) : nil
+        EditorFocus.focusTextView(showing: text, atOffset: request.offset ?? remembered ?? EditorFocus.cursorOffset(in: text, terms: request.terms))
+    }
+
+    /// Shows the cursor where it was left in this note when it opens, without moving the keyboard to it
+    private func showRememberedCursor() {
+        guard !isFloating, EditorFocus.pending?.noteID != note.id, editorMode != .preview,
+              let offset = settings.cursorOffset(for: note.id) else { return }
+        // Wait a beat: the text is loaded into the view just after the note changes
+        let text = editableContent
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            EditorFocus.placeCursor(showing: text, atOffset: offset)
+        }
     }
     
     private func flushPendingSave() {

@@ -64,6 +64,18 @@ public struct DashboardView: View {
                                 ForEach(overdue) { item in
                                     row(item, note: lookup[item.noteID], showDate: true)
                                 }
+                                ForEach(snapshot.earlierRepeats) { earlier in
+                                    Button(action: { onOpenNote(earlier.note) }) {
+                                        Label("\(earlier.count) earlier days of \"\(earlier.text)\"", systemImage: "repeat")
+                                            .font(.caption)
+                                            .foregroundColor(.wcagSecondaryText)
+                                            .lineLimit(1)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .help("Open the note. Change the first day on the to-do to drop the old days.")
+                                }
                             }
                             .id(Section.overdue)
                         }
@@ -418,7 +430,7 @@ public struct DashboardView: View {
             note: note,
             dateLabel: showDate ? item.date.map(dayLabel) : nil,
             history: { storageManager.dateHistory(for: item) },
-            onToggle: { storageManager.toggleChecklistItem(noteID: item.noteID, lineIndex: item.lineIndex) },
+            onToggle: { storageManager.toggleChecklistItem(noteID: item.noteID, lineIndex: item.lineIndex, occurrence: item.recurrence != nil && !item.isDone ? item.date : nil) },
             onSetDate: { storageManager.setDate(noteID: item.noteID, lineIndex: item.lineIndex, to: $0) },
             onOpenNote: onOpenNote,
             isFocused: focusedItemID == item.id
@@ -531,8 +543,19 @@ private struct AgendaRow: View {
             Text(item.text)
                 .strikethrough(item.isDone, color: .wcagSecondaryText)
                 .foregroundStyle(item.isDone ? .secondary : .primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .textSelection(.enabled)
+                .help(item.text)
+
+            if let rule = item.recurrence {
+                Image(systemName: "repeat")
+                    .font(.caption)
+                    .foregroundColor(.wcagSecondaryText)
+                    .help("Repeats \(rule)")
+                    .accessibilityLabel("Repeats \(rule)")
+            }
 
             Button(action: { isEditingDate = true }) {
                 if let dateLabel {

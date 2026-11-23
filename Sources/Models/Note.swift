@@ -138,7 +138,15 @@ public struct Note: Identifiable, Hashable, Sendable {
 // MARK: - Checklist Toggling
 extension Note {
     /// Flips the checklist box on `lineIndex` of `content`; other lines are left untouched.
-    public static func togglingChecklistLine(_ lineIndex: Int, in content: String) -> String {
+    ///
+    /// A repeating to-do (see `Recurrence`) is ticked one day at a time: `occurrence` is the day, or nil for today
+    /// (or else the oldest open day).
+    public static func togglingChecklistLine(
+        _ lineIndex: Int, in content: String, occurrence: Date? = nil, now: Date = Date(), calendar: Calendar = .current
+    ) -> String {
+        if let repeating = AgendaExtractor.togglingRepeating(lineIndex, in: content, occurrence: occurrence, now: now, calendar: calendar) {
+            return repeating
+        }
         var lines = content.components(separatedBy: .newlines)
         guard lineIndex < lines.count else { return content }
         let line = lines[lineIndex]
@@ -289,6 +297,7 @@ extension Note {
     public static func parse(from rawContent: String, fileURL: URL? = nil) -> Note {
         var id = UUID()
         var title = ""
+        var hasTitle = false
         var categoryType = CategoryType.inbox
         var targetName: String? = nil
         var createdAt = Date()
@@ -344,6 +353,7 @@ extension Note {
                     if let parsedUUID = UUID(uuidString: val) { id = parsedUUID }
                 case "title":
                     title = val
+                    hasTitle = true
                 case "type":
                     if let type = CategoryType(rawValue: val) { categoryType = type }
                 case "target":
@@ -404,6 +414,10 @@ extension Note {
             extraFrontmatter: extraFrontmatter
         )
         
+        // A note without a title of its own, as Obsidian writes them, is named by its file, as in Obsidian
+        if !hasTitle, let stem = fileURL?.deletingPathExtension().lastPathComponent.trimmingCharacters(in: .whitespacesAndNewlines), !stem.isEmpty {
+            note.title = stem
+        }
         // Ensure note title is populated if blank
         if note.title.isEmpty {
             note.title = note.displayTitle

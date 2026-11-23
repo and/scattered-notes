@@ -269,6 +269,10 @@ public struct NoteListView: View {
             Label(note.isPinned ? "Unpin Note" : "Pin Note", systemImage: note.isPinned ? "pin.slash" : "pin")
         }
         
+        Button(action: { FloatingNotePanel.present(note: note) }) {
+            Label("Float Note", systemImage: "pip.enter")
+        }
+        
         Divider()
         
         Menu("Move to") {

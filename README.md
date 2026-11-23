@@ -110,6 +110,8 @@ To build it from source instead, install the .NET 10 SDK (`curl -sSL https://dot
 
 ## Features
 
+- 🪟 **Float a note (Mac)**: click the float button in a note's header, or right-click a note and choose **Float Note**. The note opens in a small window with only its title and text, and it stays above other windows (a browser, for example) and on every desktop. Drag it to the edge of the screen and resize it as small as you like. Click the button again, or the red close button, to put it away; the note stays in the app.
+
 - ⚡️ **Global Quick Capture (⌥ + N)**:
   - Floating Spotlight/Raycast-style HUD modal accessible from anywhere across macOS.
   - Auto-focused multiline editor.
@@ -173,6 +175,8 @@ It reads every note and lists the lines that need action:
 | `end of the month`, `end of next month` | the last day of that month |
 
 **Relative words use the day you wrote the line**, not the day the note was created or last opened. When a note is saved, the app writes the day into the line, like `call the bank tomorrow 📅 2026-10-27`, and `✅ 2026-10-28` when you tick it (the format the Obsidian Tasks plugin uses). So the date is in the file, any other app can read it, and editing or rewording a line later never moves it. Edit the date in the marker if you want a different day; the marker wins over the words. A line written in another app has no marker until the note is next saved in Scattered Notes; until then it is dated from when the note was last updated.
+
+**To-dos that repeat.** Write the repeat in plain words on a to-do: `- [ ] log daily food`, `water plants every 3 days`, `gym every monday and thursday`, `pay rent every month`. When the note is saved the app writes the rule and the first day into the line: `- [ ] log daily food 🔁 every day 📅 2026-11-20`. The Dashboard then shows one item for each day since the first day, so after two missed days you see both days overdue and today. Each day is ticked on its own: ticking writes a ticked copy of the line under it (`- [x] log daily food 🔁 every day 📅 2026-11-20 ✅ 2026-11-22`), the shape the Obsidian Tasks plugin writes, and unticking removes the copy. Only the last 7 missed days are listed; older ones show as "N earlier days", and moving the first day of the to-do forward drops them. Ticking the checkbox in the note itself ticks today. Mac and iPhone for now; Windows, Linux and Android show the line as one plain to-do.
 
 **Completed items** are listed in a folded **Completed** section at the bottom of every dashboard, newest tick first, each under the day it was ticked (from its `✅` marker). Ticked items from before the markers existed are listed under **Earlier**. Click the heading to open it; unticking an item there puts it back among the open ones.
 

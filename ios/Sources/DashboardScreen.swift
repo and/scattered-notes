@@ -60,6 +60,13 @@ struct DashboardScreen: View {
                 if filter == nil || filter == .overdue, !snapshot.overdue.isEmpty {
                     Section("Overdue") {
                         rows(snapshot.overdue, in: snapshot, showDate: true)
+                        ForEach(snapshot.earlierRepeats) { earlier in
+                            NavigationLink(value: earlier.note.id) {
+                                Label("\(earlier.count) earlier days of \"\(earlier.text)\"", systemImage: "repeat")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                 }
                 if filter == nil || filter == .today, !snapshot.dueToday.isEmpty {
@@ -279,7 +286,8 @@ struct AgendaRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             if item.isTodo {
                 Button {
-                    storage.toggleChecklistItem(noteID: item.noteID, lineIndex: item.lineIndex)
+                    storage.toggleChecklistItem(
+                        noteID: item.noteID, lineIndex: item.lineIndex, occurrence: item.recurrence != nil && !item.isDone ? item.date : nil)
                 } label: {
                     Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(item.isDone ? .green : .secondary)
@@ -298,7 +306,7 @@ struct AgendaRow: View {
                     Text(item.text)
                         .strikethrough(item.isDone)
                         .foregroundStyle(item.isDone ? .secondary : .primary)
-                    let caption = [dateLabel, showNote ? note?.displayTitle : nil].compactMap { $0 }
+                    let caption = [dateLabel, item.recurrence.map { "Repeats \($0)" }, showNote ? note?.displayTitle : nil].compactMap { $0 }
                     if !caption.isEmpty {
                         Text(caption.joined(separator: " · "))
                             .font(.caption)

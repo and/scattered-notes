@@ -16,6 +16,18 @@ public struct DashboardSnapshot: Sendable {
     /// Items planned for today that are ticked, including hidden ones
     public let doneForTodayCount: Int
 
+    /// Days of a repeating to-do older than the last `recentRepeatDays` that are left out of `overdue`, so a
+    /// month away does not bring a month of the same line. The note holds them; moving the start day drops them.
+    public let earlierRepeats: [EarlierRepeats]
+    public static let recentRepeatDays = 7
+
+    public struct EarlierRepeats: Identifiable, Sendable {
+        public let note: Note
+        public let text: String
+        public let count: Int
+        public var id: String { "\(note.id.uuidString)-\(text)" }
+    }
+
     public var overdueCount: Int { overdue.filter { !$0.isDone }.count }
     public var openTodayCount: Int { dueToday.filter { !$0.isDone }.count }
     /// Whether something was planned for today and all of it is ticked
@@ -30,9 +42,27 @@ public struct DashboardSnapshot: Sendable {
         let lookup = Dictionary(uniqueKeysWithValues: notes.map { ($0.id, $0) })
         notesByID = lookup
         let shown = { (item: AgendaItem) in !item.isDone || (showCompleted && doneToday.contains(item.id)) }
-        overdue = items
+        let allOverdue = items
             .filter { $0.isTodo && shown($0) && ($0.date.map { $0 < today } ?? false) }
             .sorted { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
+        // Keep the last days of each repeating to-do; count the older ones
+        var repeatCount: [String: Int] = [:]
+        for item in allOverdue where item.recurrence != nil && !item.isDone { repeatCount["\(item.noteID)-\(item.lineIndex)", default: 0] += 1 }
+        var skipped: [String: Int] = [:]
+        var kept: [AgendaItem] = []
+        for item in allOverdue {
+            let key = "\(item.noteID)-\(item.lineIndex)"
+            if item.recurrence != nil, !item.isDone, let total = repeatCount[key], total - skipped[key, default: 0] > Self.recentRepeatDays {
+                skipped[key, default: 0] += 1
+            } else {
+                kept.append(item)
+            }
+        }
+        overdue = kept
+        earlierRepeats = skipped.compactMap { key, count in
+            guard let item = allOverdue.first(where: { "\($0.noteID)-\($0.lineIndex)" == key }), let note = lookup[item.noteID] else { return nil }
+            return EarlierRepeats(note: note, text: item.text, count: count)
+        }.sorted { $0.text < $1.text }
         let datedToday = items.filter { $0.date.map { calendar.isDate($0, inSameDayAs: today) } ?? false }
         dueToday = datedToday
             .filter { !$0.isDone || showCompleted }
