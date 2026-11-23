@@ -68,6 +68,7 @@ enum EditorFocus {
         if let window = NSApp.mainWindow ?? NSApp.keyWindow,
            window.attachedSheet == nil,
            let textView = editorTextView(in: window.contentView, showing: text) {
+            CursorMark.hide()
             window.makeFirstResponder(textView)
             let range = NSRange(location: min(offset, (textView.string as NSString).length), length: 0)
             textView.setSelectedRange(range)
@@ -89,6 +90,7 @@ enum EditorFocus {
             let range = NSRange(location: min(offset, (textView.string as NSString).length), length: 0)
             textView.setSelectedRange(range)
             textView.scrollRangeToVisible(range)
+            CursorMark.show(in: textView, at: range.location)
             return
         }
         guard attemptsLeft > 0 else { return }
@@ -181,5 +183,56 @@ private final class PlaceTracker: NSObject {
         let offset = textView.selectedRange().location
         AppSettings.shared.lastPlace = LastPlace(noteID: id, offset: offset)
         AppSettings.shared.rememberCursor(offset, for: id)
+    }
+}
+
+/// A grey cursor drawn where the cursor was left in a note that is shown but doesn't have the keyboard.
+/// macOS draws the real cursor only in the text view that has the keyboard, so without this the place is
+/// scrolled to but not seen. The mark goes as soon as the text view's selection or text changes (a click
+/// into the text, Return, typing) or another note is shown.
+@MainActor
+enum CursorMark {
+    private static weak var mark: NSView?
+    private static var observers: [NSObjectProtocol] = []
+
+    static func show(in textView: NSTextView, at location: Int) {
+        hide()
+        guard textView.window?.firstResponder !== textView, let frame = markFrame(in: textView, at: location) else { return }
+        let view = NSView(frame: frame)
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.secondaryLabelColor.cgColor
+        view.layer?.cornerRadius = 1
+        view.setAccessibilityElement(false)
+        textView.addSubview(view)
+        mark = view
+
+        let center = NotificationCenter.default
+        observers = [NSTextView.didChangeSelectionNotification, NSText.didChangeNotification].map { name in
+            center.addObserver(forName: name, object: textView, queue: .main) { _ in
+                MainActor.assumeIsolated { hide() }
+            }
+        }
+        // The text reflows when the window is resized: keep the mark on its character
+        observers.append(center.addObserver(forName: NSView.frameDidChangeNotification, object: textView, queue: .main) { [weak textView] _ in
+            MainActor.assumeIsolated {
+                guard let textView, let frame = markFrame(in: textView, at: location) else { return hide() }
+                mark?.frame = frame
+            }
+        })
+    }
+
+    private static func markFrame(in textView: NSTextView, at location: Int) -> NSRect? {
+        guard let window = textView.window else { return nil }
+        let screenRect = textView.firstRect(forCharacterRange: NSRange(location: location, length: 0), actualRange: nil)
+        guard screenRect.height > 0 else { return nil }
+        let rect = textView.convert(window.convertFromScreen(screenRect), from: nil)
+        return NSRect(x: rect.minX, y: rect.minY, width: 2, height: rect.height)
+    }
+
+    static func hide() {
+        observers.forEach(NotificationCenter.default.removeObserver)
+        observers = []
+        mark?.removeFromSuperview()
+        mark = nil
     }
 }

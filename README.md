@@ -110,7 +110,7 @@ To build it from source instead, install the .NET 10 SDK (`curl -sSL https://dot
 
 ## Features
 
-- 🪟 **Float a note (Mac)**: click the float button in a note's header, or right-click a note and choose **Float Note**. The note opens in a small window with only its title and text, and it stays above other windows (a browser, for example) and on every desktop. Drag it to the edge of the screen and resize it as small as you like. Click the button again, or the red close button, to put it away; the note stays in the app.
+- 🪟 **Float a note (Mac)**: choose **Float Note** from the **…** menu in a note's header, or right-click a note and choose **Float Note**. The note opens in a small window with only its title and text, and it stays above other windows (a browser, for example) and on every desktop. Drag it to the edge of the screen and resize it as small as you like. Click the button in its header, or the red close button, to put it away; the note stays in the app.
 
 - ⚡️ **Global Quick Capture (⌥ + N)**:
   - Floating Spotlight/Raycast-style HUD modal accessible from anywhere across macOS.

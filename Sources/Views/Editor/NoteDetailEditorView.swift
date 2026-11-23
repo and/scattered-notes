@@ -347,39 +347,41 @@ public struct NoteDetailEditorView: View {
                     }
                 }
                 
-                // Float: the note in a small window that stays above other windows, to write beside a browser
-                Button(action: {
-                    if isFloating { onUnfloat?() } else { FloatingNotePanel.present(note: note) }
-                }) {
-                    Image(systemName: isFloating ? "pip.exit" : "pip.enter")
-                        .foregroundColor(isFloating || (floatTick >= 0 && FloatingNotePanel.isFloating(note.id)) ? .wcagBlue : .wcagSecondaryText)
-                }
-                .buttonStyle(.plain)
-                .help(isFloating ? "Close this window; the note stays in the app" : "Float Note: open it in a small window above other windows")
-                .accessibilityLabel(isFloating ? "Stop floating this note" : "Float note")
-                
-                if !isFloating {
-                // Reveal in Finder
-                if let path = note.filePath {
-                    Button(action: {
-                        NSWorkspace.shared.activateFileViewerSelecting([path])
-                    }) {
-                        Image(systemName: "folder")
-                            .foregroundColor(.wcagSecondaryText)
+                if isFloating {
+                    // Puts the note back: the floating window's own way out
+                    Button(action: { onUnfloat?() }) {
+                        Image(systemName: "pip.exit")
+                            .foregroundColor(.wcagBlue)
                     }
                     .buttonStyle(.plain)
-                    .help("Reveal file in Finder")
-                }
-                
-                // Delete Button
-                Button(action: {
-                    showingDeleteAlert = true
-                }) {
-                    Image(systemName: "trash")
-                        .foregroundColor(.wcagSecondaryText)
-                }
-                .buttonStyle(.plain)
-                .help("Delete Note")
+                    .help("Close this window; the note stays in the app")
+                    .accessibilityLabel("Stop floating this note")
+                } else {
+                    // Actions used now and then, in one menu so the header leaves room for the title
+                    Menu {
+                        Button(action: { FloatingNotePanel.present(note: note) }) {
+                            Label(floatTick >= 0 && FloatingNotePanel.isFloating(note.id) ? "Show Floating Window" : "Float Note",
+                                  systemImage: "pip.enter")
+                        }
+                        if let path = note.filePath {
+                            Button(action: { NSWorkspace.shared.activateFileViewerSelecting([path]) }) {
+                                Label("Reveal in Finder", systemImage: "folder")
+                            }
+                        }
+                        Divider()
+                        Button(role: .destructive, action: { showingDeleteAlert = true }) {
+                            Label("Delete Note…", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundColor(.wcagSecondaryText)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .help("More: Float Note, Reveal in Finder, Delete Note")
+                    .accessibilityLabel("More actions")
+                    .accessibilityIdentifier("noteMoreMenu")
                 }
             }
             .padding(.horizontal, 16)
@@ -549,6 +551,7 @@ public struct NoteDetailEditorView: View {
 
     /// Shows the cursor where it was left in this note when it opens, without moving the keyboard to it
     private func showRememberedCursor() {
+        CursorMark.hide()
         guard !isFloating, EditorFocus.pending?.noteID != note.id, editorMode != .preview,
               let offset = settings.cursorOffset(for: note.id) else { return }
         // Wait a beat: the text is loaded into the view just after the note changes
