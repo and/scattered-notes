@@ -10,10 +10,8 @@ import com.scatterednotes.core.AgendaItem
 import com.scatterednotes.core.CategoryType
 import com.scatterednotes.core.Note
 import com.scatterednotes.core.ProjectArea
-import com.scatterednotes.storage.LocalFolder
-import com.scatterednotes.storage.NoteFolder
+import com.scatterednotes.storage.AppFolder
 import com.scatterednotes.storage.NoteStore
-import com.scatterednotes.storage.TreeFolder
 import com.scatterednotes.update.Updater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,7 +19,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.io.File
 import java.util.UUID
 
 /** Everything the screens show, read from the store after each change. */
@@ -38,7 +35,7 @@ data class NotesState(
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppViewModel(application: Application) : AndroidViewModel(application) {
-    private val prefs = application.getSharedPreferences("settings", Context.MODE_PRIVATE)
+    private val prefs = application.getSharedPreferences(AppFolder.PREFS, Context.MODE_PRIVATE)
     private val io = Dispatchers.IO.limitedParallelism(1)
     private lateinit var store: NoteStore
 
@@ -59,18 +56,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private fun pickedTree(): Uri? = prefs.getString(KEY_TREE, null)?.let(Uri::parse)
 
     private fun openFolder() {
-        val app = getApplication<Application>()
-        val tree = pickedTree()?.takeIf { uri ->
-            // The permission is gone if the user revoked it or the folder's app was removed
-            app.contentResolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }
-        }
-        val root: NoteFolder = if (tree != null) {
-            _folderName.value = Uri.decode(tree.lastPathSegment ?: "").substringAfterLast(':').substringAfterLast('/')
-            TreeFolder.root(app.contentResolver, tree)
-        } else {
-            _folderName.value = null
-            LocalFolder(File(app.filesDir, "ScatteredNotes"))
-        }
+        val (root, name) = AppFolder.open(getApplication())
+        _folderName.value = name
         store = NoteStore(root)
         reload()
     }
@@ -126,6 +113,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private companion object {
-        const val KEY_TREE = "notesFolderTree"
+        const val KEY_TREE = AppFolder.KEY_TREE
     }
 }

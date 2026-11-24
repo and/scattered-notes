@@ -29,6 +29,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.scatterednotes.notify.MorningReminder
 import com.scatterednotes.update.Updater
 import java.util.UUID
 
@@ -47,16 +49,24 @@ class MainActivity : ComponentActivity() {
     private val model: AppViewModel by viewModels()
     /** Text shared from another app, shown in Quick Capture */
     private val sharedText = mutableStateOf<String?>(null)
+    /** Goes up each time a tapped morning summary asks for the Dashboard */
+    private val dashboardRequests = mutableStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         sharedText.value = intent.sharedText()
+        if (intent.opensDashboard()) dashboardRequests.value++
         if (intent.action == Updater.ACTION_INSTALL_STATUS) model.updater.onInstallStatus(intent)
         model.updater.checkIfDue()
+        // Sets the morning summary's alarm again, in case Android dropped it
+        MorningReminder.schedule(this)
         setContent {
             AppTheme {
-                ScatteredNotesApp(model, sharedText.value, onSharedTextUsed = { sharedText.value = null })
+                ScatteredNotesApp(
+                    model, sharedText.value, onSharedTextUsed = { sharedText.value = null },
+                    dashboardRequests = dashboardRequests.value,
+                )
             }
         }
     }
@@ -67,8 +77,11 @@ class MainActivity : ComponentActivity() {
             model.updater.onInstallStatus(intent)
             return
         }
+        if (intent.opensDashboard()) dashboardRequests.value++
         sharedText.value = intent.sharedText()
     }
+
+    private fun Intent.opensDashboard() = getBooleanExtra(MorningReminder.EXTRA_OPEN_DASHBOARD, false)
 
     private fun Intent.sharedText(): String? =
         if (action == Intent.ACTION_SEND) getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() } else null
@@ -92,12 +105,20 @@ private enum class Tab(val title: String) { DASHBOARD("Dashboard"), NOTES("Notes
 private const val NEW_NOTE = "new"
 
 @Composable
-fun ScatteredNotesApp(model: AppViewModel, sharedText: String?, onSharedTextUsed: () -> Unit) {
+fun ScatteredNotesApp(model: AppViewModel, sharedText: String?, onSharedTextUsed: () -> Unit, dashboardRequests: Int = 0) {
     val state by model.state.collectAsState()
     val folderName by model.folderName.collectAsState()
     var tab by rememberSaveable { mutableStateOf(Tab.DASHBOARD) }
     var openNote by rememberSaveable { mutableStateOf<String?>(null) }
     var capturing by rememberSaveable { mutableStateOf(false) }
+
+    // A tapped morning summary shows the Dashboard
+    LaunchedEffect(dashboardRequests) {
+        if (dashboardRequests > 0) {
+            openNote = null
+            tab = Tab.DASHBOARD
+        }
+    }
 
     // No folder watcher on Android: pick up edits made on other devices whenever the app comes back
     val lifecycle = LocalLifecycleOwner.current.lifecycle

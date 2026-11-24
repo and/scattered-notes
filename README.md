@@ -94,6 +94,7 @@ To build it from source instead, install the .NET 10 SDK (`curl -sSL https://dot
 - Four parts: the **Dashboard** (tick to-dos, tap an item to open its note), **Notes** (search, edit, swipe to delete), **Quick Capture** (the pencil on the Dashboard) and **Settings**.
 - If the iPhone is signed in to iCloud, notes are kept in **iCloud Drive → Scattered Notes**, the same folder the Mac app uses, and changes from your Mac show up as they sync.
 - Otherwise, or after **Settings → Use Folder on This iPhone**, notes are saved on the device and show up in the Files app under **Scattered Notes**. **Settings → Choose Folder…** picks any other folder in Files. Picked folders reload when you switch back to the app, and you can pull down to refresh.
+- **Morning summary:** turn on **Settings → Notifications → Morning Summary** and pick a time (8:00 to begin with). Each morning one notification lists what is planned that day and how many to-dos are overdue; tap it to open the Dashboard. Nothing is sent on a day with nothing planned. The summary is prepared when you leave the app and refreshed in the background when iOS allows, so a tick made on the Mac just before may not be counted yet.
 
 ### Android (preview)
 
@@ -105,6 +106,7 @@ To build it from source instead, install the .NET 10 SDK (`curl -sSL https://dot
 - The same four parts as on iPhone. Text shared from another app (**Share → Scattered Notes**) opens Quick Capture.
 - Notes are saved inside the app. To share them with a computer, choose **Settings → Choose Folder…** and pick a folder a sync app (for example Syncthing, Dropbox or OneDrive) keeps in step with your computer's notes folder.
 - The app reloads when you switch back to it, and you can pull down to refresh.
+- **Morning summary:** turn on **Settings → Morning summary**, allow notifications, and pick a time. The summary is worked out from the notes at that moment. On Android 14 and later, tap **Allow Exact Time** once, or Android may send it up to an hour late. Repeating to-dos (`🔁`) count as one plain to-do on Android for now.
 
 ---
 
