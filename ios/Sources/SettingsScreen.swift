@@ -6,6 +6,20 @@ struct SettingsScreen: View {
     @State private var isPicking = false
     @State private var pickFailed = false
     @State private var iCloudFailed = false
+    @AppStorage(MorningReminder.enabledKey) private var morningSummary = false
+    @AppStorage(MorningReminder.timeKey) private var morningMinutes = MorningReminder.defaultMinutes
+    @State private var notificationsDenied = false
+    @Environment(\.openURL) private var openURL
+
+    /// The summary's time as a date today, for the time picker
+    private var morningTime: Binding<Date> {
+        Binding(
+            get: { Calendar.current.date(byAdding: .minute, value: morningMinutes, to: Calendar.current.startOfDay(for: Date())) ?? Date() },
+            set: { date in
+                let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+                morningMinutes = (parts.hour ?? 8) * 60 + (parts.minute ?? 0)
+            })
+    }
 
     private var kind: NotesFolder.Kind { NotesFolder.kind(of: settings.notesDirectoryURL) }
 
@@ -35,6 +49,37 @@ struct SettingsScreen: View {
                     Text("Notes Folder")
                 } footer: {
                     Text("iCloud Drive keeps your notes in sync with the Mac app when it also uses iCloud Drive (Settings → Notes Folder → Use iCloud Drive on the Mac). Notes kept on this iPhone move into iCloud Drive when you switch. The folder on this iPhone appears in the Files app under Scattered Notes.")
+                }
+                Section {
+                    Toggle("Morning Summary", isOn: $morningSummary)
+                    if morningSummary {
+                        DatePicker("Time", selection: morningTime, displayedComponents: .hourAndMinute)
+                    }
+                    if notificationsDenied {
+                        Button("Allow Notifications in iOS Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                        }
+                    }
+                } header: {
+                    Text("Notifications")
+                } footer: {
+                    Text(notificationsDenied
+                         ? "Notifications for Scattered Notes are turned off in iOS Settings."
+                         : "One notification each morning with what is planned that day and how many to-dos are overdue. Tap it to open the Dashboard.")
+                }
+                .onChange(of: morningSummary) { _, on in
+                    Task {
+                        if on, !(await MorningReminder.requestPermission()) {
+                            notificationsDenied = true
+                            morningSummary = false
+                            return
+                        }
+                        notificationsDenied = false
+                        await MorningReminder.reschedule()
+                    }
+                }
+                .onChange(of: morningMinutes) { _, _ in
+                    Task { await MorningReminder.reschedule() }
                 }
                 Section {
                     let storage = NoteStorageManager.shared

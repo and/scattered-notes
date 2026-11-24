@@ -63,6 +63,7 @@
 		91CC8C7807E009F0F7117C57 /* NoteLinksTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 752DE5E2829669EACA4B7918 /* NoteLinksTests.swift */; };
 		98C28C0071E306E596B2EFB0 /* NoteStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11EC9B7FA9D2423F85EB0963 /* NoteStorageManager.swift */; };
 		9E4020ED4DA4596E8D77CA4F /* Recurrence.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1BBF00EC5AA0B84AEF0885A /* Recurrence.swift */; };
+		A94E137F453DB04D46028554 /* MorningSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3650F51B0E9DFE18E793E455 /* MorningSummaryTests.swift */; };
 		AC0925FDF0A97BBCFBEE193D /* MacAppUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5283A7789DA4C9AC39073019 /* MacAppUITests.swift */; };
 		AD0C8B29D4836998C342AAAC /* NoteStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B34D2E0C09DC2BD854A8F38 /* NoteStorageTests.swift */; };
 		AFE6F5422907DD8B4123A3E6 /* FolderWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 629987ADBA93F4FD3F142AEC /* FolderWatcher.swift */; };
@@ -79,6 +80,7 @@
 		D2009F65079FAFFE30ABC90E /* SuggestedNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 447ADB681941C88A36E68380 /* SuggestedNotes.swift */; };
 		D74320944DAC68EB643B94CB /* HotKeyShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C433EEA1D6AD573F06C1EF /* HotKeyShortcutTests.swift */; };
 		D8D237A04D13BF8DE6792BFE /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = B889F6C7CEFC77B495D6B9EF /* Note.swift */; };
+		D91DD70A6EC1B6C00B5CB7BC /* MorningSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = A041AE20A9B0AF8D26DA6B5D /* MorningSummary.swift */; };
 		D9FA9D3047CD93260DFE3E26 /* NoteLinksPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0A3E44B46D9520DE3ADB62 /* NoteLinksPanel.swift */; };
 		DCC456ACEF5B007711A297CF /* ICloudFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF0519FCCC948608D85411EA /* ICloudFolder.swift */; };
 		DF9B73C808CF70126D7B9F72 /* GoToTargetsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E1F87265BFD4EA2FC02BF7 /* GoToTargetsTests.swift */; };
@@ -132,6 +134,7 @@
 		34B14D0E8F2DBAA7519142E2 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		358ABA585A6F6C2E56A0D9FF /* QuickCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCaptureView.swift; sourceTree = "<group>"; };
 		35C9C84AAE74683C89150102 /* ScatteredNotes.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScatteredNotes.entitlements; sourceTree = "<group>"; };
+		3650F51B0E9DFE18E793E455 /* MorningSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningSummaryTests.swift; sourceTree = "<group>"; };
 		374310DE4DD88F63CBA00541 /* LastPlace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPlace.swift; sourceTree = "<group>"; };
 		375C3ACDA9396302966FED59 /* WatcherAndCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatcherAndCacheTests.swift; sourceTree = "<group>"; };
 		3B12D3C8D1EE610F2BCD601B /* MentionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MentionsTests.swift; sourceTree = "<group>"; };
@@ -179,6 +182,7 @@
 		97843A3D2B3A3C64BE0C4BE1 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		9C2B8D90D03461408AC29DDD /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9F12A0D2E17C2710B8D65D87 /* EscapeToClose.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EscapeToClose.swift; sourceTree = "<group>"; };
+		A041AE20A9B0AF8D26DA6B5D /* MorningSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningSummary.swift; sourceTree = "<group>"; };
 		A25FEA7C15F954962E2FB9F9 /* SuggestionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionEngine.swift; sourceTree = "<group>"; };
 		A8AD7A8581F8543AFF58B236 /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
 		AEA0ADDFF3B60976746F1CA0 /* UpdateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateTests.swift; sourceTree = "<group>"; };
@@ -273,6 +277,7 @@
 				8414B67AA268B0882567B3CF /* LogNotes.swift */,
 				8E1FFEF5A7BA337A5A309572 /* Mentions.swift */,
 				25BE36F9F44B39E2B4A36736 /* MentionSuggestions.swift */,
+				A041AE20A9B0AF8D26DA6B5D /* MorningSummary.swift */,
 				C02A45CF1F1A2277EBA71592 /* NewNoteDraft.swift */,
 				B889F6C7CEFC77B495D6B9EF /* Note.swift */,
 				3B7D5D1FB4AD09E02D418F81 /* NoteBrowse.swift */,
@@ -321,6 +326,7 @@
 				1865BE45238895FAB5EE3D0E /* LogNotesTests.swift */,
 				3B12D3C8D1EE610F2BCD601B /* MentionsTests.swift */,
 				F0260760D9FD9012B9EABDE3 /* MentionSuggestionsTests.swift */,
+				3650F51B0E9DFE18E793E455 /* MorningSummaryTests.swift */,
 				C38B9F7A466F072C18EDA54C /* NewNoteDraftTests.swift */,
 				CA25345C59E7D67AFA4C2403 /* NoteBrowseTests.swift */,
 				435B83CDB4B5B48DC8BBD82A /* NoteDragTests.swift */,
@@ -611,6 +617,7 @@
 				288636FAFF8C01C5324E5174 /* MentionSuggestions.swift in Sources */,
 				F149166311926455470F93BC /* Mentions.swift in Sources */,
 				5C4963482F909A41C7279613 /* MenuBarView.swift in Sources */,
+				D91DD70A6EC1B6C00B5CB7BC /* MorningSummary.swift in Sources */,
 				46BA841BEA73FFD4D0BD209E /* NewNoteDraft.swift in Sources */,
 				D8D237A04D13BF8DE6792BFE /* Note.swift in Sources */,
 				0D18A46F30006C567BDA66DE /* NoteBrowse.swift in Sources */,
@@ -659,6 +666,7 @@
 				40CBCD53AA637C5BF2C3F396 /* LogNotesTests.swift in Sources */,
 				E6EEFBF03CB44B9FB83BA56C /* MentionSuggestionsTests.swift in Sources */,
 				78C4FC5DAC45F87BB5E09115 /* MentionsTests.swift in Sources */,
+				A94E137F453DB04D46028554 /* MorningSummaryTests.swift in Sources */,
 				72A93EFD96C6A2FB7AF61647 /* NewNoteDraftTests.swift in Sources */,
 				0701107498A0E9A9F2538D8B /* NoteBrowseTests.swift in Sources */,
 				11E541442BC18D7DFC24C08F /* NoteDragTests.swift in Sources */,

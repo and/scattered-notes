@@ -24,6 +24,7 @@
 		49DB0D1035128C08EE69DBED /* RelatedNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86491A3D4FC176BABD36DEDD /* RelatedNotes.swift */; };
 		4DDDDF31159C12D46CE55400 /* LogNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BDC9E9F3C99F76DF54CBF56 /* LogNotes.swift */; };
 		50F240A1AF5524E67951EDD0 /* Agenda.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38D1F8C22FD49142B075ACA2 /* Agenda.swift */; };
+		54B4C9F431072B0B8EFDC5DF /* MorningReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF23BAEB2D86921400FF6D5D /* MorningReminder.swift */; };
 		599F73DC43170C80F8B764DC /* SuggestedNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208ED455A3C9853BF9832D0C /* SuggestedNotes.swift */; };
 		65312DC70523B23D330BCC97 /* Recurrence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B80CF21B0537EA22E3737CC /* Recurrence.swift */; };
 		663027218553ED723DC19EB9 /* NoteBrowseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BEE37AA6586FD943046277B /* NoteBrowseTests.swift */; };
@@ -31,6 +32,7 @@
 		6E329076DCE158C7F51F6F3F /* LogTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B03FDB52ACFFD7EC8DCE1BC /* LogTextEditor.swift */; };
 		88BCA8038A38248B86AADE9E /* RecentNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 251BCB904C247312EF81E4D1 /* RecentNotes.swift */; };
 		8B100A4D2F6665C09BC5DA8C /* ICloudFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8285B8BE5487955A2B5E548B /* ICloudFolder.swift */; };
+		8DD134C4E3BDD9CDA018CEEA /* MorningSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E761825ADDDEF2B90F1B124F /* MorningSummaryTests.swift */; };
 		9926483CE2D20C8F353A0F50 /* NoteSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7125F8351E4EF3DC0D9E3F64 /* NoteSearch.swift */; };
 		9B2C982187472F6F5A9A83DD /* AgendaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E81A5377DB18C4501D70848 /* AgendaTests.swift */; };
 		9FEC4AD56952E9CFAA867379 /* DashboardSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA62809B661394D9C0392F8F /* DashboardSnapshot.swift */; };
@@ -41,6 +43,7 @@
 		E41F3496DE069AB93D131075 /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D350724D3BEAAD6AB4DAF94A /* SettingsScreen.swift */; };
 		E56394A6C47BC63F04C8BAF7 /* CaptureSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00607CE09769DEEC38D9E674 /* CaptureSheet.swift */; };
 		E961DC0D7C5FB2CF2ED8E560 /* DateChangeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90E5C0AB4E17A0616355D130 /* DateChangeLog.swift */; };
+		EF82F51FD8C0D401C3C9D743 /* MorningSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = D526AB48CB354CE7F8997E62 /* MorningSummary.swift */; };
 		F8D2A94B5FF4FDEED1B9C766 /* NoteSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 030A71887BC59380FF7E288C /* NoteSearchTests.swift */; };
 		F9938A3363EDDD3975A46480 /* NotesFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAAD37990ED2DB755A21061E /* NotesFolder.swift */; };
 /* End PBXBuildFile section */
@@ -95,12 +98,15 @@
 		A4551E550AC0B05CB8BD29E6 /* NoteBrowse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteBrowse.swift; sourceTree = "<group>"; };
 		A48EDA3AEFCC04F598564C06 /* RecurrenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurrenceTests.swift; sourceTree = "<group>"; };
 		A9099280E14BB102C0B47431 /* Note.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Note.swift; sourceTree = "<group>"; };
+		AF23BAEB2D86921400FF6D5D /* MorningReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningReminder.swift; sourceTree = "<group>"; };
 		BAA7461B99C41A9306C27AC3 /* ProjectArea.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectArea.swift; sourceTree = "<group>"; };
 		C6EDED702FE0E83543FD93B9 /* ScatteredNotesiOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScatteredNotesiOS.entitlements; sourceTree = "<group>"; };
 		D09D0274ECE07446135058B3 /* DateChange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateChange.swift; sourceTree = "<group>"; };
 		D350724D3BEAAD6AB4DAF94A /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
+		D526AB48CB354CE7F8997E62 /* MorningSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningSummary.swift; sourceTree = "<group>"; };
 		D7D6F72C7DD2523B55BC6BBC /* NoteStorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStorageManager.swift; sourceTree = "<group>"; };
 		DB180D93FF719ED656330C8D /* SuggestionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionEngine.swift; sourceTree = "<group>"; };
+		E761825ADDDEF2B90F1B124F /* MorningSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningSummaryTests.swift; sourceTree = "<group>"; };
 		EA62809B661394D9C0392F8F /* DashboardSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardSnapshot.swift; sourceTree = "<group>"; };
 		F89A6234F19D44FE0CBB5C54 /* NotesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesScreen.swift; sourceTree = "<group>"; };
 		FAAD37990ED2DB755A21061E /* NotesFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesFolder.swift; sourceTree = "<group>"; };
@@ -122,6 +128,7 @@
 				443A05514307FAB2A5C8299F /* DashboardScreen.swift */,
 				7EB04D875E7D58997C962F89 /* Info.plist */,
 				6B03FDB52ACFFD7EC8DCE1BC /* LogTextEditor.swift */,
+				AF23BAEB2D86921400FF6D5D /* MorningReminder.swift */,
 				5327CF0E0274516F4DB4628F /* NoteEditorScreen.swift */,
 				FAAD37990ED2DB755A21061E /* NotesFolder.swift */,
 				F89A6234F19D44FE0CBB5C54 /* NotesScreen.swift */,
@@ -155,6 +162,7 @@
 				3BDC9E9F3C99F76DF54CBF56 /* LogNotes.swift */,
 				137CF5D5728347FBF63F20E7 /* Mentions.swift */,
 				6AFAF0DA46305CCD13BA3299 /* MentionSuggestions.swift */,
+				D526AB48CB354CE7F8997E62 /* MorningSummary.swift */,
 				A9099280E14BB102C0B47431 /* Note.swift */,
 				A4551E550AC0B05CB8BD29E6 /* NoteBrowse.swift */,
 				237E5603C54C78C9B26AD019 /* NoteLinks.swift */,
@@ -203,6 +211,7 @@
 			isa = PBXGroup;
 			children = (
 				6E81A5377DB18C4501D70848 /* AgendaTests.swift */,
+				E761825ADDDEF2B90F1B124F /* MorningSummaryTests.swift */,
 				8BEE37AA6586FD943046277B /* NoteBrowseTests.swift */,
 				030A71887BC59380FF7E288C /* NoteSearchTests.swift */,
 				A48EDA3AEFCC04F598564C06 /* RecurrenceTests.swift */,
@@ -348,6 +357,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9B2C982187472F6F5A9A83DD /* AgendaTests.swift in Sources */,
+				8DD134C4E3BDD9CDA018CEEA /* MorningSummaryTests.swift in Sources */,
 				663027218553ED723DC19EB9 /* NoteBrowseTests.swift in Sources */,
 				F8D2A94B5FF4FDEED1B9C766 /* NoteSearchTests.swift in Sources */,
 				494D92D8A195DB53922263F7 /* RecurrenceTests.swift in Sources */,
@@ -372,6 +382,8 @@
 				6E329076DCE158C7F51F6F3F /* LogTextEditor.swift in Sources */,
 				4894ED19DE02E5DEFD461CAC /* MentionSuggestions.swift in Sources */,
 				B89E5C8DFAC59A2593D80A4D /* Mentions.swift in Sources */,
+				54B4C9F431072B0B8EFDC5DF /* MorningReminder.swift in Sources */,
+				EF82F51FD8C0D401C3C9D743 /* MorningSummary.swift in Sources */,
 				6D2DFAC4DE2D5C16B4E33D2D /* Note.swift in Sources */,
 				D435A6088E3CCD31A9903FC2 /* NoteBrowse.swift in Sources */,
 				2804231FC3DD5FF47E0B7538 /* NoteEditorScreen.swift in Sources */,
